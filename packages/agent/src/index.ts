@@ -12,6 +12,17 @@ async function main() {
     switch (msg.type) {
       case 'record:start': {
         console.log(`Starting recording: ${msg.payload.recordingId}`);
+        recorder.onAction((action) => {
+          ws.send({
+            type: 'record:action',
+            payload: {
+              action,
+              selector: action.name === 'navigate' ? '' : action.selector,
+              elementInfo: action.elementInfo,
+              timestamp: action.timestamp,
+            },
+          });
+        });
         await recorder.startRecording(msg.payload.targetUrl);
         break;
       }
