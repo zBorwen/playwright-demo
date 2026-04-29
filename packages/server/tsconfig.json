@@ -5,11 +5,10 @@
     "moduleResolution": "bundler",
     "strict": true,
     "skipLibCheck": true,
-    "outDir": "dist",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    "outDir": "dist"
   },
-  "include": ["src"]
+  "include": [
+    "src/**/*.ts",
+    "drizzle.config.ts"
+  ]
 }
