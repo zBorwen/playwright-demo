@@ -5,6 +5,7 @@ import type { Server } from 'http';
 import type { AgentMessage } from '@playwright-demo/shared';
 import { StorageService } from './services/storage.js';
 import { WsHandlers } from './ws-handlers.js';
+import { setContext } from './context.js';
 
 const port = parseInt(process.env.PORT || '3000');
 const storage = new StorageService();
@@ -17,11 +18,20 @@ const server = serve({
 console.log(`Server running on http://localhost:${port}`);
 
 const wsHandlers = new WsHandlers(storage);
+setContext(wsHandlers, storage);
+
 const wss = new WebSocketServer({ server: server as unknown as Server, path: '/ws' });
 
-wss.on('connection', (ws) => {
-  console.log('Agent connected');
-  wsHandlers.registerClient(ws);
+wss.on('connection', (ws, req) => {
+  const url = new URL(req.url || '', 'http://localhost');
+  const agentId = url.searchParams.get('agentId');
+
+  if (agentId) {
+    wsHandlers.registerAgent(agentId, ws);
+  } else {
+    wsHandlers.registerClient(ws);
+    console.log('Frontend client connected');
+  }
 
   ws.on('message', async (data) => {
     try {
@@ -47,13 +57,21 @@ wss.on('connection', (ws) => {
 
   ws.on('error', (err) => {
     console.error('WebSocket error:', err.message);
-    wsHandlers.unregisterClient(ws);
+    if (agentId) {
+      wsHandlers.unregisterAgent(ws);
+    } else {
+      wsHandlers.unregisterClient(ws);
+    }
     clearInterval(interval);
   });
 
   ws.on('close', () => {
     clearInterval(interval);
-    wsHandlers.unregisterClient(ws);
-    console.log('Agent disconnected');
+    if (agentId) {
+      wsHandlers.unregisterAgent(ws);
+    } else {
+      wsHandlers.unregisterClient(ws);
+    }
+    console.log(agentId ? `Agent ${agentId} disconnected` : 'Frontend client disconnected');
   });
 });
