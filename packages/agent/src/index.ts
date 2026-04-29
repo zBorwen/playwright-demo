@@ -42,7 +42,7 @@ async function main() {
       }
       case 'replay:start': {
         console.log(`Starting replay: ${msg.payload.recordingId}`);
-        const { actions } = msg.payload;
+        const { actions, harRef, mockRules } = msg.payload;
 
         const engine = new ReplayEngine();
         engine.onStep((index, status) => {
@@ -52,7 +52,11 @@ async function main() {
           ws.send({ type: 'replay:screenshot', payload: { stepIndex, path } });
         });
 
-        const result = await engine.replay(actions as any);
+        const result = await engine.replay(actions as any, {
+          harPath: harRef ? `./storage/${harRef}` : undefined,
+          mockRules: mockRules || [],
+          useMock: !!harRef || (mockRules && mockRules.length > 0),
+        });
         ws.send({
           type: 'replay:done',
           payload: {

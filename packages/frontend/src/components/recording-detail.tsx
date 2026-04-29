@@ -41,6 +41,7 @@ export function RecordingDetail() {
   const [activeTab, setActiveTab] = useState<Tab>('timeline');
   const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording'>('idle');
   const [replayStatus, setReplayStatus] = useState<'idle' | 'running' | 'passed' | 'failed'>('idle');
+  const [useMock, setUseMock] = useState(false);
 
   const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
     switch (msg.type) {
@@ -97,7 +98,7 @@ export function RecordingDetail() {
 
   const handleReplay = async () => {
     setReplayStatus('running');
-    await replayRecording(id!);
+    await replayRecording(id!, { useMock });
     const execs = await fetchExecutions(id!);
     setExecutions(execs);
   };
@@ -128,7 +129,16 @@ export function RecordingDetail() {
             <h1 className="text-2xl font-bold">{recording.title}</h1>
             <p className="text-sm text-zinc-400">{recording.targetUrl}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 text-sm text-zinc-400">
+              <input
+                type="checkbox"
+                checked={useMock}
+                onChange={(e) => setUseMock(e.target.checked)}
+                className="rounded border-zinc-600 bg-zinc-800"
+              />
+              Mock 模式
+            </label>
             {recordingStatus === 'idle' ? (
               <button
                 onClick={handleStartRecording}

@@ -114,6 +114,7 @@ recordingsRouter.post('/:id/stop', async (c) => {
 recordingsRouter.post('/:id/replay', async (c) => {
   const id = c.req.param('id');
   const agentId = c.req.query('agentId') || 'default';
+  const useMock = c.req.query('mock') === 'true';
 
   const artifact = await db
     .select()
@@ -141,7 +142,7 @@ recordingsRouter.post('/:id/replay', async (c) => {
     payload: {
       recordingId: id,
       actions: actionsData.actions || [],
-      harRef: '',
+      harRef: useMock ? `${id}.har` : '',
       mockRules: [],
     },
   });

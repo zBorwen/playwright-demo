@@ -90,8 +90,9 @@ export async function stopRecording(id: string): Promise<{ ok: boolean }> {
   return res.json();
 }
 
-export async function replayRecording(id: string): Promise<{ ok: boolean; executionId: string }> {
-  const res = await fetch(`${API_BASE}/recordings/${id}/replay`, { method: 'POST' });
+export async function replayRecording(id: string, options?: { useMock?: boolean }): Promise<{ ok: boolean; executionId: string }> {
+  const params = options?.useMock ? '?mock=true' : '';
+  const res = await fetch(`${API_BASE}/recordings/${id}/replay${params}`, { method: 'POST' });
   ensureOk(res);
   return res.json();
 }
