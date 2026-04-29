@@ -18,7 +18,7 @@ cd packages/server && pnpm test
 |---|---|---|
 | shared | 6 | Zod schema 验证 |
 | agent | 5 | Fingerprint JS 有效性 + HAR 解析 + MockRule 匹配 |
-| server | 4 | Health endpoint + Projects 路由 + StorageService |
+| server | 4 | Health endpoint + Projects 路由 CRUD + StorageService |
 
 ## 测试策略
 

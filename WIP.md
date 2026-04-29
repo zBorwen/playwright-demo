@@ -34,6 +34,8 @@
 
 ## 最近提交
 
+- `4f8b59d` docs: add deployment, testing, dev notes, and todo docs; expand server tests
+- `9272af9` docs: update WIP with latest commits
 - `28894db` docs: add README and WIP with current progress status
 - `b1eab1a` feat: wire up mock mode toggle for replay with server and agent support
 - `c0a7a16` feat: add HAR mock playback support to replay engine
