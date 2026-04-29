@@ -1,4 +1,7 @@
+import { useState, useCallback } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
+import { ProjectList } from '@/components/project-list';
+import { ProjectForm } from '@/components/project-form';
 
 export function App() {
   return (
@@ -33,10 +36,26 @@ function Home() {
 }
 
 function ProjectsPage() {
+  const [showForm, setShowForm] = useState(false);
+
+  const handleSuccess = useCallback(() => {
+    setShowForm(false);
+    window.location.reload();
+  }, []);
+
   return (
     <div>
-      <h1 className="text-2xl font-bold">项目列表</h1>
-      <p className="mt-2 text-zinc-400">加载中...</p>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">项目列表</h1>
+        <button
+          className="rounded bg-zinc-800 px-4 py-2 text-sm hover:bg-zinc-700"
+          onClick={() => setShowForm(true)}
+        >
+          + 新建项目
+        </button>
+      </div>
+      <ProjectList />
+      {showForm && <ProjectForm onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />}
     </div>
   );
 }
