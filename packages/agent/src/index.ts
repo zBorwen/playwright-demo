@@ -1,5 +1,6 @@
 import { WsClient } from './ws-client.js';
 import { RecorderManager } from './recorder-manager.js';
+import { ReplayEngine } from './replay-engine.js';
 
 const SERVER_URL = process.env.SERVER_URL || 'ws://localhost:3000/ws';
 const TOKEN = process.env.AGENT_TOKEN;
@@ -41,7 +42,27 @@ async function main() {
       }
       case 'replay:start': {
         console.log(`Starting replay: ${msg.payload.recordingId}`);
-        // TODO: implement replay engine
+        const { actions } = msg.payload;
+
+        const engine = new ReplayEngine();
+        engine.onStep((index, status) => {
+          ws.send({ type: 'replay:step', payload: { index, status } });
+        });
+        engine.onScreenshot((stepIndex, path) => {
+          ws.send({ type: 'replay:screenshot', payload: { stepIndex, path } });
+        });
+
+        const result = await engine.replay(actions as any);
+        ws.send({
+          type: 'replay:done',
+          payload: {
+            status: result.status,
+            trace: result.trace,
+            screenshot: result.screenshots.length > 0
+              ? result.screenshots[result.screenshots.length - 1].path
+              : undefined,
+          },
+        });
         break;
       }
     }
