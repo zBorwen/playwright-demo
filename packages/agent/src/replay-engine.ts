@@ -1,5 +1,6 @@
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
-import type { RecordingAction } from '@playwright-demo/shared';
+import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright-core';
+import type { RecordingAction, MockRule } from '@playwright-demo/shared';
+import { readFileSync, existsSync } from 'fs';
 
 export interface ReplayResult {
   status: 'passed' | 'failed';
@@ -8,6 +9,76 @@ export interface ReplayResult {
   error?: string;
   trace?: string;
   screenshots: { stepIndex: number; path: string }[];
+}
+
+interface HarEntry {
+  request: { url: string; method: string };
+  response: { status: number; content: { text: string; mimeType: string } };
+}
+
+interface HarFile {
+  log: {
+    entries: HarEntry[];
+  };
+}
+
+function loadHarEntries(harPath: string): HarEntry[] {
+  if (!existsSync(harPath)) return [];
+  try {
+    const content = JSON.parse(readFileSync(harPath, 'utf-8')) as HarFile;
+    return content.log.entries;
+  } catch {
+    return [];
+  }
+}
+
+function matchRule(url: string, rules: MockRule[]): MockRule | undefined {
+  return rules.find((r) => {
+    if (!r.enabled) return false;
+    const pattern = new RegExp(r.urlPattern);
+    return pattern.test(url);
+  });
+}
+
+async function handleMockRoute(route: Route, rules: MockRule[], harEntries: HarEntry[]): Promise<void> {
+  const request = route.request();
+  const url = request.url();
+
+  // Skip non-HTTP/HTTPS URLs
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    await route.continue();
+    return;
+  }
+
+  // Check mock rules first
+  const matchedRule = matchRule(url, rules);
+  if (matchedRule && matchedRule.responseBody) {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: matchedRule.responseBody,
+    });
+    return;
+  }
+
+  // Fall back to HAR entries
+  if (harEntries.length > 0) {
+    const matched = harEntries.find((entry) => {
+      const entryUrl = entry.request.url;
+      return entryUrl === url || entryUrl.includes(url.split('?')[0] || '');
+    });
+    if (matched) {
+      await route.fulfill({
+        status: matched.response.status,
+        contentType: matched.response.content.mimeType,
+        body: matched.response.content.text,
+      });
+      return;
+    }
+  }
+
+  // No match — continue real request
+  await route.continue();
 }
 
 export class ReplayEngine {
@@ -29,19 +100,32 @@ export class ReplayEngine {
     harPath?: string;
     headless?: boolean;
     screenshotDir?: string;
+    mockRules?: MockRule[];
+    useMock?: boolean;
   } = {}): Promise<ReplayResult> {
     this.screenshots = [];
 
-    const { headless = true, screenshotDir = './storage/screenshots' } = options;
+    const {
+      headless = true,
+      screenshotDir = './storage/screenshots',
+      harPath,
+      mockRules = [],
+      useMock = false,
+    } = options;
+
+    const harEntries = harPath && useMock ? loadHarEntries(harPath) : [];
 
     this.browser = await chromium.launch({ headless });
     try {
-      const contextOptions: { recordHar?: { path: string } } = {};
-      if (options.harPath) {
-        contextOptions.recordHar = { path: options.harPath };
-      }
-      this.context = await this.browser.newContext(contextOptions);
+      this.context = await this.browser.newContext();
       const page = await this.context.newPage();
+
+      // Set up mock/route interception if enabled
+      if (useMock) {
+        await page.route('**/*', async (route: Route) => {
+          await handleMockRoute(route, mockRules, harEntries);
+        });
+      }
 
       for (let i = 0; i < actions.length; i++) {
         const action = actions[i];
@@ -50,7 +134,6 @@ export class ReplayEngine {
           await this.executeAction(page, action);
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
-          // Auto-screenshot on failure
           const failPath = `${screenshotDir}/failure-step-${i}.png`;
           await page.screenshot({ path: failPath, fullPage: true });
           return {
@@ -63,7 +146,6 @@ export class ReplayEngine {
           };
         }
 
-        // Screenshot if action has screenshot flag
         if ((action as Record<string, unknown>).screenshot === true) {
           const path = `${screenshotDir}/step-${i}.png`;
           await page.screenshot({ path, fullPage: true });
@@ -73,7 +155,6 @@ export class ReplayEngine {
           }
         }
 
-        // Notify step progress
         if (this.onStepCallback) {
           this.onStepCallback(i, 'running');
         }
