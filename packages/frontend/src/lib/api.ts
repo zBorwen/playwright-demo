@@ -68,6 +68,16 @@ export async function fetchRecordingActions(id: string): Promise<{ actions: Acti
   return res.json();
 }
 
+export async function saveRecordingActions(id: string, actions: Action[]): Promise<{ ok: boolean }> {
+  const res = await fetch(`${API_BASE}/recordings/${id}/actions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ actions }),
+  });
+  ensureOk(res);
+  return res.json();
+}
+
 export async function startRecording(id: string): Promise<{ ok: boolean }> {
   const res = await fetch(`${API_BASE}/recordings/${id}/start`, { method: 'POST' });
   ensureOk(res);

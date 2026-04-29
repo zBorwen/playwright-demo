@@ -9,8 +9,10 @@ import {
   replayRecording,
   type Recording,
   type Execution,
+  type Action,
 } from '@/lib/api';
 import { useWebSocket } from '@/hooks/use-websocket';
+import { RecordingJsonEditor } from '@/components/recording-json-editor';
 
 const ACTION_ICONS: Record<string, string> = {
   click: '🖱️',
@@ -28,27 +30,23 @@ const ACTION_ICONS: Record<string, string> = {
   setInputFiles: '📁',
 };
 
-interface WsAction {
-  name: string;
-  selector?: string;
-  url?: string;
-  text?: string;
-}
+type Tab = 'timeline' | 'json' | 'executions';
 
 export function RecordingDetail() {
   const { id } = useParams<{ id: string }>();
   const [recording, setRecording] = useState<Recording | null>(null);
-  const [actions, setActions] = useState<WsAction[]>([]);
+  const [actions, setActions] = useState<Action[]>([]);
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<Tab>('timeline');
   const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording'>('idle');
   const [replayStatus, setReplayStatus] = useState<'idle' | 'running' | 'passed' | 'failed'>('idle');
 
   const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
     switch (msg.type) {
       case 'record:action': {
-        const payload = msg.payload as { action: { name: string; selector?: string } };
-        setActions((prev) => [...prev, { name: payload.action.name, selector: payload.action.selector }]);
+        const payload = msg.payload as { action: Action };
+        setActions((prev) => [...prev, payload.action]);
         break;
       }
       case 'record:complete': {
@@ -104,8 +102,21 @@ export function RecordingDetail() {
     setExecutions(execs);
   };
 
+  const handleJsonSave = async () => {
+    if (id) {
+      const acts = await fetchRecordingActions(id);
+      setActions(acts.actions || []);
+    }
+  };
+
   if (loading) return <div className="text-zinc-500">加载中...</div>;
   if (!recording) return <div className="text-zinc-500">录制不存在</div>;
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'timeline', label: '操作序列' },
+    { key: 'json', label: 'JSON 编辑' },
+    { key: 'executions', label: '执行历史' },
+  ];
 
   return (
     <div>
@@ -144,70 +155,105 @@ export function RecordingDetail() {
         </div>
       </div>
 
-      {/* Action Timeline */}
-      <div className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold">
-          操作序列 ({actions.length})
-          {recordingStatus === 'recording' && <span className="ml-2 text-sm text-red-400">录制中...</span>}
-        </h2>
-        <div className="space-y-1">
-          {actions.map((action, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm"
-            >
-              <span className="w-8 text-right text-zinc-500">{i + 1}</span>
-              <span className="text-lg">{ACTION_ICONS[action.name] || '❓'}</span>
-              <span className="font-medium capitalize">{action.name}</span>
-              {action.selector && <span className="text-zinc-400">{action.selector}</span>}
-              {action.url && <span className="text-zinc-400">{action.url}</span>}
-              {action.text && (
-                <span className="text-zinc-400">
-                  &quot;{action.text.slice(0, 30)}{action.text.length > 30 ? '...' : ''}&quot;
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
+      {/* Tabs */}
+      <div className="mb-4 flex gap-4 border-b border-zinc-800">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`border-b-2 px-3 py-2 text-sm transition ${
+              activeTab === tab.key
+                ? 'border-zinc-300 text-zinc-100'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            {tab.label}
+            {tab.key === 'timeline' && (
+              <span className="ml-1 text-xs text-zinc-500">({actions.length})</span>
+            )}
+            {tab.key === 'executions' && (
+              <span className="ml-1 text-xs text-zinc-500">({executions.length})</span>
+            )}
+          </button>
+        ))}
       </div>
 
-      {/* Execution History */}
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">执行历史</h2>
-        {executions.length === 0 ? (
-          <p className="text-zinc-500">暂无执行记录</p>
-        ) : (
-          <div className="space-y-2">
-            {executions.map((ex) => (
-              <Link
-                key={ex.id}
-                to={`/executions/${ex.id}`}
-                className="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm transition hover:border-zinc-600"
+      {/* Tab Content */}
+      {activeTab === 'timeline' && (
+        <div className="space-y-1">
+          {actions.length === 0 ? (
+            <p className="py-8 text-center text-zinc-500">暂无操作</p>
+          ) : (
+            actions.map((action, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm"
               >
-                <span
-                  className={`rounded px-2 py-0.5 text-xs font-medium ${
-                    ex.status === 'passed'
-                      ? 'bg-green-900 text-green-300'
-                      : ex.status === 'failed'
-                        ? 'bg-red-900 text-red-300'
-                        : 'bg-yellow-900 text-yellow-300'
-                  }`}
-                >
-                  {ex.status}
-                </span>
-                <span className="text-zinc-400">
-                  {new Date(ex.startedAt).toLocaleString()}
-                </span>
-                {ex.finishedAt && (
-                  <span className="text-zinc-500">
-                    → {new Date(ex.finishedAt).toLocaleTimeString()}
+                <span className="w-8 text-right text-zinc-500">{i + 1}</span>
+                <span className="text-lg">{ACTION_ICONS[action.name] || '❓'}</span>
+                <span className="font-medium capitalize">{action.name}</span>
+                {'selector' in action && (action as any).selector && (
+                  <span className="text-zinc-400">{(action as any).selector}</span>
+                )}
+                {'url' in action && (action as any).url && (
+                  <span className="text-zinc-400">{(action as any).url}</span>
+                )}
+                {'text' in action && (action as any).text && (
+                  <span className="text-zinc-400">
+                    &quot;{(action as any).text.slice(0, 30)}{(action as any).text.length > 30 ? '...' : ''}&quot;
                   </span>
                 )}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'json' && (
+        <RecordingJsonEditor
+          recordingId={id!}
+          actions={actions}
+          onSave={handleJsonSave}
+        />
+      )}
+
+      {activeTab === 'executions' && (
+        <div>
+          {executions.length === 0 ? (
+            <p className="text-zinc-500">暂无执行记录</p>
+          ) : (
+            <div className="space-y-2">
+              {executions.map((ex) => (
+                <Link
+                  key={ex.id}
+                  to={`/executions/${ex.id}`}
+                  className="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm transition hover:border-zinc-600"
+                >
+                  <span
+                    className={`rounded px-2 py-0.5 text-xs font-medium ${
+                      ex.status === 'passed'
+                        ? 'bg-green-900 text-green-300'
+                        : ex.status === 'failed'
+                          ? 'bg-red-900 text-red-300'
+                          : 'bg-yellow-900 text-yellow-300'
+                    }`}
+                  >
+                    {ex.status}
+                  </span>
+                  <span className="text-zinc-400">
+                    {new Date(ex.startedAt).toLocaleString()}
+                  </span>
+                  {ex.finishedAt && (
+                    <span className="text-zinc-500">
+                      → {new Date(ex.finishedAt).toLocaleTimeString()}
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
