@@ -45,3 +45,55 @@ export async function fetchRecordings(projectId?: string): Promise<Recording[]> 
   ensureOk(res);
   return res.json() as Promise<Recording[]>;
 }
+
+export async function fetchRecording(id: string): Promise<Recording> {
+  const res = await fetch(`${API_BASE}/recordings/${id}`);
+  ensureOk(res);
+  return res.json() as Promise<Recording>;
+}
+
+export async function fetchRecordingActions(id: string): Promise<{ actions: Action[] }> {
+  const res = await fetch(`${API_BASE}/recordings/${id}/actions`);
+  ensureOk(res);
+  return res.json();
+}
+
+export async function startRecording(id: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`${API_BASE}/recordings/${id}/start`, { method: 'POST' });
+  ensureOk(res);
+  return res.json();
+}
+
+export async function stopRecording(id: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`${API_BASE}/recordings/${id}/stop`, { method: 'POST' });
+  ensureOk(res);
+  return res.json();
+}
+
+export async function replayRecording(id: string): Promise<{ ok: boolean; executionId: string }> {
+  const res = await fetch(`${API_BASE}/recordings/${id}/replay`, { method: 'POST' });
+  ensureOk(res);
+  return res.json();
+}
+
+export interface Action {
+  name: string;
+  selector?: string;
+  url?: string;
+  text?: string;
+}
+
+export interface Execution {
+  id: string;
+  recordingId: string;
+  status: 'running' | 'passed' | 'failed';
+  startedAt: string;
+  finishedAt?: string;
+  error?: string;
+}
+
+export async function fetchExecutions(recordingId: string): Promise<Execution[]> {
+  const res = await fetch(`${API_BASE}/executions?recordingId=${recordingId}`);
+  ensureOk(res);
+  return res.json() as Promise<Execution[]>;
+}

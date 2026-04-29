@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 import { ProjectList } from '@/components/project-list';
 import { ProjectForm } from '@/components/project-form';
+import { RecordingDetail } from '@/components/recording-detail';
 
 export function App() {
   return (
@@ -20,6 +21,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/recordings/:id" element={<RecordingDetail />} />
         </Routes>
       </main>
     </div>
