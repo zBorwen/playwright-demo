@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { createProject } from '@/lib/api';
 
 interface ProjectFormProps {
@@ -10,26 +10,43 @@ export function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setSubmitting(true);
-    setErr(null);
+    setError(null);
     try {
       await createProject({ name: name.trim(), description: description.trim() || undefined });
       onSuccess();
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : '创建失败');
+      setError(e instanceof Error ? e.message : '创建失败');
     } finally {
       setSubmitting(false);
     }
   }
 
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !submitting) onCancel();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onCancel, submitting]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-full max-w-md rounded-lg border border-zinc-700 bg-zinc-900 p-6">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="新建项目"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      onClick={() => !submitting && onCancel()}
+    >
+      <div
+        className="w-full max-w-md rounded-lg border border-zinc-700 bg-zinc-900 p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="mb-4 text-lg font-semibold">新建项目</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -60,7 +77,7 @@ export function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
               rows={3}
             />
           </div>
-          {err && <p className="text-sm text-red-400">{err}</p>}
+          {error && <p className="text-sm text-red-400">{error}</p>}
           <div className="flex justify-end gap-3">
             <button
               type="button"

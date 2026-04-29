@@ -37,10 +37,11 @@ function Home() {
 
 function ProjectsPage() {
   const [showForm, setShowForm] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const handleSuccess = useCallback(() => {
     setShowForm(false);
-    window.location.reload();
+    setReloadKey((k) => k + 1);
   }, []);
 
   return (
@@ -54,7 +55,7 @@ function ProjectsPage() {
           + 新建项目
         </button>
       </div>
-      <ProjectList />
+      <ProjectList reloadKey={reloadKey} />
       {showForm && <ProjectForm onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />}
     </div>
   );
