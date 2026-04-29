@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   fetchRecording,
@@ -10,6 +10,7 @@ import {
   type Recording,
   type Execution,
 } from '@/lib/api';
+import { useWebSocket } from '@/hooks/use-websocket';
 
 const ACTION_ICONS: Record<string, string> = {
   click: '🖱️',
@@ -27,13 +28,48 @@ const ACTION_ICONS: Record<string, string> = {
   setInputFiles: '📁',
 };
 
+interface WsAction {
+  name: string;
+  selector?: string;
+  url?: string;
+  text?: string;
+}
+
 export function RecordingDetail() {
   const { id } = useParams<{ id: string }>();
   const [recording, setRecording] = useState<Recording | null>(null);
-  const [actions, setActions] = useState<{ name: string; selector?: string; url?: string; text?: string }[]>([]);
+  const [actions, setActions] = useState<WsAction[]>([]);
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
   const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording'>('idle');
+  const [replayStatus, setReplayStatus] = useState<'idle' | 'running' | 'passed' | 'failed'>('idle');
+
+  const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
+    switch (msg.type) {
+      case 'record:action': {
+        const payload = msg.payload as { action: { name: string; selector?: string } };
+        setActions((prev) => [...prev, { name: payload.action.name, selector: payload.action.selector }]);
+        break;
+      }
+      case 'record:complete': {
+        setRecordingStatus('idle');
+        if (id) fetchRecordingActions(id).then((a) => setActions(a.actions || []));
+        break;
+      }
+      case 'replay:step': {
+        setReplayStatus('running');
+        break;
+      }
+      case 'replay:done': {
+        const payload = msg.payload as { status: 'passed' | 'failed' };
+        setReplayStatus(payload.status);
+        if (id) fetchExecutions(id).then((e) => setExecutions(e));
+        break;
+      }
+    }
+  }, [id]);
+
+  useWebSocket(handleWsMessage);
 
   useEffect(() => {
     if (!id) return;
@@ -49,9 +85,6 @@ export function RecordingDetail() {
     });
   }, [id]);
 
-  if (loading) return <div className="text-zinc-500">加载中...</div>;
-  if (!recording) return <div className="text-zinc-500">录制不存在</div>;
-
   const handleStartRecording = async () => {
     await startRecording(id!);
     setRecordingStatus('recording');
@@ -65,10 +98,14 @@ export function RecordingDetail() {
   };
 
   const handleReplay = async () => {
+    setReplayStatus('running');
     await replayRecording(id!);
     const execs = await fetchExecutions(id!);
     setExecutions(execs);
   };
+
+  if (loading) return <div className="text-zinc-500">加载中...</div>;
+  if (!recording) return <div className="text-zinc-500">录制不存在</div>;
 
   return (
     <div>
@@ -98,9 +135,10 @@ export function RecordingDetail() {
             )}
             <button
               onClick={handleReplay}
-              className="rounded bg-green-900 px-4 py-2 text-sm hover:bg-green-800"
+              disabled={replayStatus === 'running'}
+              className="rounded bg-green-900 px-4 py-2 text-sm hover:bg-green-800 disabled:opacity-50"
             >
-              ▶ 回放
+              {replayStatus === 'running' ? '⏳ 回放中...' : replayStatus === 'passed' ? '✅ 通过' : replayStatus === 'failed' ? '❌ 失败' : '▶ 回放'}
             </button>
           </div>
         </div>
@@ -108,7 +146,10 @@ export function RecordingDetail() {
 
       {/* Action Timeline */}
       <div className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold">操作序列 ({actions.length})</h2>
+        <h2 className="mb-3 text-lg font-semibold">
+          操作序列 ({actions.length})
+          {recordingStatus === 'recording' && <span className="ml-2 text-sm text-red-400">录制中...</span>}
+        </h2>
         <div className="space-y-1">
           {actions.map((action, i) => (
             <div
