@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { createProject } from '@/lib/api';
+import { useAppStore } from '@/store/app-store';
 
 interface ProjectFormProps {
   onSuccess: () => void;
@@ -7,6 +8,7 @@ interface ProjectFormProps {
 }
 
 export function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
+  const { addProject } = useAppStore();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -18,7 +20,8 @@ export function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
     setSubmitting(true);
     setError(null);
     try {
-      await createProject({ name: name.trim(), description: description.trim() || undefined });
+      const project = await createProject({ name: name.trim(), description: description.trim() || undefined });
+      addProject(project);
       onSuccess();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : '创建失败');
