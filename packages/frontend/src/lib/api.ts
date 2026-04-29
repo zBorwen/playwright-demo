@@ -37,6 +37,16 @@ export async function createProject(data: { name: string; description?: string }
   return res.json() as Promise<Project>;
 }
 
+export async function createRecording(data: { projectId: string; title: string; targetUrl?: string }): Promise<Recording> {
+  const res = await fetch(`${API_BASE}/recordings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  ensureOk(res);
+  return res.json() as Promise<Recording>;
+}
+
 export async function fetchRecordings(projectId?: string): Promise<Recording[]> {
   const url = projectId
     ? `${API_BASE}/recordings?projectId=${projectId}`

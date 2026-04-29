@@ -1,10 +1,15 @@
 import { useState, useCallback } from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Link, useParams } from 'react-router-dom';
 import { ProjectList } from '@/components/project-list';
 import { ProjectForm } from '@/components/project-form';
+import { ProjectDetail } from '@/components/project-detail';
+import { RecordingsList } from '@/components/recordings-list';
 import { RecordingDetail } from '@/components/recording-detail';
+import { useWebSocket } from '@/hooks/use-websocket';
 
 export function App() {
+  useWebSocket();
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 px-6 py-4">
@@ -21,6 +26,8 @@ export function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:id" element={<ProjectDetail />} />
+          <Route path="/projects/:projectId/recordings" element={<RecordingsPage />} />
           <Route path="/recordings/:id" element={<RecordingDetail />} />
         </Routes>
       </main>
@@ -59,6 +66,21 @@ function ProjectsPage() {
       </div>
       <ProjectList reloadKey={reloadKey} />
       {showForm && <ProjectForm onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />}
+    </div>
+  );
+}
+
+function RecordingsPage() {
+  const { projectId } = useParams<{ projectId: string }>();
+  return (
+    <div>
+      <div className="mb-6">
+        <Link to={`/projects/${projectId}`} className="text-sm text-zinc-400 hover:text-zinc-200">
+          ← 返回项目
+        </Link>
+        <h1 className="mt-2 text-2xl font-bold">录制列表</h1>
+      </div>
+      <RecordingsList projectId={projectId} />
     </div>
   );
 }
