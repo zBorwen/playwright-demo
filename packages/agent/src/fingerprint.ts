@@ -19,7 +19,7 @@ export interface ElementFingerprint {
   isVisible: boolean;
 }
 
-const FINGERPRINT_JS = `
+export const FINGERPRINT_JS = `
 (() => {
   const el = __TARGET_ELEMENT__;
 
@@ -83,17 +83,16 @@ export async function captureFingerprint(page: Page, selector: string): Promise<
     const element = await page.$(selector);
     if (!element) return null;
 
-    const evalScript = FINGERPRINT_JS.replace('__TARGET_ELEMENT__', 'element');
-    const result = await element.evaluate((el) => {
-      const fn = new Function(
-        'element',
-        `(${evalScript})`
-      );
-      return fn(el);
-    });
+    const evalScript = FINGERPRINT_JS.replace('__TARGET_ELEMENT__', 'this');
+    const result = await element.evaluate(evalScript);
 
-    return JSON.parse(result as string) as ElementFingerprint;
-  } catch {
+    if (typeof result !== 'string') {
+      console.warn('Fingerprint evaluation returned non-string');
+      return null;
+    }
+    return JSON.parse(result) as ElementFingerprint;
+  } catch (err) {
+    console.warn('Failed to capture fingerprint:', err);
     return null;
   }
 }
