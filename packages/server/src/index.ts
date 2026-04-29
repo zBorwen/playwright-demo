@@ -25,7 +25,12 @@ wss.on('connection', (ws) => {
 
   ws.on('message', async (data) => {
     try {
-      const msg = JSON.parse(data.toString()) as AgentMessage;
+      const parsed = JSON.parse(data.toString());
+      if (!parsed || typeof parsed.type !== 'string') {
+        console.error('Invalid message: missing type field');
+        return;
+      }
+      const msg = parsed as AgentMessage;
       await wsHandlers.handleAgentMessage(ws, msg);
     } catch (e) {
       console.error('Invalid message:', e);
@@ -39,6 +44,12 @@ wss.on('connection', (ws) => {
       clearInterval(interval);
     }
   }, 30_000);
+
+  ws.on('error', (err) => {
+    console.error('WebSocket error:', err.message);
+    wsHandlers.unregisterClient(ws);
+    clearInterval(interval);
+  });
 
   ws.on('close', () => {
     clearInterval(interval);

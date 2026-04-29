@@ -21,48 +21,45 @@ export class WsHandlers {
       }
 
       case 'record:complete': {
-        const { recordingId, actions, harPath } = msg.payload;
+        const { recordingId, actions } = msg.payload;
 
-        // Update recording timestamp in DB
-        await db
-          .update(recordings)
-          .set({ updatedAt: new Date() })
-          .where(eq(recordings.id, recordingId));
+        try {
+          // Update recording timestamp in DB
+          await db
+            .update(recordings)
+            .set({ updatedAt: new Date() })
+            .where(eq(recordings.id, recordingId));
 
-        // Save actions artifact
-        await db.insert(recordingArtifacts).values({
-          recordingId,
-          type: 'actions',
-          content: JSON.stringify(actions),
-        });
-
-        // Save recording JSON to local storage
-        const recording = await db.query.recordings.findFirst({
-          where: eq(recordings.id, recordingId),
-        });
-
-        if (recording) {
-          await this.storage.saveRecording(recordingId, {
+          // Save actions artifact
+          await db.insert(recordingArtifacts).values({
             recordingId,
-            targetUrl: recording.targetUrl ?? '',
-            title: recording.title,
-            actions,
+            type: 'actions',
+            content: JSON.stringify(actions),
           });
-        }
 
-        // Save HAR if available
-        if (harPath) {
-          try {
-            const harBuffer = await this.storage.loadHar(recordingId);
-            if (harBuffer) {
-              await this.storage.saveHar(recordingId, harBuffer);
-            }
-          } catch {
-            // HAR may not exist, skip silently
+          // Save recording JSON to local storage
+          const recording = await db.query.recordings.findFirst({
+            where: eq(recordings.id, recordingId),
+          });
+
+          if (recording) {
+            await this.storage.saveRecording(recordingId, {
+              recordingId,
+              targetUrl: recording.targetUrl ?? '',
+              title: recording.title,
+              actions,
+            });
+          }
+
+          // TODO: Save HAR when agent writes it directly, storage can load by recordingId
+          this.broadcastToClients(JSON.stringify(msg));
+        } catch (err) {
+          console.error('Failed to save recording:', err);
+          const wsAny = ws as unknown as { readyState: number; send: (data: string) => void };
+          if (wsAny.readyState === 1) {
+            wsAny.send(JSON.stringify({ type: 'error', payload: { message: 'Failed to save recording' } }));
           }
         }
-
-        this.broadcastToClients(JSON.stringify(msg));
         break;
       }
 
