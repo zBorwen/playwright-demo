@@ -112,6 +112,20 @@ export interface Execution {
   error?: string;
 }
 
+export interface ExecutionArtifact {
+  id: string;
+  executionId: string;
+  type: 'screenshot' | 'har';
+  path: string;
+  stepIndex?: number;
+}
+
+export async function fetchExecutionArtifacts(id: string): Promise<ExecutionArtifact[]> {
+  const res = await fetch(`${API_BASE}/executions/${id}/artifacts`);
+  ensureOk(res);
+  return res.json() as Promise<ExecutionArtifact[]>;
+}
+
 export async function fetchExecutions(recordingId: string): Promise<Execution[]> {
   const res = await fetch(`${API_BASE}/executions?recordingId=${recordingId}`);
   ensureOk(res);
