@@ -107,3 +107,9 @@ export async function fetchExecutions(recordingId: string): Promise<Execution[]>
   ensureOk(res);
   return res.json() as Promise<Execution[]>;
 }
+
+export async function fetchExecution(id: string): Promise<Execution> {
+  const res = await fetch(`${API_BASE}/executions/${id}`);
+  ensureOk(res);
+  return res.json() as Promise<Execution>;
+}

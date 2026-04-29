@@ -5,6 +5,7 @@ import { ProjectForm } from '@/components/project-form';
 import { ProjectDetail } from '@/components/project-detail';
 import { RecordingsList } from '@/components/recordings-list';
 import { RecordingDetail } from '@/components/recording-detail';
+import { ExecutionDetail } from '@/components/execution-detail';
 import { useWebSocket } from '@/hooks/use-websocket';
 
 export function App() {
@@ -29,6 +30,7 @@ export function App() {
           <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/projects/:projectId/recordings" element={<RecordingsPage />} />
           <Route path="/recordings/:id" element={<RecordingDetail />} />
+          <Route path="/executions/:id" element={<ExecutionDetail />} />
         </Routes>
       </main>
     </div>

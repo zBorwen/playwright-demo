@@ -179,9 +179,10 @@ export function RecordingDetail() {
         ) : (
           <div className="space-y-2">
             {executions.map((ex) => (
-              <div
+              <Link
                 key={ex.id}
-                className="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm"
+                to={`/executions/${ex.id}`}
+                className="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm transition hover:border-zinc-600"
               >
                 <span
                   className={`rounded px-2 py-0.5 text-xs font-medium ${
@@ -202,7 +203,7 @@ export function RecordingDetail() {
                     → {new Date(ex.finishedAt).toLocaleTimeString()}
                   </span>
                 )}
-              </div>
+              </Link>
             ))}
           </div>
         )}
