@@ -2,8 +2,12 @@ import { serve } from '@hono/node-server';
 import { app } from './app.js';
 import { WebSocketServer } from 'ws';
 import type { Server } from 'http';
+import type { AgentMessage } from '@playwright-demo/shared';
+import { StorageService } from './services/storage.js';
+import { WsHandlers } from './ws-handlers.js';
 
 const port = parseInt(process.env.PORT || '3000');
+const storage = new StorageService();
 
 const server = serve({
   fetch: app.fetch,
@@ -12,16 +16,17 @@ const server = serve({
 
 console.log(`Server running on http://localhost:${port}`);
 
-// WebSocket Server for Agent connections
+const wsHandlers = new WsHandlers(storage);
 const wss = new WebSocketServer({ server: server as unknown as Server, path: '/ws' });
 
 wss.on('connection', (ws) => {
   console.log('Agent connected');
+  wsHandlers.registerClient(ws);
 
-  ws.on('message', (data) => {
+  ws.on('message', async (data) => {
     try {
-      const message = JSON.parse(data.toString());
-      console.log('Received:', message.type);
+      const msg = JSON.parse(data.toString()) as AgentMessage;
+      await wsHandlers.handleAgentMessage(ws, msg);
     } catch (e) {
       console.error('Invalid message:', e);
     }
@@ -37,6 +42,7 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     clearInterval(interval);
+    wsHandlers.unregisterClient(ws);
     console.log('Agent disconnected');
   });
 });
