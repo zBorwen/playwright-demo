@@ -54,9 +54,14 @@ recordingsRouter.get('/:id/actions', async (c) => {
   return c.json(JSON.parse(artifact[0].content as string));
 });
 
-recordingsRouter.post('/:id/actions', async (c) => {
+recordingsRouter.post('/:id/actions', zValidator('json', z.object({
+  recordingId: z.string(),
+  targetUrl: z.string(),
+  title: z.string(),
+  actions: z.array(z.object({ name: z.string() })),
+})), async (c) => {
   const id = c.req.param('id');
-  const body = (await c.req.json()) as Recording;
+  const body = c.req.valid('json');
   const content = JSON.stringify(body);
 
   await db.insert(recordingArtifacts).values({
@@ -66,7 +71,7 @@ recordingsRouter.post('/:id/actions', async (c) => {
   });
 
   const storage = c.get('storage');
-  await storage.saveRecording(id, body);
+  await storage.saveRecording(id, body as unknown as Recording);
 
   return c.json({ ok: true });
 });

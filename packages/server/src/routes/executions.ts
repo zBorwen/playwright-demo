@@ -15,10 +15,8 @@ const createExecutionSchema = z.object({
 executionsRouter.get('/', async (c) => {
   const recordingId = c.req.query('recordingId');
   const query = db.select().from(executions);
-  if (recordingId) {
-    query.where(eq(executions.recordingId, recordingId));
-  }
-  const list = await query.orderBy(desc(executions.startedAt));
+  const filtered = recordingId ? query.where(eq(executions.recordingId, recordingId)) : query;
+  const list = await filtered.orderBy(desc(executions.startedAt));
   return c.json(list);
 });
 
