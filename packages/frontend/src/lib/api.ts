@@ -1,6 +1,6 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-interface Project {
+export interface Project {
   id: string;
   name: string;
   description?: string;
@@ -8,7 +8,7 @@ interface Project {
   updatedAt: string;
 }
 
-interface Recording {
+export interface Recording {
   id: string;
   projectId: string;
   title: string;
@@ -17,9 +17,14 @@ interface Recording {
   updatedAt: string;
 }
 
+function ensureOk(res: Response): void {
+  if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
+}
+
 export async function fetchProjects(): Promise<Project[]> {
   const res = await fetch(`${API_BASE}/projects`);
-  return res.json();
+  ensureOk(res);
+  return res.json() as Promise<Project[]>;
 }
 
 export async function createProject(data: { name: string; description?: string }): Promise<Project> {
@@ -28,7 +33,8 @@ export async function createProject(data: { name: string; description?: string }
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  return res.json();
+  ensureOk(res);
+  return res.json() as Promise<Project>;
 }
 
 export async function fetchRecordings(projectId?: string): Promise<Recording[]> {
@@ -36,5 +42,6 @@ export async function fetchRecordings(projectId?: string): Promise<Recording[]> 
     ? `${API_BASE}/recordings?projectId=${projectId}`
     : `${API_BASE}/recordings`;
   const res = await fetch(url);
-  return res.json();
+  ensureOk(res);
+  return res.json() as Promise<Recording[]>;
 }
