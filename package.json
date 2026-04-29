@@ -1,0 +1,9 @@
+{
+  "name": "playwright-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:server": "cd packages/server && pnpm dev",
+    "dev:frontend": "cd packages/frontend && pnpm dev"
+  }
+}
