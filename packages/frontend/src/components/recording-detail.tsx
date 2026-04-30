@@ -7,6 +7,7 @@ import {
   startRecording,
   stopRecording,
   replayRecording,
+  saveRecordingActions,
   type Recording,
   type Execution,
   type Action,
@@ -30,7 +31,7 @@ const ACTION_ICONS: Record<string, string> = {
   setInputFiles: '📁',
 };
 
-type Tab = 'timeline' | 'json' | 'executions';
+type Tab = 'timeline' | 'codegen' | 'json' | 'executions';
 
 export function RecordingDetail() {
   const { id } = useParams<{ id: string }>();
@@ -42,6 +43,7 @@ export function RecordingDetail() {
   const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording'>('idle');
   const [replayStatus, setReplayStatus] = useState<'idle' | 'running' | 'passed' | 'failed'>('idle');
   const [useMock, setUseMock] = useState(false);
+  const [codegen, setCodegen] = useState<string>('');
 
   const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
     switch (msg.type) {
@@ -52,7 +54,23 @@ export function RecordingDetail() {
       }
       case 'record:complete': {
         setRecordingStatus('idle');
-        if (id) fetchRecordingActions(id).then((a) => setActions(a.actions || []));
+        const payload = msg.payload as { actions?: Action[]; codegen?: string };
+        if (payload.actions) {
+          setActions(payload.actions);
+          // Auto-save actions to server
+          if (id && payload.actions.length > 0) {
+            saveRecordingActions(id, payload.actions).catch((e) => {
+              console.error('Failed to auto-save recording actions:', e);
+            });
+          }
+        }
+        if (payload.codegen) {
+          setCodegen(payload.codegen);
+        }
+        // Fallback: fetch from server if actions not in message
+        if (id && !payload.actions) {
+          fetchRecordingActions(id).then((a) => setActions(a.actions || []));
+        }
         break;
       }
       case 'replay:step': {
@@ -94,8 +112,14 @@ export function RecordingDetail() {
   const handleStopRecording = async () => {
     await stopRecording(id!);
     setRecordingStatus('idle');
-    const acts = await fetchRecordingActions(id!);
-    setActions(acts.actions || []);
+    // Actions will be updated via record:complete WS message
+    // But if WS is slow, fetch as fallback after a short delay
+    setTimeout(async () => {
+      if (actions.length === 0 && id) {
+        const acts = await fetchRecordingActions(id).catch(() => ({ actions: [] }));
+        setActions(acts.actions || []);
+      }
+    }, 1000);
   };
 
   const handleReplay = async () => {
@@ -117,6 +141,7 @@ export function RecordingDetail() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'timeline', label: '操作序列' },
+    { key: 'codegen', label: 'Codegen' },
     { key: 'json', label: 'JSON 编辑' },
     { key: 'executions', label: '执行历史' },
   ];
@@ -217,6 +242,29 @@ export function RecordingDetail() {
                 )}
               </div>
             ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'codegen' && (
+        <div>
+          {codegen.length === 0 ? (
+            <p className="py-8 text-center text-zinc-500">暂无生成代码</p>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-zinc-400">生成的 Playwright 代码</span>
+                <button
+                  onClick={() => navigator.clipboard.writeText(codegen)}
+                  className="rounded bg-zinc-700 px-3 py-1 text-sm hover:bg-zinc-600"
+                >
+                  复制
+                </button>
+              </div>
+              <pre className="overflow-auto rounded border border-zinc-800 bg-zinc-950 p-4 text-sm font-mono text-zinc-300">
+                {codegen}
+              </pre>
+            </div>
           )}
         </div>
       )}
