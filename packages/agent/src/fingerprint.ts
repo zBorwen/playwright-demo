@@ -52,6 +52,16 @@ export const FINGERPRINT_JS = `
     return texts;
   }
 
+  // Guard: element might be detached from DOM
+  if (typeof el.getBoundingClientRect !== 'function') {
+    return JSON.stringify({
+      dataTestId: null, dataTest: null, role: null, accessibleName: null,
+      textContent: null, placeholder: null, id: null, tagName: 'unknown',
+      labelText: null, name: null, inputType: null, classes: [],
+      parentPath: [], nearbyText: [], boundingBox: null, isVisible: false,
+    });
+  }
+
   const rect = el.getBoundingClientRect();
   const bb = rect.width > 0 && rect.height > 0
     ? { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) }

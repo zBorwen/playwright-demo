@@ -96,7 +96,7 @@ export class RecorderManager {
 
       const page = await this.context.newPage();
 
-      // Expose the bridge function: page JS -> Node
+      // 1. Expose bridge function BEFORE navigation (page JS -> Node)
       await page.exposeFunction(
         '__actionRecorder__',
         async (eventType: string, selector: string, extra?: string) => {
@@ -106,19 +106,19 @@ export class RecorderManager {
         },
       );
 
-      // Navigate to target with error handling
-      await page.goto(targetUrl, { timeout: 30000, waitUntil: 'domcontentloaded' }).catch(() => {
-        console.warn('Initial navigation may have partially failed, continuing anyway');
-      });
-
-      // Inject event collector JS
+      // 2. Inject event collector JS BEFORE navigation (persists across navigations)
       await page.addInitScript(EVENT_COLLECTOR_JS);
 
-      // Navigation tracking (page-level, not user-level)
+      // 3. Setup navigation tracking BEFORE navigation
       page.on('framenavigated', async (frame) => {
         if (frame === page.mainFrame()) {
           this.handlePageEvent(page, 'navigate', frame.url()).catch(() => {});
         }
+      });
+
+      // 4. Navigate to target with error handling
+      await page.goto(targetUrl, { timeout: 30000, waitUntil: 'domcontentloaded' }).catch(() => {
+        console.warn('Initial navigation may have partially failed, continuing anyway');
       });
 
       console.log(`Recording started on: ${page.url()}`);
@@ -136,14 +136,26 @@ export class RecorderManager {
     selector: string,
     extra?: string,
   ): Promise<void> {
-    const fingerprint = selector
-      ? await captureFingerprint(page, selector)
-      : await captureFingerprint(page, 'html');
-    if (!fingerprint) return;
-
     const url = page.url();
     const title = await page.title();
     const ts = Date.now();
+
+    // Navigate events use URL as selector (not a CSS selector) — skip fingerprint
+    let fingerprint: Awaited<ReturnType<typeof captureFingerprint>> = null;
+    if (eventType === 'navigate') {
+      fingerprint = {
+        dataTestId: null, dataTest: null, role: null, accessibleName: null,
+        textContent: null, placeholder: null, id: null, tagName: 'html',
+        labelText: null, name: null, inputType: null, classes: [],
+        parentPath: ['html'], nearbyText: [], boundingBox: null,
+        isVisible: true,
+      };
+    } else if (selector) {
+      // Validate selector is a valid CSS selector before querying
+      const looksLikeCssSelector = selector.startsWith('#') || selector.startsWith('.') || selector.startsWith('[') || /^[a-z]/i.test(selector);
+      fingerprint = looksLikeCssSelector ? await captureFingerprint(page, selector) : null;
+    }
+    if (!fingerprint) return;
 
     let action: RecordingAction | null = null;
 
@@ -199,6 +211,7 @@ export class RecorderManager {
         const options = inputEl
           ? await inputEl.evaluate((el) => {
               const select = el as HTMLSelectElement;
+              if (!select.selectedOptions) return [];
               return Array.from(select.selectedOptions).map((o) => o.value);
             })
           : [];
