@@ -64,9 +64,11 @@ export class RecorderManager {
     await (this.context as any)._enableRecorder(
       {
         mode: 'recording',
-        language: 'javascript',
+        recorderMode: 'api',
+        language: 'playwright-test',
         launchOptions: { headless: false },
         contextOptions: {},
+        handleSIGINT: false,
         hideToolbar: true,
       },
       eventSink,
