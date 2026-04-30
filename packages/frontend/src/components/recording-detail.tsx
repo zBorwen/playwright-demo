@@ -102,7 +102,20 @@ export function RecordingDetail() {
     switch (msg.type) {
       case 'record:action': {
         const payload = msg.payload as { action: RecordingAction; code?: string };
-        setActions((prev) => [...prev, payload.action]);
+        setActions((prev) => {
+          // For fill actions, update existing by selector instead of appending
+          if (payload.action.name === 'fill' && payload.action.selector) {
+            const existingIdx = prev.findLastIndex(
+              (a) => a.name === 'fill' && a.selector === payload.action.selector,
+            );
+            if (existingIdx >= 0) {
+              const updated = [...prev];
+              updated[existingIdx] = payload.action;
+              return updated;
+            }
+          }
+          return [...prev, payload.action];
+        });
         if (payload.code) {
           setCodegen((prev) => prev ? prev + '\n' + payload.code! : payload.code!);
         }
