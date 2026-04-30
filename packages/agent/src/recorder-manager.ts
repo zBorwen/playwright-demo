@@ -20,6 +20,9 @@ export class RecorderManager {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private actions: RecordingAction[] = [];
+  private pendingFillKey: string | null = null;
+  private pendingFillPage: Page | null = null;
+  private pendingFillCode: string | null = null;
   private onActionCallback: ((action: RecordingAction, code: string) => void) | null = null;
   private codegenLines: string[] = [];
 
@@ -35,26 +38,69 @@ export class RecorderManager {
     });
     this.actions = [];
     this.codegenLines = [];
+    this.pendingFillKey = null;
+    this.pendingFillPage = null;
+    this.pendingFillCode = null;
 
     const eventSink = {
       actionAdded: async (page: Page, data: RecorderActionData, code: string) => {
+        // For fill actions, save page reference and wait for actionUpdated with full text
+        if (data.action.name === 'fill') {
+          this.pendingFillKey = data.action.selector || '';
+          this.pendingFillPage = page;
+          this.pendingFillCode = code;
+          return;
+        }
         await this.handleRecorderAction(page, data, code);
       },
       actionUpdated: async (_page: Page, data: RecorderActionData, code: string) => {
-        // Update the last action with accumulated fill text
+        const action = data.action;
+
+        // For fill: create or update the single fill action
+        if (action.name === 'fill' && action.text) {
+          const fillKey = data.action.selector || '';
+          const existingIdx = this.actions.findIndex(
+            (a) => a.name === 'fill' && a.selector === fillKey,
+          );
+
+          if (existingIdx >= 0) {
+            // Update existing fill with accumulated text
+            this.actions[existingIdx] = { ...this.actions[existingIdx], value: action.text as string };
+            if (this.onActionCallback) {
+              this.onActionCallback(this.actions[existingIdx], code);
+            }
+          } else {
+            // First actionUpdated for this fill — create it using saved page reference
+            this.pendingFillKey = null;
+            if (this.pendingFillPage) {
+              // Merge the pending fill data with the accumulated text
+              const mergedData = {
+                action: { ...data.action, value: action.text },
+                frame: data.frame,
+              };
+              await this.handleRecorderAction(this.pendingFillPage, mergedData, this.pendingFillCode ?? code);
+              this.pendingFillPage = null;
+              this.pendingFillCode = null;
+            }
+          }
+          // Update codegen
+          if (code && this.codegenLines.length > 0) {
+            this.codegenLines[this.codegenLines.length - 1] = code;
+          } else if (code) {
+            this.codegenLines.push(code);
+          }
+          return;
+        }
+
+        // For other mergeable actions (click double-click, etc.), update last
         if (this.actions.length > 0) {
-          const action = data.action;
           const lastIdx = this.actions.length - 1;
           const last = this.actions[lastIdx];
-          // Only update fill and press actions that accumulate text
-          if (last.name === 'fill' && action.text) {
-            this.actions[lastIdx] = { ...last, value: action.text as string };
-          } else if (last.name === 'press' && action.key) {
+          if (last.name === 'press' && action.key) {
             this.actions[lastIdx] = { ...last, key: action.key as string };
-          }
-          // Notify frontend of the updated action
-          if (this.onActionCallback) {
-            this.onActionCallback(this.actions[lastIdx], code);
+            if (this.onActionCallback) {
+              this.onActionCallback(this.actions[lastIdx], code);
+            }
           }
         }
         if (code) {
