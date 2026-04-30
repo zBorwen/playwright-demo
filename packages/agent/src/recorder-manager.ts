@@ -51,7 +51,7 @@ export class RecorderManager {
         // Fill: find existing by selector, or create new
         if (action.name === 'fill') {
           const selector = action.selector || '';
-          const existingIdx = this.actions.findIndex(
+          const existingIdx = this.actions.findLastIndex(
             (a) => a.name === 'fill' && a.selector === selector,
           );
 
@@ -159,7 +159,7 @@ export class RecorderManager {
       timestamp: ts,
     };
 
-    let recordingAction: RecordingAction | null = null;
+    let recordingAction: Record<string, unknown> | null = null;
 
     switch (actionName) {
       case 'click':
@@ -270,11 +270,27 @@ export class RecorderManager {
         break;
     }
 
-    if (recordingAction) {
-      this.actions.push(recordingAction);
-      if (this.onActionCallback) {
-        this.onActionCallback(recordingAction, code);
+    if (!recordingAction) return;
+
+    // For fill: check if an identical selector already exists — update instead of push
+    if (actionName === 'fill') {
+      const existingIdx = this.actions.findLastIndex(
+        (a) => a.name === 'fill' && a.selector === recordingAction!.selector,
+      );
+      console.log(`[handleRecorderAction fill] selector="${recordingAction.selector}", existingIdx=${existingIdx}, actions.length=${this.actions.length}`);
+      if (existingIdx >= 0) {
+        // Update existing fill value
+        this.actions[existingIdx] = { ...this.actions[existingIdx], value: recordingAction.value } as RecordingAction;
+        if (this.onActionCallback) {
+          this.onActionCallback(this.actions[existingIdx], code);
+        }
+        return;
       }
+    }
+
+    this.actions.push(recordingAction as RecordingAction);
+    if (this.onActionCallback) {
+      this.onActionCallback(recordingAction as RecordingAction, code);
     }
   }
 
