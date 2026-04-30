@@ -99,11 +99,13 @@ export function RecordingDetail() {
   }, [actions]);
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('timeline');
   const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording'>('idle');
   const [replayStatus, setReplayStatus] = useState<'idle' | 'running' | 'passed' | 'failed'>('idle');
   const [useMock, setUseMock] = useState(false);
   const [codegen, setCodegen] = useState<string>('');
+  const [copied, setCopied] = useState(false);
 
   const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
     switch (msg.type) {
@@ -191,7 +193,7 @@ export function RecordingDetail() {
       setCodegen(codegenResp.codegen || '');
       setLoading(false);
     }).catch((e) => {
-      console.warn('Failed to load recording detail:', e.message);
+      setLoadError(e.message);
       setLoading(false);
     });
   }, [id]);
@@ -232,7 +234,14 @@ export function RecordingDetail() {
     }
   };
 
+  const handleCopyCodegen = async () => {
+    await navigator.clipboard.writeText(codegen);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (loading) return <div className="text-zinc-500">加载中...</div>;
+  if (loadError) return <div className="text-red-400">加载失败: {loadError}</div>;
   if (!recording) return <div className="text-zinc-500">录制不存在</div>;
 
   const tabs: { key: Tab; label: string }[] = [
@@ -348,10 +357,10 @@ export function RecordingDetail() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-zinc-400">生成的 Playwright 代码</span>
                 <button
-                  onClick={() => navigator.clipboard.writeText(codegen)}
+                  onClick={handleCopyCodegen}
                   className="rounded bg-zinc-700 px-3 py-1 text-sm hover:bg-zinc-600"
                 >
-                  复制
+                  {copied ? '已复制 ✓' : '复制'}
                 </button>
               </div>
               <pre className="overflow-auto rounded border border-zinc-800 bg-zinc-950 p-4 text-sm font-mono text-zinc-300">

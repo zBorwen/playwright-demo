@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { WsClient } from './ws-client.js';
 import { RecorderManager } from './recorder-manager.js';
 import { ReplayEngine } from './replay-engine.js';
@@ -61,7 +62,7 @@ async function main() {
 
         const result = await engine.replay(actions as Parameters<typeof engine.replay>[0], {
           headless: false,
-          harPath: harRef ? `./storage/${harRef}` : undefined,
+          harPath: harRef ? path.resolve(process.env.STORAGE_PATH || './storage', harRef) : undefined,
           mockRules: mockRules || [],
           useMock: !!harRef || (mockRules && mockRules.length > 0),
         });

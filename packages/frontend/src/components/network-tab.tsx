@@ -103,6 +103,7 @@ export function NetworkTab({ recordingId }: { recordingId: string }) {
   const [rules, setRules] = useState<MockRule[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -113,7 +114,10 @@ export function NetworkTab({ recordingId }: { recordingId: string }) {
       setEntries(net.entries || []);
       setRules(mock.rules || []);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch((e) => {
+      setError(e.message);
+      setLoading(false);
+    });
   }, [recordingId]);
 
   const selectedEntry = entries.find((e) => e.id === selectedId);
@@ -150,6 +154,7 @@ export function NetworkTab({ recordingId }: { recordingId: string }) {
     setSaving(false);
   }, [recordingId, rules]);
 
+  if (error) return <p className="text-red-400 py-8 text-center">加载失败: {error}</p>;
   if (loading) return <p className="text-zinc-500 py-8 text-center">加载网络数据中...</p>;
   if (entries.length === 0) return <p className="text-zinc-500 py-8 text-center">无网络请求记录</p>;
 

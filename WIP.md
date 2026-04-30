@@ -22,6 +22,8 @@
 - [x] Codegen 展示 tab + 实时推送 + 服务端回退
 - [x] Zod validator passthrough 修复动作数据丢失
 - [x] Recorder 系统架构文档 + 修复总结文档
+- [x] Network/HAR 功能：录制捕获 → 过滤静态资源 → DB 存储 → 前端 Network tab → Mock 规则编辑 → 回放 Mock 路由
+- [x] 代码质量优化：清理死代码、修复空 catch、修复 artifact 删除误删、统一 import 位置、移除未使用状态
 
 ## 进行中 / 待排期
 
