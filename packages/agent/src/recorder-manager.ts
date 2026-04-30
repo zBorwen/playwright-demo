@@ -40,11 +40,29 @@ export class RecorderManager {
       actionAdded: async (page: Page, data: RecorderActionData, code: string) => {
         await this.handleRecorderAction(page, data, code);
       },
-      actionUpdated: async (_page: Page, _data: RecorderActionData, code: string) => {
-        if (this.codegenLines.length > 0) {
-          this.codegenLines[this.codegenLines.length - 1] = code;
-        } else {
-          this.codegenLines.push(code);
+      actionUpdated: async (_page: Page, data: RecorderActionData, code: string) => {
+        // Update the last action with accumulated fill text
+        if (this.actions.length > 0) {
+          const action = data.action;
+          const lastIdx = this.actions.length - 1;
+          const last = this.actions[lastIdx];
+          // Only update fill and press actions that accumulate text
+          if (last.name === 'fill' && action.text) {
+            this.actions[lastIdx] = { ...last, value: action.text as string };
+          } else if (last.name === 'press' && action.key) {
+            this.actions[lastIdx] = { ...last, key: action.key as string };
+          }
+          // Notify frontend of the updated action
+          if (this.onActionCallback) {
+            this.onActionCallback(this.actions[lastIdx], code);
+          }
+        }
+        if (code) {
+          if (this.codegenLines.length > 0) {
+            this.codegenLines[this.codegenLines.length - 1] = code;
+          } else {
+            this.codegenLines.push(code);
+          }
         }
       },
       signalAdded: (_page: Page, data: unknown) => {
