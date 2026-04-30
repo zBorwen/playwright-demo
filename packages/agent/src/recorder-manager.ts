@@ -11,6 +11,7 @@ interface RecorderActionData {
     text?: string;
     key?: string;
     options?: string[];
+    checked?: boolean;
     signals?: unknown[];
   };
   frame: { pageGuid: string };
@@ -20,9 +21,6 @@ export class RecorderManager {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private actions: RecordingAction[] = [];
-  private pendingFillKey: string | null = null;
-  private pendingFillPage: Page | null = null;
-  private pendingFillCode: string | null = null;
   private onActionCallback: ((action: RecordingAction, code: string) => void) | null = null;
   private codegenLines: string[] = [];
 
@@ -38,52 +36,37 @@ export class RecorderManager {
     });
     this.actions = [];
     this.codegenLines = [];
-    this.pendingFillKey = null;
-    this.pendingFillPage = null;
-    this.pendingFillCode = null;
 
     const eventSink = {
       actionAdded: async (page: Page, data: RecorderActionData, code: string) => {
-        // For fill actions, save page reference and wait for actionUpdated with full text
+        // For fill actions, wait for actionUpdated with the complete accumulated text
         if (data.action.name === 'fill') {
-          this.pendingFillKey = data.action.selector || '';
-          this.pendingFillPage = page;
-          this.pendingFillCode = code;
           return;
         }
         await this.handleRecorderAction(page, data, code);
       },
-      actionUpdated: async (_page: Page, data: RecorderActionData, code: string) => {
+      actionUpdated: async (page: Page, data: RecorderActionData, code: string) => {
         const action = data.action;
 
-        // For fill: create or update the single fill action
-        if (action.name === 'fill' && action.text) {
-          const fillKey = data.action.selector || '';
+        // Fill: find existing by selector, or create new
+        if (action.name === 'fill') {
+          const selector = action.selector || '';
           const existingIdx = this.actions.findIndex(
-            (a) => a.name === 'fill' && a.selector === fillKey,
+            (a) => a.name === 'fill' && a.selector === selector,
           );
 
           if (existingIdx >= 0) {
-            // Update existing fill with accumulated text
-            this.actions[existingIdx] = { ...this.actions[existingIdx], value: action.text as string };
+            // Update existing fill with latest accumulated text
+            const updated = { ...this.actions[existingIdx], value: action.text ?? action.value ?? '' };
+            this.actions[existingIdx] = updated;
             if (this.onActionCallback) {
-              this.onActionCallback(this.actions[existingIdx], code);
+              this.onActionCallback(updated, code);
             }
           } else {
-            // First actionUpdated for this fill — create it using saved page reference
-            this.pendingFillKey = null;
-            if (this.pendingFillPage) {
-              // Merge the pending fill data with the accumulated text
-              const mergedData = {
-                action: { ...data.action, value: action.text },
-                frame: data.frame,
-              };
-              await this.handleRecorderAction(this.pendingFillPage, mergedData, this.pendingFillCode ?? code);
-              this.pendingFillPage = null;
-              this.pendingFillCode = null;
-            }
+            // First time seeing this fill — create it
+            await this.handleRecorderAction(page, data, code);
           }
-          // Update codegen
+          // Always update the last codegen line (actionUpdated replaces it)
           if (code && this.codegenLines.length > 0) {
             this.codegenLines[this.codegenLines.length - 1] = code;
           } else if (code) {
@@ -92,7 +75,7 @@ export class RecorderManager {
           return;
         }
 
-        // For other mergeable actions (click double-click, etc.), update last
+        // Non-fill mergeable actions (press, double-click, etc.) — update last action
         if (this.actions.length > 0) {
           const lastIdx = this.actions.length - 1;
           const last = this.actions[lastIdx];
@@ -238,6 +221,50 @@ export class RecorderManager {
         recordingAction = {
           name: 'navigate',
           url: action.url || url,
+          ...baseFields,
+        };
+        break;
+
+      case 'assertText':
+        recordingAction = {
+          name: 'assertText',
+          selector: action.selector || '',
+          text: action.text ?? '',
+          ...baseFields,
+        };
+        break;
+
+      case 'assertVisible':
+        recordingAction = {
+          name: 'assertVisible',
+          selector: action.selector || '',
+          ...baseFields,
+        };
+        break;
+
+      case 'assertChecked':
+        recordingAction = {
+          name: 'assertChecked',
+          selector: action.selector || '',
+          checked: action.checked === true,
+          ...baseFields,
+        };
+        break;
+
+      case 'assertValue':
+        recordingAction = {
+          name: 'assertValue',
+          selector: action.selector || '',
+          value: action.value ?? '',
+          ...baseFields,
+        };
+        break;
+
+      case 'setInputFiles':
+        recordingAction = {
+          name: 'setInputFiles',
+          selector: action.selector || '',
+          files: (action.options as string[]) ?? [],
           ...baseFields,
         };
         break;
