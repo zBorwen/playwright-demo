@@ -64,7 +64,7 @@ export class WsHandlers {
       }
 
       case 'record:complete': {
-        const { recordingId, actions, harPath } = msg.payload;
+        const { recordingId, actions, harPath, codegen } = msg.payload;
 
         try {
           await db

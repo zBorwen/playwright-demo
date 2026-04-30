@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import type { Recording, RecordingAction, ElementInfo } from '@playwright-demo/shared';
 import { captureFingerprint } from './fingerprint.js';
@@ -336,7 +337,7 @@ export class RecorderManager {
   }
 
   private getHarPath(): string {
-    return `${process.env.STORAGE_PATH || './storage'}/temp-recording.har`;
+    return path.resolve(process.env.STORAGE_PATH || './storage', 'temp-recording.har');
   }
 
   getActions(): Recording['actions'] {

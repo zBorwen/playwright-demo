@@ -94,8 +94,11 @@ recordingsRouter.post('/:id/actions', zValidator('json', z.object({
   const { actions } = c.req.valid('json');
   const content = JSON.stringify({ recordingId: id, actions });
 
-  // Upsert: delete existing artifact first, then insert fresh one
-  await db.delete(recordingArtifacts).where(eq(recordingArtifacts.recordingId, id));
+  // Upsert: delete only actions artifact, preserve har and mock_rules
+  await db.delete(recordingArtifacts).where(and(
+    eq(recordingArtifacts.recordingId, id),
+    eq(recordingArtifacts.type, 'actions'),
+  ));
 
   await db.insert(recordingArtifacts).values({
     recordingId: id,
