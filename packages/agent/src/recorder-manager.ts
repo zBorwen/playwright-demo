@@ -40,31 +40,54 @@ export class RecorderManager {
 
     const eventSink = {
       actionAdded: async (page: Page, data: RecorderActionData, code: string) => {
+        const action = data.action;
+
+        // For fill: always push a new action (actionUpdated will merge subsequent keystrokes)
+        if (action.name === 'fill') {
+          await this.handleRecorderAction(page, data, code);
+          return;
+        }
+
+        // For non-fill: check if last action should be merged (press accumulation)
+        if (action.name === 'press' && this.actions.length > 0) {
+          const last = this.actions[this.actions.length - 1];
+          if (last.name === 'press') {
+            // Merge into existing press
+            this.actions[this.actions.length - 1] = { ...last, key: action.key ?? 'Enter' };
+            if (this.onActionCallback) {
+              this.onActionCallback(this.actions[this.actions.length - 1], code);
+            }
+            if (code && this.codegenLines.length > 0) {
+              this.codegenLines[this.codegenLines.length - 1] = code;
+            } else if (code) {
+              this.codegenLines.push(code);
+            }
+            return;
+          }
+        }
+
         await this.handleRecorderAction(page, data, code);
       },
       actionUpdated: async (page: Page, data: RecorderActionData, code: string) => {
         const action = data.action;
 
-        // Fill: only dedup if the last action is also a fill with the same selector
-        // This prevents separate typing sessions (e.g., two different todos) from being merged
+        // Fill: update the last action if it's a fill with same selector
         if (action.name === 'fill') {
           const selector = action.selector || '';
-          // Only update if the last action is a fill with the same selector (same typing session)
           const lastAction = this.actions.length > 0 ? this.actions[this.actions.length - 1] : null;
           const shouldUpdate = lastAction?.name === 'fill' && lastAction.selector === selector;
 
           if (shouldUpdate) {
-            // Update existing fill with latest accumulated text (same typing session)
             const updated = { ...lastAction, value: action.text ?? action.value ?? '' };
             this.actions[this.actions.length - 1] = updated;
             if (this.onActionCallback) {
               this.onActionCallback(updated, code);
             }
           } else {
-            // New typing session — create new fill action
+            // New typing session — handleRecorderAction will push a new fill
             await this.handleRecorderAction(page, data, code);
           }
-          // Always update the last codegen line (actionUpdated replaces it)
+          // Update codegen
           if (code && this.codegenLines.length > 0) {
             this.codegenLines[this.codegenLines.length - 1] = code;
           } else if (code) {
@@ -73,7 +96,7 @@ export class RecorderManager {
           return;
         }
 
-        // Non-fill mergeable actions (press, double-click, etc.) — update last action
+        // Non-fill mergeable actions — update last
         if (this.actions.length > 0) {
           const lastIdx = this.actions.length - 1;
           const last = this.actions[lastIdx];
@@ -269,26 +292,6 @@ export class RecorderManager {
     }
 
     if (!recordingAction) return;
-
-    // For fill: check if an identical selector already exists — update instead of push
-    if (actionName === 'fill') {
-      let existingIdx = -1;
-      for (let i = this.actions.length - 1; i >= 0; i--) {
-        const a = this.actions[i];
-        if (a.name === 'fill' && a.selector === recordingAction!.selector) {
-          existingIdx = i;
-          break;
-        }
-      }
-      if (existingIdx >= 0) {
-        // Update existing fill value
-        this.actions[existingIdx] = { ...this.actions[existingIdx], value: recordingAction.value } as RecordingAction;
-        if (this.onActionCallback) {
-          this.onActionCallback(this.actions[existingIdx], code);
-        }
-        return;
-      }
-    }
 
     this.actions.push(recordingAction as RecordingAction);
     if (this.onActionCallback) {
