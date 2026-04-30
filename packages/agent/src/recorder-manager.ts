@@ -21,7 +21,7 @@ export class RecorderManager {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private actions: RecordingAction[] = [];
-  private onActionCallback: ((action: RecordingAction) => void) | null = null;
+  private onActionCallback: ((action: RecordingAction, code: string) => void) | null = null;
   private internals: ReturnType<typeof loadInternalModules>;
   private codegenLines: string[] = [];
 
@@ -29,8 +29,8 @@ export class RecorderManager {
     this.internals = loadInternalModules();
   }
 
-  /** Register a callback that fires for every recorded action in real time. */
-  onAction(callback: (action: RecordingAction) => void): void {
+  /** Register a callback that fires for every recorded action in real time. The callback receives the action and its generated code. */
+  onAction(callback: (action: RecordingAction, code: string) => void): void {
     this.onActionCallback = callback;
   }
 
@@ -188,7 +188,7 @@ export class RecorderManager {
     if (recordingAction) {
       this.actions.push(recordingAction);
       if (this.onActionCallback) {
-        this.onActionCallback(recordingAction);
+        this.onActionCallback(recordingAction, code);
       }
     }
   }

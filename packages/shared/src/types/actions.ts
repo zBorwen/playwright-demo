@@ -9,7 +9,7 @@ export type ServerMessage =
   | { type: 'ping' };
 
 export type AgentMessage =
-  | { type: 'record:action'; payload: { action: Action; selector: string; elementInfo: ElementInfo; timestamp: number } }
+  | { type: 'record:action'; payload: { action: Action; code?: string; selector: string; elementInfo: ElementInfo; timestamp: number } }
   | { type: 'record:screenshot:result'; payload: { actionIndex: number; path: string } }
   | { type: 'record:complete'; payload: { recordingId: string; actions: Recording['actions']; harPath: string; codegen: string } }
   | { type: 'replay:step'; payload: { index: number; status: 'running' } }

@@ -71,10 +71,15 @@ export class WsHandlers {
             .set({ updatedAt: new Date() })
             .where(eq(recordings.id, recordingId));
 
+          // Upsert: delete existing artifact first, then insert fresh one
+          await db
+            .delete(recordingArtifacts)
+            .where(eq(recordingArtifacts.recordingId, recordingId));
+
           await db.insert(recordingArtifacts).values({
             recordingId,
             type: 'actions',
-            content: JSON.stringify(actions),
+            content: JSON.stringify({ recordingId, actions }),
           });
 
           const recording = await db.query.recordings.findFirst({

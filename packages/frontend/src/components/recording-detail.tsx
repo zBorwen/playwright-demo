@@ -48,8 +48,11 @@ export function RecordingDetail() {
   const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
     switch (msg.type) {
       case 'record:action': {
-        const payload = msg.payload as { action: Action };
+        const payload = msg.payload as { action: Action; code?: string };
         setActions((prev) => [...prev, payload.action]);
+        if (payload.code) {
+          setCodegen((prev) => prev ? prev + '\n' + payload.code! : payload.code!);
+        }
         break;
       }
       case 'record:complete': {

@@ -16,11 +16,12 @@ async function main() {
     switch (msg.type) {
       case 'record:start': {
         console.log(`Starting recording: ${msg.payload.recordingId}`);
-        recorder.onAction((action) => {
+        recorder.onAction((action, code) => {
           ws.send({
             type: 'record:action',
             payload: {
               action,
+              code,
               selector: action.name === 'navigate' ? '' : action.selector,
               elementInfo: action.elementInfo,
               timestamp: action.timestamp,
@@ -57,6 +58,7 @@ async function main() {
         });
 
         const result = await engine.replay(actions as any, {
+          headless: false,
           harPath: harRef ? `./storage/${harRef}` : undefined,
           mockRules: mockRules || [],
           useMock: !!harRef || (mockRules && mockRules.length > 0),

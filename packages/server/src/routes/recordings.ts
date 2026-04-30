@@ -50,9 +50,15 @@ recordingsRouter.get('/:id/actions', async (c) => {
         eq(recordingArtifacts.type, 'actions'),
       ),
     )
+    .orderBy(desc(recordingArtifacts.createdAt))
     .limit(1);
   if (!artifact.length) return c.json({ error: 'not found' }, 404);
-  return c.json(JSON.parse(artifact[0].content as string));
+  const parsed = JSON.parse(artifact[0].content as string);
+  // Backward compat: old artifacts stored as bare array
+  if (Array.isArray(parsed)) {
+    return c.json({ recordingId: id, actions: parsed });
+  }
+  return c.json(parsed);
 });
 
 recordingsRouter.post('/:id/actions', zValidator('json', z.object({
@@ -61,6 +67,9 @@ recordingsRouter.post('/:id/actions', zValidator('json', z.object({
   const id = c.req.param('id');
   const { actions } = c.req.valid('json');
   const content = JSON.stringify({ recordingId: id, actions });
+
+  // Upsert: delete existing artifact first, then insert fresh one
+  await db.delete(recordingArtifacts).where(eq(recordingArtifacts.recordingId, id));
 
   await db.insert(recordingArtifacts).values({
     recordingId: id,
