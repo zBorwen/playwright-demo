@@ -3,10 +3,13 @@ import { RecorderManager } from './recorder-manager.js';
 import { ReplayEngine } from './replay-engine.js';
 
 const SERVER_URL = process.env.SERVER_URL || 'ws://localhost:3000/ws';
+const AGENT_ID = process.env.AGENT_ID || 'default';
 const TOKEN = process.env.AGENT_TOKEN;
 
 async function main() {
-  const ws = new WsClient(SERVER_URL, TOKEN);
+  const url = new URL(SERVER_URL);
+  url.searchParams.set('agentId', AGENT_ID);
+  const ws = new WsClient(url.toString(), TOKEN);
   const recorder = new RecorderManager();
 
   ws.onMessage(async (msg) => {
