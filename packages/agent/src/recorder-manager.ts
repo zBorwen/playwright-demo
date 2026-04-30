@@ -23,6 +23,7 @@ export class RecorderManager {
   private actions: RecordingAction[] = [];
   private onActionCallback: ((action: RecordingAction, code: string) => void) | null = null;
   private codegenLines: string[] = [];
+  private lastActionName: string | null = null; // Track last action type for fill dedup reset
 
   /** Register a callback that fires for every recorded action in real time. The callback receives the action and its generated code. */
   onAction(callback: (action: RecordingAction, code: string) => void): void {
@@ -39,31 +40,28 @@ export class RecorderManager {
 
     const eventSink = {
       actionAdded: async (page: Page, data: RecorderActionData, code: string) => {
-        // For fill actions, wait for actionUpdated with the complete accumulated text
-        if (data.action.name === 'fill') {
-          return;
-        }
         await this.handleRecorderAction(page, data, code);
       },
       actionUpdated: async (page: Page, data: RecorderActionData, code: string) => {
         const action = data.action;
 
-        // Fill: find existing by selector, or create new
+        // Fill: only dedup if the last action is also a fill with the same selector
+        // This prevents separate typing sessions (e.g., two different todos) from being merged
         if (action.name === 'fill') {
           const selector = action.selector || '';
-          const existingIdx = this.actions.findLastIndex(
-            (a) => a.name === 'fill' && a.selector === selector,
-          );
+          // Only update if the last action is a fill with the same selector (same typing session)
+          const lastAction = this.actions.length > 0 ? this.actions[this.actions.length - 1] : null;
+          const shouldUpdate = lastAction?.name === 'fill' && lastAction.selector === selector;
 
-          if (existingIdx >= 0) {
-            // Update existing fill with latest accumulated text
-            const updated = { ...this.actions[existingIdx], value: action.text ?? action.value ?? '' };
-            this.actions[existingIdx] = updated;
+          if (shouldUpdate) {
+            // Update existing fill with latest accumulated text (same typing session)
+            const updated = { ...lastAction, value: action.text ?? action.value ?? '' };
+            this.actions[this.actions.length - 1] = updated;
             if (this.onActionCallback) {
               this.onActionCallback(updated, code);
             }
           } else {
-            // First time seeing this fill — create it
+            // New typing session — create new fill action
             await this.handleRecorderAction(page, data, code);
           }
           // Always update the last codegen line (actionUpdated replaces it)
@@ -274,10 +272,14 @@ export class RecorderManager {
 
     // For fill: check if an identical selector already exists — update instead of push
     if (actionName === 'fill') {
-      const existingIdx = this.actions.findLastIndex(
-        (a) => a.name === 'fill' && a.selector === recordingAction!.selector,
-      );
-      console.log(`[handleRecorderAction fill] selector="${recordingAction.selector}", existingIdx=${existingIdx}, actions.length=${this.actions.length}`);
+      let existingIdx = -1;
+      for (let i = this.actions.length - 1; i >= 0; i--) {
+        const a = this.actions[i];
+        if (a.name === 'fill' && a.selector === recordingAction!.selector) {
+          existingIdx = i;
+          break;
+        }
+      }
       if (existingIdx >= 0) {
         // Update existing fill value
         this.actions[existingIdx] = { ...this.actions[existingIdx], value: recordingAction.value } as RecordingAction;

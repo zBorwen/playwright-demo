@@ -26,7 +26,7 @@ async function main() {
               elementInfo: action.elementInfo,
               timestamp: action.timestamp,
             },
-          });
+          } as any);
         });
         await recorder.startRecording(msg.payload.targetUrl);
         break;

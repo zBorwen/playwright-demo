@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   fetchRecording,
@@ -90,6 +90,12 @@ export function RecordingDetail() {
   const { id } = useParams<{ id: string }>();
   const [recording, setRecording] = useState<Recording | null>(null);
   const [actions, setActions] = useState<RecordingAction[]>([]);
+  const actionsRef = useRef<RecordingAction[]>([]);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    actionsRef.current = actions;
+  }, [actions]);
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('timeline');
@@ -102,20 +108,34 @@ export function RecordingDetail() {
     switch (msg.type) {
       case 'record:action': {
         const payload = msg.payload as { action: RecordingAction; code?: string };
-        setActions((prev) => {
-          // For fill actions, update existing by selector instead of appending
-          if (payload.action.name === 'fill' && payload.action.selector) {
-            const existingIdx = prev.findLastIndex(
-              (a) => a.name === 'fill' && a.selector === payload.action.selector,
-            );
-            if (existingIdx >= 0) {
-              const updated = [...prev];
-              updated[existingIdx] = payload.action;
-              return updated;
-            }
+
+        const action = payload.action;
+        const currentActions = actionsRef.current;
+
+        if (action.name === 'fill' && 'selector' in action && action.selector) {
+          const selector = action.selector;
+          // Only dedup if the last action is also a fill with the same selector (same typing session)
+          const lastAction = currentActions.length > 0 ? currentActions[currentActions.length - 1] : null;
+          const shouldUpdate = lastAction?.name === 'fill' && 'selector' in lastAction && lastAction.selector === selector;
+
+          if (shouldUpdate) {
+            // Update last fill (same typing session)
+            const updated = [...currentActions];
+            updated[updated.length - 1] = action;
+            actionsRef.current = updated;
+            setActions(updated);
+          } else {
+            // New typing session — append as new fill
+            const newActions = [...currentActions, action];
+            actionsRef.current = newActions;
+            setActions(newActions);
           }
-          return [...prev, payload.action];
-        });
+        } else {
+          const newActions = [...currentActions, action];
+          actionsRef.current = newActions;
+          setActions(newActions);
+        }
+
         if (payload.code) {
           setCodegen((prev) => prev ? prev + '\n' + payload.code! : payload.code!);
         }
@@ -173,6 +193,10 @@ export function RecordingDetail() {
   }, [id]);
 
   const handleStartRecording = async () => {
+    // Clear old actions and codegen before starting new recording
+    setActions([]);
+    actionsRef.current = [];
+    setCodegen('');
     await startRecording(id!);
     setRecordingStatus('recording');
   };
