@@ -198,6 +198,51 @@ export const RecordingActionSchema = z.discriminatedUnion('name', [
 export type RecordingAction = z.infer<typeof RecordingActionSchema>;
 
 // ---------------------------------------------------------------------------
+// NetworkEntry (parsed HAR entry for API requests)
+// ---------------------------------------------------------------------------
+
+export const NetworkEntrySchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  method: z.string(),
+  status: z.number(),
+  statusText: z.string().default(''),
+  mimeType: z.string(),
+  requestHeaders: z.record(z.string()).optional(),
+  requestBody: z.string().optional(),
+  responseBody: z.string().optional(),
+  responseHeaders: z.record(z.string()).optional(),
+  timing: z.object({
+    blocked: z.number(),
+    dns: z.number(),
+    connect: z.number(),
+    send: z.number(),
+    wait: z.number(),
+    receive: z.number(),
+  }),
+  startedDateTime: z.string().optional(),
+  contentSize: z.number().default(0),
+});
+
+export type NetworkEntry = z.infer<typeof NetworkEntrySchema>;
+
+// ---------------------------------------------------------------------------
+// MockRule (replay API mock configuration)
+// ---------------------------------------------------------------------------
+
+export const MockRuleSchema = z.object({
+  urlPattern: z.string(),
+  enabled: z.boolean(),
+  method: z.string().optional(),
+  statusCode: z.number().default(200),
+  contentType: z.string().default('application/json'),
+  responseBody: z.string().optional(),
+  responseHeaders: z.record(z.string()).optional(),
+});
+
+export type MockRule = z.infer<typeof MockRuleSchema>;
+
+// ---------------------------------------------------------------------------
 // Recording
 // ---------------------------------------------------------------------------
 

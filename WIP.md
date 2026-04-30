@@ -16,10 +16,15 @@
 - [x] 录制 JSON 编辑器（标签页切换 + 格式化 + 保存）
 - [x] HAR Mock 回放（引擎 + 前端开关 + 服务端路由）
 - [x] Zustand 状态管理（projects、recordings、executions）
+- [x] Recorder 使用 playwright-core 内部 API（_enableRecorder + eventSink）
+- [x] Fill 操作值截断 / 多次显示 / 顺序错乱 / 数据覆盖 修复
+- [x] Assert 操作支持（assertText、assertVisible、assertChecked、assertValue、setInputFiles）
+- [x] Codegen 展示 tab + 实时推送 + 服务端回退
+- [x] Zod validator passthrough 修复动作数据丢失
+- [x] Recorder 系统架构文档 + 修复总结文档
 
 ## 进行中 / 待排期
 
-- [ ] 录制器集成 playwright-core 内部 API（当前使用注入 JS 事件监听）
 - [ ] 测试覆盖率提升（server routes、agent replay engine 端到端测试）
 - [ ] 部署配置（Dockerfile、环境变量文档）
 - [ ] 回放步骤实时截图展示（通过 WebSocket 推送截图到前端）
@@ -34,11 +39,13 @@
 
 ## 最近提交
 
-- `4f8b59d` docs: add deployment, testing, dev notes, and todo docs; expand server tests
-- `9272af9` docs: update WIP with latest commits
-- `28894db` docs: add README and WIP with current progress status
-- `b1eab1a` feat: wire up mock mode toggle for replay with server and agent support
-- `c0a7a16` feat: add HAR mock playback support to replay engine
-- `177e802` feat: enhance execution detail with duration, artifacts, and screenshots
-- `3f9d857` feat: add recording JSON editor with tab navigation
-- `5256898` feat: 添加执行详情页面和执行历史可点击跳转
+- `9d1fd3f` fix: 修复方法名引用 createAction -> handleRecorderAction
+- `44525f3` fix: fill 去重优化 + 清理调试日志 + 写入修复文档
+- `cc8164e` fix: 前端 fill 操作去重，按 selector 更新而非追加
+- `1679787` fix: fill 操作双重去重防护 + 日志排查
+- `d7e8a4b` fix: fill 操作去重 + 支持 assert/setInputFiles 操作录制
+- `b077904` fix: fill 操作只保留一条最终记录，避免每次按键都输出
+- `a49145e` fix: 修复 fill 操作值截断问题，actionUpdated 更新累积文本
+- `e988a74` fix: Zod passthrough 修复动作数据丢失 + codegen/时间戳容错
+- `a2c11d0` fix: 修复数据回显 timeline 丰富信息/codegen/JSON 完整展示
+- `77787fd` fix: 修复数据回显、回放无浏览器、codegen 非实时三个问题

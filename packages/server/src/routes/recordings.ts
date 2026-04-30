@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { db } from '../db/index.js';
 import { recordings, recordingArtifacts, executions } from '../db/schema.js';
 import { eq, desc, and } from 'drizzle-orm';
-import type { Recording } from '@playwright-demo/shared';
+import type { Recording, MockRule } from '@playwright-demo/shared';
 import type { Env } from '../types/env.js';
 import { getWsHandlers } from '../context.js';
 import { generateCodegen } from '../services/codegen.js';
@@ -172,6 +172,25 @@ recordingsRouter.post('/:id/replay', async (c) => {
 
   const actionsData = JSON.parse(artifact[0].content as string);
 
+  // Load mock rules if mock mode enabled
+  let mockRules: MockRule[] = [];
+  if (useMock) {
+    const mockArtifact = await db
+      .select()
+      .from(recordingArtifacts)
+      .where(
+        and(
+          eq(recordingArtifacts.recordingId, id),
+          eq(recordingArtifacts.type, 'mock_rules'),
+        ),
+      )
+      .limit(1);
+
+    if (mockArtifact.length && mockArtifact[0].content) {
+      mockRules = JSON.parse(mockArtifact[0].content) as MockRule[];
+    }
+  }
+
   const execution = await db.insert(executions).values({
     recordingId: id,
     status: 'running',
@@ -183,8 +202,8 @@ recordingsRouter.post('/:id/replay', async (c) => {
     payload: {
       recordingId: id,
       actions: actionsData.actions || [],
-      harRef: useMock ? `${id}.har` : '',
-      mockRules: [],
+      harRef: useMock ? `${id}/recording.har` : '',
+      mockRules,
     },
   });
 

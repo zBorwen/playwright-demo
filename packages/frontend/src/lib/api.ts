@@ -84,8 +84,8 @@ export async function saveRecordingActions(id: string, actions: RecordingAction[
   return res.json();
 }
 
-import type { RecordingAction } from '@playwright-demo/shared';
-export type { RecordingAction };
+import type { RecordingAction, NetworkEntry, MockRule } from '@playwright-demo/shared';
+export type { RecordingAction, NetworkEntry, MockRule };
 
 export async function startRecording(id: string): Promise<{ ok: boolean }> {
   const res = await fetch(`${API_BASE}/recordings/${id}/start`, { method: 'POST' });
@@ -139,4 +139,28 @@ export async function fetchExecution(id: string): Promise<Execution> {
   const res = await fetch(`${API_BASE}/executions/${id}`);
   ensureOk(res);
   return res.json() as Promise<Execution>;
+}
+
+// ─── Network & Mock Rules ─────────────────────────────────────
+
+export async function fetchRecordingNetwork(id: string): Promise<{ entries: NetworkEntry[] }> {
+  const res = await fetch(`${API_BASE}/recordings/${id}/network`);
+  ensureOk(res);
+  return res.json();
+}
+
+export async function fetchRecordingMockRules(id: string): Promise<{ rules: MockRule[] }> {
+  const res = await fetch(`${API_BASE}/recordings/${id}/network/mock-rules`);
+  ensureOk(res);
+  return res.json();
+}
+
+export async function saveRecordingMockRules(id: string, rules: MockRule[]): Promise<{ ok: boolean }> {
+  const res = await fetch(`${API_BASE}/recordings/${id}/network/mock-rules`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rules }),
+  });
+  ensureOk(res);
+  return res.json();
 }

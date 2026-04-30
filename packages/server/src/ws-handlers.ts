@@ -1,8 +1,9 @@
 import type { WebSocket } from 'ws';
 import type { AgentMessage, ServerMessage } from '@playwright-demo/shared';
+import { readFile } from 'fs/promises';
 import { db } from './db/index.js';
 import { recordings, recordingArtifacts } from './db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { StorageService } from './services/storage.js';
 
 export class WsHandlers {
@@ -63,7 +64,7 @@ export class WsHandlers {
       }
 
       case 'record:complete': {
-        const { recordingId, actions } = msg.payload;
+        const { recordingId, actions, harPath } = msg.payload;
 
         try {
           await db
@@ -71,16 +72,40 @@ export class WsHandlers {
             .set({ updatedAt: new Date() })
             .where(eq(recordings.id, recordingId));
 
-          // Upsert: delete existing artifact first, then insert fresh one
+          // Upsert: delete only actions artifact, preserve har and mock_rules
           await db
             .delete(recordingArtifacts)
-            .where(eq(recordingArtifacts.recordingId, recordingId));
+            .where(and(
+              eq(recordingArtifacts.recordingId, recordingId),
+              eq(recordingArtifacts.type, 'actions'),
+            ));
 
           await db.insert(recordingArtifacts).values({
             recordingId,
             type: 'actions',
             content: JSON.stringify({ recordingId, actions }),
           });
+
+          // Process HAR if available
+          if (harPath) {
+            try {
+              const harBuffer = await readFile(harPath);
+              await this.storage.saveHar(recordingId, harBuffer);
+
+              const { parseAndFilterHar } = await import('./services/har-filter.js');
+              const entries = await parseAndFilterHar(harPath);
+
+              await db.insert(recordingArtifacts).values({
+                recordingId,
+                type: 'har',
+                content: JSON.stringify(entries),
+              });
+
+              console.log(`HAR processed: ${entries.length} network entries for recording ${recordingId}`);
+            } catch (err) {
+              console.error('Failed to process HAR:', err);
+            }
+          }
 
           const recording = await db.query.recordings.findFirst({
             where: eq(recordings.id, recordingId),

@@ -20,7 +20,7 @@ export const recordings = pgTable('recordings', {
 export const recordingArtifacts = pgTable('recording_artifacts', {
   id: uuid('id').primaryKey().defaultRandom(),
   recordingId: uuid('recording_id').notNull().references(() => recordings.id),
-  type: varchar('type', { enum: ['actions', 'har'] }).notNull(),
+  type: varchar('type', { enum: ['actions', 'har', 'mock_rules'] }).notNull(),
   content: text('content'),
   createdAt: timestamp('created_at').defaultNow(),
 });

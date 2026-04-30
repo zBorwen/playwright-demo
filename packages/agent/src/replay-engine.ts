@@ -32,9 +32,10 @@ function loadHarEntries(harPath: string): HarEntry[] {
   }
 }
 
-function matchRule(url: string, rules: MockRule[]): MockRule | undefined {
+function matchRule(url: string, method: string, rules: MockRule[]): MockRule | undefined {
   return rules.find((r) => {
     if (!r.enabled) return false;
+    if (r.method && r.method !== method) return false;
     const pattern = new RegExp(r.urlPattern);
     return pattern.test(url);
   });
@@ -50,12 +51,13 @@ async function handleMockRoute(route: Route, rules: MockRule[], harEntries: HarE
     return;
   }
 
-  // Check mock rules first
-  const matchedRule = matchRule(url, rules);
-  if (matchedRule && matchedRule.responseBody) {
+  // Check mock rules first (with method matching)
+  const matchedRule = matchRule(url, request.method(), rules);
+  if (matchedRule && matchedRule.responseBody !== undefined) {
     await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
+      status: matchedRule.statusCode ?? 200,
+      contentType: matchedRule.contentType ?? 'application/json',
+      headers: matchedRule.responseHeaders,
       body: matchedRule.responseBody,
     });
     return;

@@ -1,4 +1,6 @@
-import type { Action, ElementInfo, Recording } from '../schema/actions.js';
+import type { Action, ElementInfo, Recording, NetworkEntry, MockRule } from '../schema/actions.js';
+
+export type { NetworkEntry, MockRule };
 
 export type ServerMessage =
   | { type: 'record:start'; payload: { targetUrl: string; recordingId: string } }
@@ -16,9 +18,3 @@ export type AgentMessage =
   | { type: 'replay:screenshot'; payload: { stepIndex: number; path: string } }
   | { type: 'replay:done'; payload: { status: 'passed' | 'failed'; trace?: string; screenshot?: string } }
   | { type: 'pong' };
-
-export interface MockRule {
-  urlPattern: string;
-  enabled: boolean;
-  responseBody?: string;
-}

@@ -15,6 +15,7 @@ import {
 } from '@/lib/api';
 import { useWebSocket } from '@/hooks/use-websocket';
 import { RecordingJsonEditor } from '@/components/recording-json-editor';
+import { NetworkTab } from '@/components/network-tab';
 
 const ACTION_ICONS: Record<string, string> = {
   click: '🖱️',
@@ -32,7 +33,7 @@ const ACTION_ICONS: Record<string, string> = {
   setInputFiles: '📁',
 };
 
-type Tab = 'timeline' | 'codegen' | 'json' | 'executions';
+type Tab = 'timeline' | 'codegen' | 'network' | 'json' | 'executions';
 
 function formatActionDetail(action: RecordingAction): string {
   const parts: string[] = [];
@@ -234,6 +235,7 @@ export function RecordingDetail() {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'timeline', label: '操作序列' },
     { key: 'codegen', label: 'Codegen' },
+    { key: 'network', label: 'Network' },
     { key: 'json', label: 'JSON 编辑' },
     { key: 'executions', label: '执行历史' },
   ];
@@ -356,6 +358,8 @@ export function RecordingDetail() {
           )}
         </div>
       )}
+
+      {activeTab === 'network' && id && <NetworkTab recordingId={id} />}
 
       {activeTab === 'json' && (
         <RecordingJsonEditor
