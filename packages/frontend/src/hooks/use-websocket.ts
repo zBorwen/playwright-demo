@@ -13,8 +13,9 @@ let ws: WebSocket | null = null;
 function connect(): void {
   if (ws && ws.readyState <= WebSocket.OPEN) return;
 
-  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const url = `${protocol}://${window.location.host}/ws`;
+  // Dev: direct connect to backend. Prod: use relative URL (same origin).
+  const wsUrl = import.meta.env.VITE_WS_URL;
+  const url = wsUrl || `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`;
 
   ws = new WebSocket(url);
 
