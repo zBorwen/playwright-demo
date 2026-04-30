@@ -1,85 +1,33 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
-import type { Recording, RecordingAction } from '@playwright-demo/shared';
+import type { Recording, RecordingAction, ElementInfo } from '@playwright-demo/shared';
 import { captureFingerprint } from './fingerprint.js';
+import { loadInternalModules } from './internal-modules.js';
 
-/** Injected JS: listens for DOM events and reports them via exposed function. */
-const EVENT_COLLECTOR_JS = `
-(() => {
-  const debounceTimers = new Map();
-
-  function getSelector(el) {
-    if (el.id) return '#' + CSS.escape(el.id);
-    if (el.getAttribute('data-testid')) return '[data-testid="' + el.getAttribute('data-testid') + '"]';
-    if (el.getAttribute('data-test')) return '[data-test="' + el.getAttribute('data-test') + '"]';
-    let sel = el.tagName.toLowerCase();
-    for (const cls of Array.from(el.classList).slice(0, 3)) {
-      sel += '.' + CSS.escape(cls);
-    }
-    return sel;
-  }
-
-  function reportEvent(type, el, extra) {
-    if (!el || !el.tagName) return;
-
-    // Debounce rapid input events (typing) — emit once after 300ms pause
-    if (type === 'input') {
-      const sel = getSelector(el);
-      if (debounceTimers.has(sel)) clearTimeout(debounceTimers.get(sel));
-      debounceTimers.set(sel, setTimeout(() => {
-        debounceTimers.delete(sel);
-        window.__actionRecorder__(type, getSelector(el));
-      }, 300));
-      return;
-    }
-
-    window.__actionRecorder__(type, getSelector(el), extra);
-  }
-
-  // Use capture phase so we see events before any page handlers stop propagation
-  document.addEventListener('click', (e) => {
-    const el = e.target;
-    if (el && el.tagName) reportEvent('click', el);
-  }, true);
-
-  document.addEventListener('input', (e) => {
-    const el = e.target;
-    if (el && el.tagName) reportEvent('input', el);
-  }, true);
-
-  document.addEventListener('keydown', (e) => {
-    // Only report special keys, not regular typing
-    const specialKeys = ['Enter', 'Escape', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Backspace', 'Delete'];
-    if (specialKeys.includes(e.key)) {
-      const el = e.target;
-      if (el && el.tagName) reportEvent('keydown', el, e.key);
-    }
-  }, true);
-
-  document.addEventListener('change', (e) => {
-    const el = e.target;
-    if (el && el.tagName) reportEvent('change', el);
-  }, true);
-
-  // Detect check/uncheck via focusout on checkboxes/radios (value changed while focused)
-  document.addEventListener('focusout', (e) => {
-    const el = e.target;
-    if (el && el.tagName && (el.type === 'checkbox' || el.type === 'radio')) {
-      reportEvent(el.checked ? 'check' : 'uncheck', el);
-    }
-  }, true);
-
-  document.addEventListener('submit', (e) => {
-    const el = e.target;
-    if (el && el.tagName === 'FORM') reportEvent('submit', el);
-  }, true);
-})();
-`;
+interface RecorderActionData {
+  action: {
+    name: string;
+    selector?: string;
+    url?: string;
+    value?: string;
+    text?: string;
+    key?: string;
+    options?: string[];
+    signals?: unknown[];
+  };
+  frame: { pageGuid: string };
+}
 
 export class RecorderManager {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
-  private actions: Recording['actions'] = [];
+  private actions: RecordingAction[] = [];
   private onActionCallback: ((action: RecordingAction) => void) | null = null;
+  private internals: ReturnType<typeof loadInternalModules>;
+  private codegenLines: string[] = [];
+
+  constructor() {
+    this.internals = loadInternalModules();
+  }
 
   /** Register a callback that fires for every recorded action in real time. */
   onAction(callback: (action: RecordingAction) => void): void {
@@ -88,230 +36,194 @@ export class RecorderManager {
 
   async startRecording(targetUrl: string): Promise<void> {
     this.browser = await chromium.launch({ headless: false });
-    try {
-      this.context = await this.browser.newContext({
-        recordHar: { path: this.getHarPath() },
-      });
-      this.actions = [];
+    this.context = await this.browser.newContext({
+      recordHar: { path: this.getHarPath() },
+    });
+    this.actions = [];
+    this.codegenLines = [];
 
-      const page = await this.context.newPage();
-
-      // 1. Expose bridge function BEFORE navigation (page JS -> Node)
-      await page.exposeFunction(
-        '__actionRecorder__',
-        async (eventType: string, selector: string, extra?: string) => {
-          this.handlePageEvent(page, eventType, selector, extra).catch((err) => {
-            console.warn('Error handling page event:', err);
-          });
-        },
-      );
-
-      // 2. Inject event collector JS BEFORE navigation (persists across navigations)
-      await page.addInitScript(EVENT_COLLECTOR_JS);
-
-      // 3. Setup navigation tracking BEFORE navigation
-      page.on('framenavigated', async (frame) => {
-        if (frame === page.mainFrame()) {
-          this.handlePageEvent(page, 'navigate', frame.url()).catch(() => {});
+    const eventSink = {
+      actionAdded: async (page: Page, data: RecorderActionData, code: string) => {
+        await this.handleRecorderAction(page, data, code);
+      },
+      actionUpdated: async (_page: Page, _data: RecorderActionData, code: string) => {
+        if (this.codegenLines.length > 0) {
+          this.codegenLines[this.codegenLines.length - 1] = code;
+        } else {
+          this.codegenLines.push(code);
         }
-      });
+      },
+      signalAdded: (_page: Page, data: unknown) => {
+        const signal = data as Record<string, unknown>;
+        if (signal?.name === 'navigation' && signal.url) {
+          this.codegenLines.push(`await page.goto('${signal.url}');`);
+        }
+      },
+    };
 
-      // 4. Navigate to target with error handling
-      await page.goto(targetUrl, { timeout: 30000, waitUntil: 'domcontentloaded' }).catch(() => {
+    await (this.context as any)._enableRecorder(
+      {
+        mode: 'recording',
+        language: 'javascript',
+        launchOptions: { headless: false },
+        contextOptions: {},
+      },
+      eventSink,
+    );
+
+    const page = await this.context!.newPage();
+    await page
+      .goto(targetUrl, { timeout: 30000, waitUntil: 'domcontentloaded' })
+      .catch(() => {
         console.warn('Initial navigation may have partially failed, continuing anyway');
       });
 
-      console.log(`Recording started on: ${page.url()}`);
-    } catch (err) {
-      await this.browser?.close();
-      this.browser = null;
-      throw err;
-    }
+    console.log(`Recording started on: ${page.url()}`);
   }
 
-  /** Process a single page event: capture fingerprint, build action, store + notify. */
-  private async handlePageEvent(
+  /** Process a single Recorder event: convert to RecordingAction, enrich with fingerprint, store + notify. */
+  private async handleRecorderAction(
     page: Page,
-    eventType: string,
-    selector: string,
-    extra?: string,
+    data: RecorderActionData,
+    code: string,
   ): Promise<void> {
+    const action = data.action;
+    const actionName = action.name;
+
+    // Collect codegen
+    if (code) {
+      this.codegenLines.push(code);
+    }
+
     const url = page.url();
-    const title = await page.title();
+    const title = await page.title().catch(() => '');
     const ts = Date.now();
 
-    // Navigate events use URL as selector (not a CSS selector) — skip fingerprint
-    let fingerprint: Awaited<ReturnType<typeof captureFingerprint>> = null;
-    if (eventType === 'navigate') {
-      fingerprint = {
-        dataTestId: null, dataTest: null, role: null, accessibleName: null,
-        textContent: null, placeholder: null, id: null, tagName: 'html',
-        labelText: null, name: null, inputType: null, classes: [],
-        parentPath: ['html'], nearbyText: [], boundingBox: null,
-        isVisible: true,
-      };
-    } else if (selector) {
-      // Validate selector is a valid CSS selector before querying
-      const looksLikeCssSelector = selector.startsWith('#') || selector.startsWith('.') || selector.startsWith('[') || /^[a-z]/i.test(selector);
-      fingerprint = looksLikeCssSelector ? await captureFingerprint(page, selector) : null;
+    // Enrich with element fingerprint
+    let elementInfo: ElementInfo | null = null;
+    if (action.selector) {
+      elementInfo = await captureFingerprint(page, action.selector);
     }
-    if (!fingerprint) return;
+    if (!elementInfo) {
+      elementInfo = this.defaultElementInfo(actionName);
+    }
 
-    let action: RecordingAction | null = null;
+    const baseFields = {
+      signals: (action.signals as any[]) || [],
+      elementInfo,
+      pageContext: { url, title },
+      timestamp: ts,
+    };
 
-    switch (eventType) {
-      case 'click': {
-        action = {
+    let recordingAction: RecordingAction | null = null;
+
+    switch (actionName) {
+      case 'click':
+        recordingAction = {
           name: 'click',
-          selector,
+          selector: action.selector || '',
           button: 'left',
           modifiers: 0,
           clickCount: 1,
-          signals: [],
-          elementInfo: fingerprint,
-          pageContext: { url, title },
-          timestamp: ts,
+          ...baseFields,
         };
         break;
-      }
 
-      case 'input': {
-        const inputEl = selector ? await page.$(selector) : null;
-        const value = inputEl
-          ? await inputEl.evaluate((el) => (el as HTMLInputElement).value || '')
-          : '';
-        action = {
+      case 'fill':
+        recordingAction = {
           name: 'fill',
-          selector,
-          value,
-          signals: [],
-          elementInfo: fingerprint,
-          pageContext: { url, title },
-          timestamp: ts,
+          selector: action.selector || '',
+          value: action.value ?? action.text ?? '',
+          ...baseFields,
         };
         break;
-      }
 
-      case 'keydown': {
-        action = {
+      case 'press':
+        recordingAction = {
           name: 'press',
-          selector,
-          key: extra || 'Enter',
+          selector: action.selector || '',
+          key: action.key ?? 'Enter',
           modifiers: 0,
-          signals: [],
-          elementInfo: fingerprint,
-          pageContext: { url, title },
-          timestamp: ts,
+          ...baseFields,
         };
         break;
-      }
 
-      case 'change': {
-        const inputEl = selector ? await page.$(selector) : null;
-        const options = inputEl
-          ? await inputEl.evaluate((el) => {
-              const select = el as HTMLSelectElement;
-              if (!select.selectedOptions) return [];
-              return Array.from(select.selectedOptions).map((o) => o.value);
-            })
-          : [];
-        action = {
+      case 'select':
+        recordingAction = {
           name: 'select',
-          selector,
-          options,
-          signals: [],
-          elementInfo: fingerprint,
-          pageContext: { url, title },
-          timestamp: ts,
+          selector: action.selector || '',
+          options: action.options ?? [],
+          ...baseFields,
         };
         break;
-      }
 
-      case 'check': {
-        action = {
+      case 'check':
+        recordingAction = {
           name: 'check',
-          selector,
-          signals: [],
-          elementInfo: fingerprint,
-          pageContext: { url, title },
-          timestamp: ts,
+          selector: action.selector || '',
+          ...baseFields,
         };
         break;
-      }
 
-      case 'uncheck': {
-        action = {
+      case 'uncheck':
+        recordingAction = {
           name: 'uncheck',
-          selector,
-          signals: [],
-          elementInfo: fingerprint,
-          pageContext: { url, title },
-          timestamp: ts,
+          selector: action.selector || '',
+          ...baseFields,
         };
         break;
-      }
 
-      case 'submit': {
-        // Form submit: treat as a click on the submit button/form itself
-        action = {
-          name: 'click',
-          selector,
-          button: 'left',
-          modifiers: 0,
-          clickCount: 1,
-          signals: [],
-          elementInfo: fingerprint,
-          pageContext: { url, title },
-          timestamp: ts,
-        };
-        break;
-      }
-
-      case 'navigate': {
-        action = {
+      case 'navigate':
+        recordingAction = {
           name: 'navigate',
-          url: selector, // selector carries the URL for navigate events
-          signals: [],
-          elementInfo: fingerprint ?? {
-            dataTestId: null,
-            dataTest: null,
-            role: null,
-            accessibleName: null,
-            textContent: null,
-            placeholder: null,
-            id: null,
-            tagName: 'html',
-            labelText: null,
-            name: null,
-            inputType: null,
-            classes: [],
-            parentPath: ['html'],
-            nearbyText: [],
-            boundingBox: null,
-            isVisible: true,
-          },
-          pageContext: { url, title },
-          timestamp: ts,
+          url: action.url || url,
+          ...baseFields,
         };
         break;
-      }
     }
 
-    if (action) {
-      this.actions.push(action);
+    if (recordingAction) {
+      this.actions.push(recordingAction);
       if (this.onActionCallback) {
-        this.onActionCallback(action);
+        this.onActionCallback(recordingAction);
       }
     }
   }
 
-  async stopRecording(): Promise<{ actions: Recording['actions']; harPath: string }> {
+  private defaultElementInfo(_actionName: string): ElementInfo {
+    return {
+      dataTestId: null,
+      dataTest: null,
+      role: null,
+      accessibleName: null,
+      textContent: null,
+      placeholder: null,
+      id: null,
+      tagName: 'html',
+      labelText: null,
+      name: null,
+      inputType: null,
+      classes: [],
+      parentPath: ['html'],
+      nearbyText: [],
+      boundingBox: null,
+      isVisible: true,
+    };
+  }
+
+  async stopRecording(): Promise<{
+    actions: Recording['actions'];
+    harPath: string;
+    codegen: string;
+  }> {
     const harPath = this.getHarPath();
     await this.context?.close();
     await this.browser?.close();
     this.browser = null;
     this.context = null;
-    return { actions: this.actions, harPath };
+
+    const codegen = this.codegenLines.join('\n');
+    return { actions: this.actions, harPath, codegen };
   }
 
   private getHarPath(): string {

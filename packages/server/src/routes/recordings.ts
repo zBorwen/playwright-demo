@@ -56,14 +56,11 @@ recordingsRouter.get('/:id/actions', async (c) => {
 });
 
 recordingsRouter.post('/:id/actions', zValidator('json', z.object({
-  recordingId: z.string(),
-  targetUrl: z.string(),
-  title: z.string(),
   actions: z.array(z.object({ name: z.string() })),
 })), async (c) => {
   const id = c.req.param('id');
-  const body = c.req.valid('json');
-  const content = JSON.stringify(body);
+  const { actions } = c.req.valid('json');
+  const content = JSON.stringify({ recordingId: id, actions });
 
   await db.insert(recordingArtifacts).values({
     recordingId: id,
@@ -71,8 +68,17 @@ recordingsRouter.post('/:id/actions', zValidator('json', z.object({
     content,
   });
 
-  const storage = c.get('storage');
-  await storage.saveRecording(id, body as unknown as Recording);
+  // Fetch recording metadata from DB for storage save
+  const recording = await db.select().from(recordings).where(eq(recordings.id, id)).limit(1);
+  if (recording.length) {
+    const storage = c.get('storage');
+    await storage.saveRecording(id, {
+      recordingId: id,
+      targetUrl: recording[0].targetUrl ?? '',
+      title: recording[0].title,
+      actions,
+    } as Recording);
+  }
 
   return c.json({ ok: true });
 });

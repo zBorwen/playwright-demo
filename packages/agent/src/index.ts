@@ -32,13 +32,14 @@ async function main() {
       }
       case 'record:stop': {
         console.log(`Stopping recording: ${msg.payload.recordingId}`);
-        const { actions, harPath } = await recorder.stopRecording();
+        const { actions, harPath, codegen } = await recorder.stopRecording();
         ws.send({
           type: 'record:complete',
           payload: {
             recordingId: msg.payload.recordingId,
             actions,
             harPath,
+            codegen,
           },
         });
         break;
