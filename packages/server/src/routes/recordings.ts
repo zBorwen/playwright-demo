@@ -78,12 +78,17 @@ recordingsRouter.get('/:id/codegen', async (c) => {
   if (!artifact.length) return c.json({ codegen: '' });
   const parsed = JSON.parse(artifact[0].content as string);
   const actions = Array.isArray(parsed) ? parsed : parsed.actions ?? [];
-  const code = generateCodegen(actions);
-  return c.json({ codegen: code });
+  try {
+    const code = generateCodegen(actions);
+    return c.json({ codegen: code });
+  } catch (err) {
+    console.error('Codegen failed:', err);
+    return c.json({ codegen: '' });
+  }
 });
 
 recordingsRouter.post('/:id/actions', zValidator('json', z.object({
-  actions: z.array(z.object({ name: z.string() })),
+  actions: z.array(z.object({ name: z.string() }).passthrough()),
 })), async (c) => {
   const id = c.req.param('id');
   const { actions } = c.req.valid('json');

@@ -54,7 +54,7 @@ function formatActionDetail(action: RecordingAction): string {
       if (action.options?.length) parts.push(`options: ${action.options.join(', ')}`);
       break;
     case 'click':
-      if (action.button !== 'left') parts.push(`${action.button} click`);
+      if (action.button && action.button !== 'left') parts.push(`${action.button} click`);
       if (action.modifiers) parts.push(`modifiers: ${action.modifiers}`);
       break;
     case 'navigate':
@@ -288,7 +288,7 @@ export function RecordingDetail() {
                   <span className="font-medium capitalize min-w-[80px]">{action.name}</span>
                   <span className="text-zinc-400 truncate flex-1">{detail}</span>
                   <span className="text-zinc-600 text-xs whitespace-nowrap">
-                    {new Date(action.timestamp).toLocaleTimeString()}
+                    {action.timestamp ? new Date(action.timestamp).toLocaleTimeString() : '--:--:--'}
                   </span>
                 </div>
               );
