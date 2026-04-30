@@ -67,6 +67,7 @@ export class RecorderManager {
         language: 'javascript',
         launchOptions: { headless: false },
         contextOptions: {},
+        hideToolbar: true,
       },
       eventSink,
     );
