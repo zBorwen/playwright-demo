@@ -100,18 +100,19 @@ export class RecorderManager {
       await page.exposeFunction(
         '__actionRecorder__',
         async (eventType: string, selector: string, extra?: string) => {
-          // Fire and forget — fingerprint collection is async, must not block user interaction
           this.handlePageEvent(page, eventType, selector, extra).catch((err) => {
             console.warn('Error handling page event:', err);
           });
         },
       );
 
-      // Navigate to target
-      await page.goto(targetUrl);
+      // Navigate to target with error handling
+      await page.goto(targetUrl, { timeout: 30000, waitUntil: 'domcontentloaded' }).catch(() => {
+        console.warn('Initial navigation may have partially failed, continuing anyway');
+      });
 
       // Inject event collector JS
-      await page.evaluate(EVENT_COLLECTOR_JS);
+      await page.addInitScript(EVENT_COLLECTOR_JS);
 
       // Navigation tracking (page-level, not user-level)
       page.on('framenavigated', async (frame) => {
@@ -119,6 +120,8 @@ export class RecorderManager {
           this.handlePageEvent(page, 'navigate', frame.url()).catch(() => {});
         }
       });
+
+      console.log(`Recording started on: ${page.url()}`);
     } catch (err) {
       await this.browser?.close();
       this.browser = null;
