@@ -74,12 +74,14 @@ export function RecordingDetail() {
     if (!id) return;
     Promise.all([
       fetchRecording(id),
-      fetchRecordingActions(id),
+      fetchRecordingActions(id).catch(() => ({ actions: [] })),
       fetchExecutions(id),
     ]).then(([rec, acts, execs]) => {
       setRecording(rec);
       setActions(acts.actions || []);
       setExecutions(execs);
+      setLoading(false);
+    }).catch(() => {
       setLoading(false);
     });
   }, [id]);
