@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
-import { saveRecordingActions, type Action } from '@/lib/api';
+import { saveRecordingActions, type RecordingAction } from '@/lib/api';
 
 interface RecordingJsonEditorProps {
   recordingId: string;
-  actions: Action[];
+  actions: RecordingAction[];
   onSave?: () => void;
 }
 
@@ -39,7 +39,7 @@ export function RecordingJsonEditor({ recordingId, actions, onSave }: RecordingJ
     setSaving(true);
     setSaved(false);
     try {
-      const parsed = JSON.parse(jsonText) as Action[];
+      const parsed = JSON.parse(jsonText) as RecordingAction[];
       await saveRecordingActions(recordingId, parsed);
       setSaved(true);
       onSave?.();

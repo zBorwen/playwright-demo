@@ -62,13 +62,19 @@ export async function fetchRecording(id: string): Promise<Recording> {
   return res.json() as Promise<Recording>;
 }
 
-export async function fetchRecordingActions(id: string): Promise<{ actions: Action[] }> {
+export async function fetchRecordingActions(id: string): Promise<{ actions: RecordingAction[] }> {
   const res = await fetch(`${API_BASE}/recordings/${id}/actions`);
   ensureOk(res);
   return res.json();
 }
 
-export async function saveRecordingActions(id: string, actions: Action[]): Promise<{ ok: boolean }> {
+export async function fetchRecordingCodegen(id: string): Promise<{ codegen: string }> {
+  const res = await fetch(`${API_BASE}/recordings/${id}/codegen`);
+  ensureOk(res);
+  return res.json();
+}
+
+export async function saveRecordingActions(id: string, actions: RecordingAction[]): Promise<{ ok: boolean }> {
   const res = await fetch(`${API_BASE}/recordings/${id}/actions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -77,6 +83,9 @@ export async function saveRecordingActions(id: string, actions: Action[]): Promi
   ensureOk(res);
   return res.json();
 }
+
+import type { RecordingAction } from '@playwright-demo/shared';
+export type { RecordingAction };
 
 export async function startRecording(id: string): Promise<{ ok: boolean }> {
   const res = await fetch(`${API_BASE}/recordings/${id}/start`, { method: 'POST' });
@@ -95,13 +104,6 @@ export async function replayRecording(id: string, options?: { useMock?: boolean 
   const res = await fetch(`${API_BASE}/recordings/${id}/replay${params}`, { method: 'POST' });
   ensureOk(res);
   return res.json();
-}
-
-export interface Action {
-  name: string;
-  selector?: string;
-  url?: string;
-  text?: string;
 }
 
 export interface Execution {

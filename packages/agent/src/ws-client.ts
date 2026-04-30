@@ -1,5 +1,5 @@
 import WebSocket from 'ws';
-import type { ServerMessage, AgentMessage } from './types.js';
+import type { ServerMessage, AgentMessage } from '@playwright-demo/shared';
 
 export class WsClient {
   private ws: WebSocket | null = null;

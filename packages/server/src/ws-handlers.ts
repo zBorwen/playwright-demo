@@ -95,6 +95,7 @@ export class WsHandlers {
             });
           }
 
+          // Broadcast with codegen included for real-time display
           this.broadcastToClients(JSON.stringify(msg));
         } catch (err) {
           console.error('Failed to save recording:', err);

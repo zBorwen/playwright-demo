@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import {
   fetchRecording,
   fetchRecordingActions,
+  fetchRecordingCodegen,
   fetchExecutions,
   startRecording,
   stopRecording,
@@ -10,7 +11,7 @@ import {
   saveRecordingActions,
   type Recording,
   type Execution,
-  type Action,
+  type RecordingAction,
 } from '@/lib/api';
 import { useWebSocket } from '@/hooks/use-websocket';
 import { RecordingJsonEditor } from '@/components/recording-json-editor';
@@ -33,10 +34,62 @@ const ACTION_ICONS: Record<string, string> = {
 
 type Tab = 'timeline' | 'codegen' | 'json' | 'executions';
 
+function formatActionDetail(action: RecordingAction): string {
+  const parts: string[] = [];
+
+  // Selector-based actions
+  if ('selector' in action && action.selector) {
+    parts.push(action.selector);
+  }
+
+  // Action-specific details
+  switch (action.name) {
+    case 'fill':
+      if (action.value) parts.push(`"${truncate(action.value, 30)}"`);
+      break;
+    case 'press':
+      if (action.key) parts.push(`key: ${action.key}`);
+      break;
+    case 'select':
+      if (action.options?.length) parts.push(`options: ${action.options.join(', ')}`);
+      break;
+    case 'click':
+      if (action.button !== 'left') parts.push(`${action.button} click`);
+      if (action.modifiers) parts.push(`modifiers: ${action.modifiers}`);
+      break;
+    case 'navigate':
+      if (action.url) parts.push(action.url);
+      break;
+    case 'assertText':
+      if (action.text) parts.push(`text: "${truncate(action.text, 30)}"`);
+      break;
+    case 'assertChecked':
+      parts.push(`checked: ${action.checked}`);
+      break;
+    case 'assertValue':
+      if (action.value) parts.push(`value: "${truncate(action.value, 30)}"`);
+      break;
+    case 'setInputFiles':
+      if (action.files?.length) parts.push(`files: ${action.files.join(', ')}`);
+      break;
+  }
+
+  // Element info hint
+  if (action.elementInfo?.role) {
+    parts.unshift(`[${action.elementInfo.role}]`);
+  }
+
+  return parts.join(' ');
+}
+
+function truncate(s: string, len: number): string {
+  return s.length > len ? s.slice(0, len) + '...' : s;
+}
+
 export function RecordingDetail() {
   const { id } = useParams<{ id: string }>();
   const [recording, setRecording] = useState<Recording | null>(null);
-  const [actions, setActions] = useState<Action[]>([]);
+  const [actions, setActions] = useState<RecordingAction[]>([]);
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('timeline');
@@ -48,7 +101,7 @@ export function RecordingDetail() {
   const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
     switch (msg.type) {
       case 'record:action': {
-        const payload = msg.payload as { action: Action; code?: string };
+        const payload = msg.payload as { action: RecordingAction; code?: string };
         setActions((prev) => [...prev, payload.action]);
         if (payload.code) {
           setCodegen((prev) => prev ? prev + '\n' + payload.code! : payload.code!);
@@ -57,7 +110,7 @@ export function RecordingDetail() {
       }
       case 'record:complete': {
         setRecordingStatus('idle');
-        const payload = msg.payload as { actions?: Action[]; codegen?: string };
+        const payload = msg.payload as { actions?: RecordingAction[]; codegen?: string };
         if (payload.actions) {
           setActions(payload.actions);
           // Auto-save actions to server
@@ -67,12 +120,9 @@ export function RecordingDetail() {
             });
           }
         }
-        if (payload.codegen) {
-          setCodegen(payload.codegen);
-        }
-        // Fallback: fetch from server if actions not in message
-        if (id && !payload.actions) {
-          fetchRecordingActions(id).then((a) => setActions(a.actions || []));
+        // Fetch codegen from server on completion
+        if (id) {
+          fetchRecordingCodegen(id).then((r) => setCodegen(r.codegen || '')).catch(() => {});
         }
         break;
       }
@@ -97,10 +147,12 @@ export function RecordingDetail() {
       fetchRecording(id),
       fetchRecordingActions(id).catch(() => ({ actions: [] })),
       fetchExecutions(id),
-    ]).then(([rec, acts, execs]) => {
+      fetchRecordingCodegen(id).catch(() => ({ codegen: '' })),
+    ]).then(([rec, acts, execs, codegenResp]) => {
       setRecording(rec);
       setActions(acts.actions || []);
       setExecutions(execs);
+      setCodegen(codegenResp.codegen || '');
       setLoading(false);
     }).catch(() => {
       setLoading(false);
@@ -224,27 +276,23 @@ export function RecordingDetail() {
           {actions.length === 0 ? (
             <p className="py-8 text-center text-zinc-500">暂无操作</p>
           ) : (
-            actions.map((action, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm"
-              >
-                <span className="w-8 text-right text-zinc-500">{i + 1}</span>
-                <span className="text-lg">{ACTION_ICONS[action.name] || '❓'}</span>
-                <span className="font-medium capitalize">{action.name}</span>
-                {'selector' in action && (action as any).selector && (
-                  <span className="text-zinc-400">{(action as any).selector}</span>
-                )}
-                {'url' in action && (action as any).url && (
-                  <span className="text-zinc-400">{(action as any).url}</span>
-                )}
-                {'text' in action && (action as any).text && (
-                  <span className="text-zinc-400">
-                    &quot;{(action as any).text.slice(0, 30)}{(action as any).text.length > 30 ? '...' : ''}&quot;
+            actions.map((action, i) => {
+              const detail = formatActionDetail(action);
+              return (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm"
+                >
+                  <span className="w-8 text-right text-zinc-500">{i + 1}</span>
+                  <span className="text-lg">{ACTION_ICONS[action.name] || '❓'}</span>
+                  <span className="font-medium capitalize min-w-[80px]">{action.name}</span>
+                  <span className="text-zinc-400 truncate flex-1">{detail}</span>
+                  <span className="text-zinc-600 text-xs whitespace-nowrap">
+                    {new Date(action.timestamp).toLocaleTimeString()}
                   </span>
-                )}
-              </div>
-            ))
+                </div>
+              );
+            })
           )}
         </div>
       )}

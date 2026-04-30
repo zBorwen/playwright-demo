@@ -7,6 +7,7 @@ import { eq, desc, and } from 'drizzle-orm';
 import type { Recording } from '@playwright-demo/shared';
 import type { Env } from '../types/env.js';
 import { getWsHandlers } from '../context.js';
+import { generateCodegen } from '../services/codegen.js';
 
 export const recordingsRouter = new Hono<Env>();
 
@@ -59,6 +60,26 @@ recordingsRouter.get('/:id/actions', async (c) => {
     return c.json({ recordingId: id, actions: parsed });
   }
   return c.json(parsed);
+});
+
+recordingsRouter.get('/:id/codegen', async (c) => {
+  const id = c.req.param('id');
+  const artifact = await db
+    .select()
+    .from(recordingArtifacts)
+    .where(
+      and(
+        eq(recordingArtifacts.recordingId, id),
+        eq(recordingArtifacts.type, 'actions'),
+      ),
+    )
+    .orderBy(desc(recordingArtifacts.createdAt))
+    .limit(1);
+  if (!artifact.length) return c.json({ codegen: '' });
+  const parsed = JSON.parse(artifact[0].content as string);
+  const actions = Array.isArray(parsed) ? parsed : parsed.actions ?? [];
+  const code = generateCodegen(actions);
+  return c.json({ codegen: code });
 });
 
 recordingsRouter.post('/:id/actions', zValidator('json', z.object({

@@ -1,7 +1,6 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import type { Recording, RecordingAction, ElementInfo } from '@playwright-demo/shared';
 import { captureFingerprint } from './fingerprint.js';
-import { loadInternalModules } from './internal-modules.js';
 
 interface RecorderActionData {
   action: {
@@ -22,12 +21,7 @@ export class RecorderManager {
   private context: BrowserContext | null = null;
   private actions: RecordingAction[] = [];
   private onActionCallback: ((action: RecordingAction, code: string) => void) | null = null;
-  private internals: ReturnType<typeof loadInternalModules>;
   private codegenLines: string[] = [];
-
-  constructor() {
-    this.internals = loadInternalModules();
-  }
 
   /** Register a callback that fires for every recorded action in real time. The callback receives the action and its generated code. */
   onAction(callback: (action: RecordingAction, code: string) => void): void {
