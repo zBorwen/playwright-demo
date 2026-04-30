@@ -27,7 +27,8 @@ function loadHarEntries(harPath: string): HarEntry[] {
   try {
     const content = JSON.parse(readFileSync(harPath, 'utf-8')) as HarFile;
     return content.log.entries;
-  } catch {
+  } catch (err) {
+    console.warn(`Failed to parse HAR file: ${err instanceof Error ? err.message : err}`);
     return [];
   }
 }
@@ -180,7 +181,9 @@ export class ReplayEngine {
     switch (action.name) {
       case 'navigate': {
         await page.goto(action.url, { timeout: 30000 });
-        await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+        await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+          // networkidle may fail on SPAs, continue anyway
+        });
         break;
       }
       case 'click': {

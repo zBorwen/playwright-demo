@@ -30,7 +30,7 @@ function connect(): void {
         listener(msg);
       }
     } catch {
-      // Ignore non-JSON messages (e.g., ping/pong)
+      // Ignore non-JSON messages (e.g., raw ping strings)
     }
   };
 

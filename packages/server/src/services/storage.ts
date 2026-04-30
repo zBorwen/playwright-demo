@@ -24,7 +24,7 @@ export class StorageService {
       const content = await readFile(path, 'utf-8');
       return JSON.parse(content) as Recording;
     } catch {
-      return null;
+      return null; // File not found or invalid JSON
     }
   }
 
@@ -41,7 +41,7 @@ export class StorageService {
       const path = `${this.base}/recordings/${recordingId}/recording.har`;
       return await readFile(path);
     } catch {
-      return null;
+      return null; // File not found
     }
   }
 

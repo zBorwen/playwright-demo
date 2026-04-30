@@ -1,6 +1,7 @@
 import { WsClient } from './ws-client.js';
 import { RecorderManager } from './recorder-manager.js';
 import { ReplayEngine } from './replay-engine.js';
+import type { AgentMessage } from '@playwright-demo/shared';
 
 const SERVER_URL = process.env.SERVER_URL || 'ws://localhost:3000/ws';
 const AGENT_ID = process.env.AGENT_ID || 'default';
@@ -17,16 +18,17 @@ async function main() {
       case 'record:start': {
         console.log(`Starting recording: ${msg.payload.recordingId}`);
         recorder.onAction((action, code) => {
-          ws.send({
+          const agentMsg: AgentMessage = {
             type: 'record:action',
             payload: {
               action,
               code,
-              selector: action.name === 'navigate' ? '' : action.selector,
-              elementInfo: action.elementInfo,
-              timestamp: action.timestamp,
+              selector: action.name === 'navigate' ? '' : (action as Record<string, unknown>).selector ?? '',
+              elementInfo: (action as Record<string, unknown>).elementInfo,
+              timestamp: (action as Record<string, number>).timestamp,
             },
-          } as any);
+          };
+          ws.send(agentMsg);
         });
         await recorder.startRecording(msg.payload.targetUrl);
         break;
@@ -57,7 +59,7 @@ async function main() {
           ws.send({ type: 'replay:screenshot', payload: { stepIndex, path } });
         });
 
-        const result = await engine.replay(actions as any, {
+        const result = await engine.replay(actions as Parameters<typeof engine.replay>[0], {
           headless: false,
           harPath: harRef ? `./storage/${harRef}` : undefined,
           mockRules: mockRules || [],

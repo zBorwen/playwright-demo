@@ -11,11 +11,9 @@ const app = new Hono<Env>();
 
 app.use('*', cors());
 
-const storage = new StorageService();
-
 // Inject storage to context
 app.use('*', async (c, next) => {
-  c.set('storage', storage);
+  c.set('storage', new StorageService());
   await next();
 });
 

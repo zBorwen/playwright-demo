@@ -156,7 +156,9 @@ export function RecordingDetail() {
         }
         // Fetch codegen from server on completion
         if (id) {
-          fetchRecordingCodegen(id).then((r) => setCodegen(r.codegen || '')).catch(() => {});
+          fetchRecordingCodegen(id).then((r) => setCodegen(r.codegen || '')).catch((e) => {
+            console.warn('Failed to fetch codegen:', e.message);
+          });
         }
         break;
       }
@@ -188,7 +190,8 @@ export function RecordingDetail() {
       setExecutions(execs);
       setCodegen(codegenResp.codegen || '');
       setLoading(false);
-    }).catch(() => {
+    }).catch((e) => {
+      console.warn('Failed to load recording detail:', e.message);
       setLoading(false);
     });
   }, [id]);

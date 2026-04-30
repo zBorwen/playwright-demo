@@ -62,10 +62,13 @@ networkRouter.post('/mock-rules', zValidator('json', z.object({ rules: mockRules
   const recordingId = c.req.param('id')!;
   const { rules } = c.req.valid('json');
 
-  // Upsert: delete existing mock_rules artifact, then insert
+  // Upsert: delete only existing mock_rules artifact, preserve actions and har
   await db
     .delete(recordingArtifacts)
-    .where(eq(recordingArtifacts.recordingId, recordingId));
+    .where(and(
+      eq(recordingArtifacts.recordingId, recordingId),
+      eq(recordingArtifacts.type, 'mock_rules'),
+    ));
 
   await db.insert(recordingArtifacts).values({
     recordingId,

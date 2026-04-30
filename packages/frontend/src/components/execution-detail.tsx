@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { fetchExecution, fetchExecutionArtifacts } from '@/lib/api';
 import type { Execution, ExecutionArtifact } from '@/lib/api';

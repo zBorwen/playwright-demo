@@ -24,7 +24,6 @@ export class RecorderManager {
   private actions: RecordingAction[] = [];
   private onActionCallback: ((action: RecordingAction, code: string) => void) | null = null;
   private codegenLines: string[] = [];
-  private lastActionName: string | null = null; // Track last action type for fill dedup reset
 
   /** Register a callback that fires for every recorded action in real time. The callback receives the action and its generated code. */
   onAction(callback: (action: RecordingAction, code: string) => void): void {
@@ -116,7 +115,7 @@ export class RecorderManager {
           }
         }
       },
-      signalAdded: (_page: Page, data: unknown) => {
+      signalAdded: (page: Page, data: unknown) => {
         const signal = data as Record<string, unknown>;
         if (signal?.name === 'navigation' && signal.url) {
           this.codegenLines.push(`await page.goto('${signal.url}');`);
@@ -175,7 +174,7 @@ export class RecorderManager {
     }
 
     const baseFields = {
-      signals: (action.signals as any[]) || [],
+      signals: action.signals ?? [],
       elementInfo,
       pageContext: { url, title },
       timestamp: ts,

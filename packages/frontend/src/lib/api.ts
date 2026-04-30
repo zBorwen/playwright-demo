@@ -1,3 +1,6 @@
+import type { RecordingAction, NetworkEntry, MockRule } from '@playwright-demo/shared';
+export type { RecordingAction, NetworkEntry, MockRule };
+
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export interface Project {
@@ -83,9 +86,6 @@ export async function saveRecordingActions(id: string, actions: RecordingAction[
   ensureOk(res);
   return res.json();
 }
-
-import type { RecordingAction, NetworkEntry, MockRule } from '@playwright-demo/shared';
-export type { RecordingAction, NetworkEntry, MockRule };
 
 export async function startRecording(id: string): Promise<{ ok: boolean }> {
   const res = await fetch(`${API_BASE}/recordings/${id}/start`, { method: 'POST' });
