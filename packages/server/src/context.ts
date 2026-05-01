@@ -1,5 +1,5 @@
-import type { WsHandlers } from './ws-handlers.js';
-import type { StorageService } from './services/storage.js';
+import type { WsHandlers } from './ws-handlers';
+import type { StorageService } from './services/storage';
 
 let wsHandlers: WsHandlers | null = null;
 let storage: StorageService | null = null;

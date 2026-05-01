@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { StorageService } from './services/storage.js';
-import { projectsRouter } from './routes/projects.js';
-import { recordingsRouter } from './routes/recordings.js';
-import { executionsRouter } from './routes/executions.js';
-import { networkRouter } from './routes/network.js';
-import type { Env } from './types/env.js';
+import { StorageService } from './services/storage';
+import { projectsRouter } from './routes/projects';
+import { recordingsRouter } from './routes/recordings';
+import { executionsRouter } from './routes/executions';
+import { networkRouter } from './routes/network';
+import type { Env } from './types/env';
 
 const app = new Hono<Env>();
 

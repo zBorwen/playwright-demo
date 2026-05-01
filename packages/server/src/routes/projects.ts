@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { db } from '../db/index.js';
-import { projects, recordings, recordingArtifacts, executions } from '../db/schema.js';
+import { db } from '../db/index';
+import { projects, recordings, recordingArtifacts, executions } from '../db/schema';
 import { eq, inArray } from 'drizzle-orm';
 
 export const projectsRouter = new Hono();

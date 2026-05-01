@@ -1,10 +1,10 @@
 import type { WebSocket } from 'ws';
 import type { AgentMessage, ServerMessage } from '@playwright-demo/shared';
 import { readFile } from 'fs/promises';
-import { db } from './db/index.js';
-import { recordings, recordingArtifacts } from './db/schema.js';
+import { db } from './db/index';
+import { recordings, recordingArtifacts } from './db/schema';
 import { eq, and } from 'drizzle-orm';
-import { StorageService } from './services/storage.js';
+import { StorageService } from './services/storage';
 
 export class WsHandlers {
   private storage: StorageService;
