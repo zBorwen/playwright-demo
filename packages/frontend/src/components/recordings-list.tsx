@@ -122,31 +122,33 @@ export function RecordingsList({ projectId, reloadKey = 0 }: RecordingsListProps
           {recordings.map((r) => (
             <div
               key={r.id}
-              className="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 p-4 transition hover:border-zinc-600"
+              className="group flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 p-4 transition hover:border-zinc-600"
             >
               <input
                 type="checkbox"
                 checked={selectedIds.has(r.id)}
                 onChange={() => toggleSelect(r.id)}
+                onClick={(e) => e.stopPropagation()}
                 className="rounded border-zinc-600 bg-zinc-800"
               />
-              <Link to={`/recordings/${r.id}`} className="flex-1">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-medium">{r.title}</h3>
-                    {r.targetUrl && (
-                      <p className="mt-1 text-sm text-zinc-400">{r.targetUrl}</p>
-                    )}
-                  </div>
-                  <span className="text-xs text-zinc-500">
-                    {new Date(r.createdAt).toLocaleDateString()}
-                  </span>
+              <Link
+                to={`/recordings/${r.id}`}
+                className="flex flex-1 cursor-pointer items-center justify-between"
+              >
+                <div>
+                  <h3 className="font-medium">{r.title}</h3>
+                  {r.targetUrl && (
+                    <p className="mt-1 text-sm text-zinc-400">{r.targetUrl}</p>
+                  )}
                 </div>
+                <span className="text-xs text-zinc-500">
+                  {new Date(r.createdAt).toLocaleDateString()}
+                </span>
               </Link>
               <button
-                onClick={() => handleDeleteSingle(r.id, r.title)}
+                onClick={(e) => { e.stopPropagation(); handleDeleteSingle(r.id, r.title); }}
                 disabled={deleting}
-                className="rounded p-1.5 text-zinc-600 transition hover:text-red-400 hover:bg-red-950 disabled:opacity-50"
+                className="ml-1 rounded p-1.5 text-zinc-600 transition hover:text-red-400 hover:bg-red-950 opacity-0 group-hover:opacity-100 disabled:opacity-50"
                 title="删除录制"
               >
                 {deleting && selectedIds.has(r.id) ? '…' : '🗑'}

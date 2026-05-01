@@ -40,24 +40,22 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
       {projects.map((p) => (
         <div
           key={p.id}
-          className="group rounded-lg border border-zinc-800 bg-zinc-900 p-5 transition hover:border-zinc-600"
+          className="group relative rounded-lg border border-zinc-800 bg-zinc-900 p-5 transition hover:border-zinc-600"
         >
-          <div className="flex items-start justify-between">
-            <Link to={`/projects/${p.id}`} className="flex-1">
-              <h3 className="font-semibold">{p.name}</h3>
-              {p.description && (
-                <p className="mt-1 text-sm text-zinc-400">{p.description}</p>
-              )}
-            </Link>
-            <button
-              onClick={() => handleDelete(p.id, p.name)}
-              disabled={deleting === p.id}
-              className="ml-2 rounded p-1 text-zinc-600 transition hover:text-red-400 hover:bg-red-950 opacity-0 group-hover:opacity-100 disabled:opacity-50"
-              title="删除项目"
-            >
-              {deleting === p.id ? '…' : '🗑'}
-            </button>
-          </div>
+          <Link to={`/projects/${p.id}`} className="block">
+            <h3 className="font-semibold">{p.name}</h3>
+            {p.description && (
+              <p className="mt-1 text-sm text-zinc-400">{p.description}</p>
+            )}
+          </Link>
+          <button
+            onClick={() => handleDelete(p.id, p.name)}
+            disabled={deleting === p.id}
+            className="absolute top-3 right-3 rounded p-1 text-zinc-600 transition hover:text-red-400 hover:bg-red-950 opacity-0 group-hover:opacity-100 disabled:opacity-50"
+            title="删除项目"
+          >
+            {deleting === p.id ? '…' : '🗑'}
+          </button>
         </div>
       ))}
     </div>
