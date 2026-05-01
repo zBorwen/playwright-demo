@@ -48,14 +48,6 @@ export function RecordingsList({ projectId, reloadKey = 0 }: RecordingsListProps
     });
   };
 
-  const toggleSelectAll = () => {
-    if (selectedIds.size === recordings.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(recordings.map(r => r.id)));
-    }
-  };
-
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
     const count = selectedIds.size;

@@ -24,9 +24,9 @@ async function main() {
             payload: {
               action,
               code,
-              selector: action.name === 'navigate' ? '' : (action as Record<string, unknown>).selector ?? '',
-              elementInfo: (action as Record<string, unknown>).elementInfo,
-              timestamp: (action as Record<string, number>).timestamp,
+              selector: 'selector' in action ? (action as { selector: string }).selector : '',
+              elementInfo: action.elementInfo,
+              timestamp: action.timestamp,
             },
           };
           ws.send(agentMsg);
