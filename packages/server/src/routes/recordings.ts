@@ -1,13 +1,15 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { db } from '../db/index.js';
-import { recordings, recordingArtifacts, executions } from '../db/schema.js';
+import { db } from '../db/index';
+import { recordings, recordingArtifacts, executions } from '../db/schema';
 import { eq, desc, and, inArray } from 'drizzle-orm';
 import type { Recording, MockRule } from '@playwright-demo/shared';
-import type { Env } from '../types/env.js';
-import { getWsHandlers } from '../context.js';
-import { generateCodegen } from '../services/codegen.js';
+import type { Env } from '../types/env';
+import { getWsHandlers } from '../context';
+import { generateCodegen } from '../services/codegen';
+import { rm } from 'fs/promises';
+import path from 'path';
 
 export const recordingsRouter = new Hono<Env>();
 
@@ -214,24 +216,40 @@ recordingsRouter.post('/:id/replay', async (c) => {
   return c.json({ ok: true, executionId: execution[0].id });
 });
 
-recordingsRouter.delete('/:id', async (c) => {
-  const id = c.req.param('id');
-  await deleteRecording(id);
-  return c.json({ ok: true });
+recordingsRouter.delete('/batch', async (c) => {
+  const body = await c.req.json();
+  const ids = body.ids as string[];
+  if (!ids || ids.length === 0) return c.json({ error: 'missing ids' }, 400);
+  try {
+    for (const id of ids) {
+      await deleteRecording(id);
+    }
+    return c.json({ ok: true, deleted: ids.length });
+  } catch (e) {
+    return c.json({ error: (e as Error).message }, 500);
+  }
 });
 
-recordingsRouter.delete('/batch', zValidator('json', z.object({ ids: z.array(z.string().uuid()) })), async (c) => {
-  const { ids } = c.req.valid('json');
-  for (const id of ids) {
+recordingsRouter.delete('/:id', async (c) => {
+  const id = c.req.param('id');
+  try {
     await deleteRecording(id);
+    return c.json({ ok: true });
+  } catch (e) {
+    return c.json({ error: (e as Error).message }, 500);
   }
-  return c.json({ ok: true, deleted: ids.length });
 });
 
 async function deleteRecording(id: string): Promise<void> {
+  const rec = await db.select({ id: recordings.id }).from(recordings).where(eq(recordings.id, id)).limit(1);
+  if (!rec.length) return;
+
   // Delete all artifacts and executions first
   await db.delete(recordingArtifacts).where(eq(recordingArtifacts.recordingId, id));
   await db.delete(executions).where(eq(executions.recordingId, id));
   // Delete the recording
   await db.delete(recordings).where(eq(recordings.id, id));
+  // Delete storage files
+  const storageDir = path.join(process.env.STORAGE_PATH || './storage', 'recordings', id);
+  await rm(storageDir, { recursive: true, force: true });
 }

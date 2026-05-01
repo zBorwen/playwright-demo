@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile } from 'fs/promises';
+import { mkdir, writeFile, readFile, rm } from 'fs/promises';
 import type { Recording } from '@playwright-demo/shared';
 
 const STORAGE_BASE = process.env.STORAGE_PATH || './storage';
@@ -59,5 +59,15 @@ export class StorageService {
     const path = `${dir}/replay.har`;
     await writeFile(path, buffer);
     return path;
+  }
+
+  async deleteRecording(recordingId: string): Promise<void> {
+    const dir = `${this.base}/recordings/${recordingId}`;
+    await rm(dir, { recursive: true, force: true });
+  }
+
+  async deleteExecution(executionId: string): Promise<void> {
+    const dir = `${this.base}/executions/${executionId}`;
+    await rm(dir, { recursive: true, force: true });
   }
 }
