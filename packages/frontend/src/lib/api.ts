@@ -3,6 +3,15 @@ export type { RecordingAction, NetworkEntry, MockRule };
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
+async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
+  const result: { success: boolean; data: T; error?: { code: string; message: string } } = await res.json();
+  if (!result.success) {
+    throw new Error(result.error?.message || 'Unknown error');
+  }
+  return result.data;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -20,112 +29,80 @@ export interface Recording {
   updatedAt: string;
 }
 
-function ensureOk(res: Response): void {
-  if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
-}
-
 export async function fetchProjects(): Promise<Project[]> {
-  const res = await fetch(`${API_BASE}/projects`);
-  ensureOk(res);
-  return res.json() as Promise<Project[]>;
+  return request(`${API_BASE}/projects`);
 }
 
 export async function createProject(data: { name: string; description?: string }): Promise<Project> {
-  const res = await fetch(`${API_BASE}/projects`, {
+  return request(`${API_BASE}/projects`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  ensureOk(res);
-  return res.json() as Promise<Project>;
 }
 
 export async function deleteProject(id: string): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_BASE}/projects/${id}`, { method: 'DELETE' });
-  ensureOk(res);
-  return res.json();
+  return request(`${API_BASE}/projects/${id}`, { method: 'DELETE' });
 }
 
 export async function createRecording(data: { projectId: string; title: string; targetUrl?: string }): Promise<Recording> {
-  const res = await fetch(`${API_BASE}/recordings`, {
+  return request(`${API_BASE}/recordings`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  ensureOk(res);
-  return res.json() as Promise<Recording>;
 }
 
 export async function fetchRecordings(projectId?: string): Promise<Recording[]> {
   const url = projectId
     ? `${API_BASE}/recordings?projectId=${projectId}`
     : `${API_BASE}/recordings`;
-  const res = await fetch(url);
-  ensureOk(res);
-  return res.json() as Promise<Recording[]>;
+  return request(url);
 }
 
 export async function fetchRecording(id: string): Promise<Recording> {
-  const res = await fetch(`${API_BASE}/recordings/${id}`);
-  ensureOk(res);
-  return res.json() as Promise<Recording>;
+  return request(`${API_BASE}/recordings/${id}`);
 }
 
 export async function fetchRecordingActions(id: string): Promise<{ actions: RecordingAction[] }> {
-  const res = await fetch(`${API_BASE}/recordings/${id}/actions`);
-  ensureOk(res);
-  return res.json();
+  return request(`${API_BASE}/recordings/${id}/actions`);
 }
 
 export async function fetchRecordingCodegen(id: string): Promise<{ codegen: string }> {
-  const res = await fetch(`${API_BASE}/recordings/${id}/codegen`);
-  ensureOk(res);
-  return res.json();
+  return request(`${API_BASE}/recordings/${id}/codegen`);
 }
 
 export async function saveRecordingActions(id: string, actions: RecordingAction[]): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_BASE}/recordings/${id}/actions`, {
+  return request(`${API_BASE}/recordings/${id}/actions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ actions }),
   });
-  ensureOk(res);
-  return res.json();
 }
 
 export async function deleteRecording(id: string): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_BASE}/recordings/${id}`, { method: 'DELETE' });
-  ensureOk(res);
-  return res.json();
+  return request(`${API_BASE}/recordings/${id}`, { method: 'DELETE' });
 }
 
 export async function deleteRecordings(ids: string[]): Promise<{ ok: boolean; deleted: number }> {
-  const res = await fetch(`${API_BASE}/recordings/batch`, {
+  return request(`${API_BASE}/recordings/batch`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids }),
   });
-  ensureOk(res);
-  return res.json();
 }
 
 export async function startRecording(id: string): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_BASE}/recordings/${id}/start`, { method: 'POST' });
-  ensureOk(res);
-  return res.json();
+  return request(`${API_BASE}/recordings/${id}/start`, { method: 'POST' });
 }
 
 export async function stopRecording(id: string): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_BASE}/recordings/${id}/stop`, { method: 'POST' });
-  ensureOk(res);
-  return res.json();
+  return request(`${API_BASE}/recordings/${id}/stop`, { method: 'POST' });
 }
 
 export async function replayRecording(id: string, options?: { useMock?: boolean }): Promise<{ ok: boolean; executionId: string }> {
   const params = options?.useMock ? '?mock=true' : '';
-  const res = await fetch(`${API_BASE}/recordings/${id}/replay${params}`, { method: 'POST' });
-  ensureOk(res);
-  return res.json();
+  return request(`${API_BASE}/recordings/${id}/replay${params}`, { method: 'POST' });
 }
 
 export interface Execution {
@@ -146,43 +123,31 @@ export interface ExecutionArtifact {
 }
 
 export async function fetchExecutionArtifacts(id: string): Promise<ExecutionArtifact[]> {
-  const res = await fetch(`${API_BASE}/executions/${id}/artifacts`);
-  ensureOk(res);
-  return res.json() as Promise<ExecutionArtifact[]>;
+  return request(`${API_BASE}/executions/${id}/artifacts`);
 }
 
 export async function fetchExecutions(recordingId: string): Promise<Execution[]> {
-  const res = await fetch(`${API_BASE}/executions?recordingId=${recordingId}`);
-  ensureOk(res);
-  return res.json() as Promise<Execution[]>;
+  return request(`${API_BASE}/executions?recordingId=${recordingId}`);
 }
 
 export async function fetchExecution(id: string): Promise<Execution> {
-  const res = await fetch(`${API_BASE}/executions/${id}`);
-  ensureOk(res);
-  return res.json() as Promise<Execution>;
+  return request(`${API_BASE}/executions/${id}`);
 }
 
 // ─── Network & Mock Rules ─────────────────────────────────────
 
 export async function fetchRecordingNetwork(id: string): Promise<{ entries: NetworkEntry[] }> {
-  const res = await fetch(`${API_BASE}/recordings/${id}/network`);
-  ensureOk(res);
-  return res.json();
+  return request(`${API_BASE}/recordings/${id}/network`);
 }
 
 export async function fetchRecordingMockRules(id: string): Promise<{ rules: MockRule[] }> {
-  const res = await fetch(`${API_BASE}/recordings/${id}/network/mock-rules`);
-  ensureOk(res);
-  return res.json();
+  return request(`${API_BASE}/recordings/${id}/network/mock-rules`);
 }
 
 export async function saveRecordingMockRules(id: string, rules: MockRule[]): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_BASE}/recordings/${id}/network/mock-rules`, {
+  return request(`${API_BASE}/recordings/${id}/network/mock-rules`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rules }),
   });
-  ensureOk(res);
-  return res.json();
 }

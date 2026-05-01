@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
+import { zValidator } from '../middleware/zod-validator';
 import { z } from 'zod';
 import { db } from '../db/index';
 import { recordingArtifacts } from '../db/schema';
 import { eq, desc, and } from 'drizzle-orm';
+import { successResponse, errorResponse, API_CODES } from '../middleware/response';
 
 export const networkRouter = new Hono();
 
@@ -19,11 +20,11 @@ networkRouter.get('/', async (c) => {
 
   const harArtifact = artifacts.find((a) => a.type === 'har');
   if (!harArtifact || !harArtifact.content) {
-    return c.json({ entries: [] });
+    return c.json(successResponse({ entries: [] }));
   }
 
   const entries = JSON.parse(harArtifact.content) as unknown[];
-  return c.json({ entries });
+  return c.json(successResponse({ entries }));
 });
 
 // GET /api/recordings/:id/network/mock-rules — 返回 MockRule[]
@@ -38,11 +39,11 @@ networkRouter.get('/mock-rules', async (c) => {
 
   const mockArtifact = artifacts.find((a) => a.type === 'mock_rules');
   if (!mockArtifact || !mockArtifact.content) {
-    return c.json({ rules: [] });
+    return c.json(successResponse({ rules: [] }));
   }
 
   const rules = JSON.parse(mockArtifact.content) as unknown[];
-  return c.json({ rules });
+  return c.json(successResponse({ rules }));
 });
 
 // POST /api/recordings/:id/network/mock-rules — 保存 MockRule[]
@@ -76,5 +77,5 @@ networkRouter.post('/mock-rules', zValidator('json', z.object({ rules: mockRules
     content: JSON.stringify(rules),
   });
 
-  return c.json({ ok: true });
+  return c.json(successResponse({ ok: true }));
 });

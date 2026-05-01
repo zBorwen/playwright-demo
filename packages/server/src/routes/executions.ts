@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
+import { zValidator } from '../middleware/zod-validator';
 import { z } from 'zod';
 import { db } from '../db/index';
 import { executions, executionArtifacts } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { successResponse, errorResponse, API_CODES } from '../middleware/response';
 
 export const executionsRouter = new Hono();
 
@@ -17,20 +18,20 @@ executionsRouter.get('/', async (c) => {
   const query = db.select().from(executions);
   const filtered = recordingId ? query.where(eq(executions.recordingId, recordingId)) : query;
   const list = await filtered.orderBy(desc(executions.startedAt));
-  return c.json(list);
+  return c.json(successResponse(list));
 });
 
 executionsRouter.post('/', zValidator('json', createExecutionSchema), async (c) => {
   const body = c.req.valid('json');
   const result = await db.insert(executions).values(body).returning();
-  return c.json(result[0], 201);
+  return c.json(successResponse(result[0]), 201);
 });
 
 executionsRouter.get('/:id', async (c) => {
   const id = c.req.param('id');
   const ex = await db.select().from(executions).where(eq(executions.id, id)).limit(1);
-  if (!ex.length) return c.json({ error: 'not found' }, 404);
-  return c.json(ex[0]);
+  if (!ex.length) return c.json(errorResponse(API_CODES.NOT_FOUND, '执行记录不存在'), 404);
+  return c.json(successResponse(ex[0]));
 });
 
 executionsRouter.get('/:id/artifacts', async (c) => {
@@ -39,7 +40,7 @@ executionsRouter.get('/:id/artifacts', async (c) => {
     .select()
     .from(executionArtifacts)
     .where(eq(executionArtifacts.executionId, id));
-  return c.json(artifacts);
+  return c.json(successResponse(artifacts));
 });
 
 executionsRouter.patch('/:id', async (c) => {
@@ -49,5 +50,5 @@ executionsRouter.patch('/:id', async (c) => {
     .update(executions)
     .set({ ...body, finishedAt: new Date() })
     .where(eq(executions.id, id));
-  return c.json({ ok: true });
+  return c.json(successResponse({ ok: true }));
 });

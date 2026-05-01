@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
+import { zValidator } from '../middleware/zod-validator';
 import { z } from 'zod';
 import { db } from '../db/index';
 import { recordings, recordingArtifacts, executions } from '../db/schema';
@@ -10,6 +10,7 @@ import { getWsHandlers } from '../context';
 import { generateCodegen } from '../services/codegen';
 import { rm } from 'fs/promises';
 import path from 'path';
+import { successResponse, errorResponse, API_CODES } from '../middleware/response';
 
 export const recordingsRouter = new Hono<Env>();
 
@@ -26,20 +27,20 @@ recordingsRouter.get('/', async (c) => {
     .from(recordings)
     .where(projectId ? eq(recordings.projectId, projectId) : undefined)
     .orderBy(desc(recordings.createdAt));
-  return c.json(list);
+  return c.json(successResponse(list));
 });
 
 recordingsRouter.post('/', zValidator('json', createRecordingSchema), async (c) => {
   const body = c.req.valid('json');
   const result = await db.insert(recordings).values(body).returning();
-  return c.json(result[0], 201);
+  return c.json(successResponse(result[0]), 201);
 });
 
 recordingsRouter.get('/:id', async (c) => {
   const id = c.req.param('id');
   const rec = await db.select().from(recordings).where(eq(recordings.id, id)).limit(1);
-  if (!rec.length) return c.json({ error: 'not found' }, 404);
-  return c.json(rec[0]);
+  if (!rec.length) return c.json(errorResponse(API_CODES.NOT_FOUND, '录制不存在'), 404);
+  return c.json(successResponse(rec[0]));
 });
 
 recordingsRouter.get('/:id/actions', async (c) => {
@@ -55,13 +56,13 @@ recordingsRouter.get('/:id/actions', async (c) => {
     )
     .orderBy(desc(recordingArtifacts.createdAt))
     .limit(1);
-  if (!artifact.length) return c.json({ error: 'not found' }, 404);
+  if (!artifact.length) return c.json(errorResponse(API_CODES.NOT_FOUND, 'actions 不存在'), 404);
   const parsed = JSON.parse(artifact[0].content as string);
   // Backward compat: old artifacts stored as bare array
   if (Array.isArray(parsed)) {
-    return c.json({ recordingId: id, actions: parsed });
+    return c.json(successResponse({ recordingId: id, actions: parsed }));
   }
-  return c.json(parsed);
+  return c.json(successResponse(parsed));
 });
 
 recordingsRouter.get('/:id/codegen', async (c) => {
@@ -77,15 +78,15 @@ recordingsRouter.get('/:id/codegen', async (c) => {
     )
     .orderBy(desc(recordingArtifacts.createdAt))
     .limit(1);
-  if (!artifact.length) return c.json({ codegen: '' });
+  if (!artifact.length) return c.json(successResponse({ codegen: '' }));
   const parsed = JSON.parse(artifact[0].content as string);
   const actions = Array.isArray(parsed) ? parsed : parsed.actions ?? [];
   try {
     const code = generateCodegen(actions);
-    return c.json({ codegen: code });
+    return c.json(successResponse({ codegen: code }));
   } catch (err) {
     console.error('Codegen failed:', err);
-    return c.json({ codegen: '' });
+    return c.json(successResponse({ codegen: '' }));
   }
 });
 
@@ -120,7 +121,7 @@ recordingsRouter.post('/:id/actions', zValidator('json', z.object({
     } as Recording);
   }
 
-  return c.json({ ok: true });
+  return c.json(successResponse({ ok: true }));
 });
 
 recordingsRouter.post('/:id/start', async (c) => {
@@ -128,7 +129,7 @@ recordingsRouter.post('/:id/start', async (c) => {
   const agentId = c.req.query('agentId') || 'default';
 
   const recording = await db.select().from(recordings).where(eq(recordings.id, id)).limit(1);
-  if (!recording.length) return c.json({ error: 'not found' }, 404);
+  if (!recording.length) return c.json(errorResponse(API_CODES.NOT_FOUND, '录制不存在'), 404);
 
   const handlers = getWsHandlers();
   const sent = handlers.sendToAgent(agentId, {
@@ -139,8 +140,8 @@ recordingsRouter.post('/:id/start', async (c) => {
     },
   });
 
-  if (!sent) return c.json({ error: 'agent not connected' }, 503);
-  return c.json({ ok: true });
+  if (!sent) return c.json(errorResponse(API_CODES.AGENT_UNAVAILABLE, 'Agent 未连接'), 503);
+  return c.json(successResponse({ ok: true }));
 });
 
 recordingsRouter.post('/:id/stop', async (c) => {
@@ -153,8 +154,8 @@ recordingsRouter.post('/:id/stop', async (c) => {
     payload: { recordingId: id },
   });
 
-  if (!sent) return c.json({ error: 'agent not connected' }, 503);
-  return c.json({ ok: true });
+  if (!sent) return c.json(errorResponse(API_CODES.AGENT_UNAVAILABLE, 'Agent 未连接'), 503);
+  return c.json(successResponse({ ok: true }));
 });
 
 recordingsRouter.post('/:id/replay', async (c) => {
@@ -173,7 +174,7 @@ recordingsRouter.post('/:id/replay', async (c) => {
     )
     .limit(1);
 
-  if (!artifact.length) return c.json({ error: 'no actions found' }, 404);
+  if (!artifact.length) return c.json(errorResponse(API_CODES.NOT_FOUND, 'actions 不存在'), 404);
 
   const actionsData = JSON.parse(artifact[0].content as string);
 
@@ -212,21 +213,21 @@ recordingsRouter.post('/:id/replay', async (c) => {
     },
   });
 
-  if (!sent) return c.json({ error: 'agent not connected' }, 503);
-  return c.json({ ok: true, executionId: execution[0].id });
+  if (!sent) return c.json(errorResponse(API_CODES.AGENT_UNAVAILABLE, 'Agent 未连接'), 503);
+  return c.json(successResponse({ ok: true, executionId: execution[0].id }));
 });
 
 recordingsRouter.delete('/batch', async (c) => {
   const body = await c.req.json();
   const ids = body.ids as string[];
-  if (!ids || ids.length === 0) return c.json({ error: 'missing ids' }, 400);
+  if (!ids || ids.length === 0) return c.json(errorResponse(API_CODES.BAD_REQUEST, '缺少 ids'), 400);
   try {
     for (const id of ids) {
       await deleteRecording(id);
     }
-    return c.json({ ok: true, deleted: ids.length });
+    return c.json(successResponse({ deleted: ids.length }));
   } catch (e) {
-    return c.json({ error: (e as Error).message }, 500);
+    return c.json(errorResponse(API_CODES.INTERNAL_ERROR, (e as Error).message), 500);
   }
 });
 
@@ -234,9 +235,9 @@ recordingsRouter.delete('/:id', async (c) => {
   const id = c.req.param('id');
   try {
     await deleteRecording(id);
-    return c.json({ ok: true });
+    return c.json(successResponse({ deleted: true }));
   } catch (e) {
-    return c.json({ error: (e as Error).message }, 500);
+    return c.json(errorResponse(API_CODES.INTERNAL_ERROR, (e as Error).message), 500);
   }
 });
 
