@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { db } from '../db/index.js';
-import { executions, executionArtifacts } from '../db/schema.js';
+import { db } from '../db/index';
+import { executions, executionArtifacts } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 export const executionsRouter = new Hono();

@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import type { Recording, RecordingAction, ElementInfo } from '@playwright-demo/shared';
-import { captureFingerprint } from './fingerprint.js';
+import { captureFingerprint } from './fingerprint';
 
 interface RecorderActionData {
   action: {

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { StorageService } from '../services/storage.js';
-import * as dbModule from '../db/index.js';
+import { StorageService } from '../services/storage';
+import * as dbModule from '../db/index';
 
 // Mock the database module before importing routes
 vi.mock('../db/index.js', () => ({
@@ -78,9 +78,9 @@ vi.mock('../context.js', () => ({
 }));
 
 // Import routes after mocking
-import { projectsRouter } from '../routes/projects.js';
+import { projectsRouter } from '../routes/projects';
 
-import type { Env } from '../types/env.js';
+import type { Env } from '../types/env';
 
 describe('Projects routes', () => {
   const testApp = new Hono<Env>();

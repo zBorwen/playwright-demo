@@ -1,7 +1,7 @@
 import path from 'node:path';
-import { WsClient } from './ws-client.js';
-import { RecorderManager } from './recorder-manager.js';
-import { ReplayEngine } from './replay-engine.js';
+import { WsClient } from './ws-client';
+import { RecorderManager } from './recorder-manager';
+import { ReplayEngine } from './replay-engine';
 import type { AgentMessage } from '@playwright-demo/shared';
 
 const SERVER_URL = process.env.SERVER_URL || 'ws://localhost:3000/ws';

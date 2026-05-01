@@ -1,4 +1,4 @@
-import type { StorageService } from '../services/storage.js';
+import type { StorageService } from '../services/storage';
 
 export type Env = {
   Variables: {

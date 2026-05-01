@@ -1,11 +1,11 @@
 import { serve } from '@hono/node-server';
-import { app } from './app.js';
+import { app } from './app';
 import { WebSocketServer } from 'ws';
 import type { Server } from 'http';
 import type { AgentMessage } from '@playwright-demo/shared';
-import { StorageService } from './services/storage.js';
-import { WsHandlers } from './ws-handlers.js';
-import { setContext } from './context.js';
+import { StorageService } from './services/storage';
+import { WsHandlers } from './ws-handlers';
+import { setContext } from './context';
 
 const port = parseInt(process.env.PORT || '3000');
 const storage = new StorageService();
