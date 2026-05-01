@@ -40,6 +40,12 @@ export async function createProject(data: { name: string; description?: string }
   return res.json() as Promise<Project>;
 }
 
+export async function deleteProject(id: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`${API_BASE}/projects/${id}`, { method: 'DELETE' });
+  ensureOk(res);
+  return res.json();
+}
+
 export async function createRecording(data: { projectId: string; title: string; targetUrl?: string }): Promise<Recording> {
   const res = await fetch(`${API_BASE}/recordings`, {
     method: 'POST',
@@ -82,6 +88,22 @@ export async function saveRecordingActions(id: string, actions: RecordingAction[
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ actions }),
+  });
+  ensureOk(res);
+  return res.json();
+}
+
+export async function deleteRecording(id: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`${API_BASE}/recordings/${id}`, { method: 'DELETE' });
+  ensureOk(res);
+  return res.json();
+}
+
+export async function deleteRecordings(ids: string[]): Promise<{ ok: boolean; deleted: number }> {
+  const res = await fetch(`${API_BASE}/recordings/batch`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
   });
   ensureOk(res);
   return res.json();

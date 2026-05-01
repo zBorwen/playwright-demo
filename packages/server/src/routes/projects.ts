@@ -2,8 +2,8 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '../db/index.js';
-import { projects } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { projects, recordings, recordingArtifacts, executions } from '../db/schema.js';
+import { eq, inArray } from 'drizzle-orm';
 
 export const projectsRouter = new Hono();
 
@@ -32,6 +32,19 @@ projectsRouter.get('/:id', async (c) => {
 
 projectsRouter.delete('/:id', async (c) => {
   const id = c.req.param('id');
+
+  // Find all recordings for this project
+  const recs = await db.select({ id: recordings.id }).from(recordings).where(eq(recordings.projectId, id));
+  if (recs.length > 0) {
+    const recIds = recs.map(r => r.id);
+    // Delete recording artifacts and executions for each recording
+    await db.delete(recordingArtifacts).where(inArray(recordingArtifacts.recordingId, recIds));
+    await db.delete(executions).where(inArray(executions.recordingId, recIds));
+    // Delete recordings
+    await db.delete(recordings).where(inArray(recordings.id, recIds));
+  }
+
+  // Delete the project itself
   await db.delete(projects).where(eq(projects.id, id));
   return c.json({ ok: true });
 });

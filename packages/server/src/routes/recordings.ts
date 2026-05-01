@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { recordings, recordingArtifacts, executions } from '../db/schema.js';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, inArray } from 'drizzle-orm';
 import type { Recording, MockRule } from '@playwright-demo/shared';
 import type { Env } from '../types/env.js';
 import { getWsHandlers } from '../context.js';
@@ -213,3 +213,25 @@ recordingsRouter.post('/:id/replay', async (c) => {
   if (!sent) return c.json({ error: 'agent not connected' }, 503);
   return c.json({ ok: true, executionId: execution[0].id });
 });
+
+recordingsRouter.delete('/:id', async (c) => {
+  const id = c.req.param('id');
+  await deleteRecording(id);
+  return c.json({ ok: true });
+});
+
+recordingsRouter.delete('/batch', zValidator('json', z.object({ ids: z.array(z.string().uuid()) })), async (c) => {
+  const { ids } = c.req.valid('json');
+  for (const id of ids) {
+    await deleteRecording(id);
+  }
+  return c.json({ ok: true, deleted: ids.length });
+});
+
+async function deleteRecording(id: string): Promise<void> {
+  // Delete all artifacts and executions first
+  await db.delete(recordingArtifacts).where(eq(recordingArtifacts.recordingId, id));
+  await db.delete(executions).where(eq(executions.recordingId, id));
+  // Delete the recording
+  await db.delete(recordings).where(eq(recordings.id, id));
+}
