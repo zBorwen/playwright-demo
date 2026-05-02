@@ -16,9 +16,15 @@ import {
 import { useWebSocket } from '@/hooks/use-websocket';
 import { RecordingJsonEditor } from '@/components/recording-json-editor';
 import { NetworkTab } from '@/components/network-tab';
+import { ReplayPanel } from '@/components/replay-panel';
+
+interface ReplayStep {
+  index: number;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  error?: string;
+}
 
 const ACTION_ICONS: Record<string, string> = {
-  click: '🖱️',
   fill: '⌨️',
   navigate: '🔗',
   hover: '👆',
@@ -103,8 +109,8 @@ export function RecordingDetail() {
   const [activeTab, setActiveTab] = useState<Tab>('timeline');
   const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording'>('idle');
   const [replayStatus, setReplayStatus] = useState<'idle' | 'running' | 'passed' | 'failed'>('idle');
-  const [replayStep, setReplayStep] = useState(0);
-  const [replayTotal, setReplayTotal] = useState(0);
+  const [replaySteps, setReplaySteps] = useState<ReplayStep[]>([]);
+  const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
   const [useMock, setUseMock] = useState(false);
   const [codegen, setCodegen] = useState<string>('');
   const [copied, setCopied] = useState(false);
@@ -168,13 +174,27 @@ export function RecordingDetail() {
       }
       case 'replay:step': {
         const stepPayload = msg.payload as { index: number; executionId: string };
-        setReplayStep(stepPayload.index + 1);
+        if (stepPayload.executionId) setReplayExecutionId(stepPayload.executionId);
         setReplayStatus('running');
+        setReplaySteps((prev) =>
+          prev.map((s, i) => ({
+            ...s,
+            status: i < stepPayload.index ? 'completed' : i === stepPayload.index ? 'running' : s.status,
+          }))
+        );
         break;
       }
       case 'replay:done': {
-        const payload = msg.payload as { status: 'passed' | 'failed' };
+        const payload = msg.payload as { status: 'passed' | 'failed'; error?: string; trace?: string };
         setReplayStatus(payload.status);
+        setReplaySteps((prev) =>
+          prev.map((s) => {
+            if (s.status === 'running') {
+              return { ...s, status: payload.status === 'failed' ? 'failed' : 'completed', error: payload.error };
+            }
+            return s;
+          })
+        );
         if (id) fetchExecutions(id).then((e) => setExecutions(e));
         break;
       }
@@ -226,8 +246,8 @@ export function RecordingDetail() {
 
   const handleReplay = async () => {
     setReplayStatus('running');
-    setReplayStep(0);
-    setReplayTotal(actions.length);
+    setReplaySteps(actions.map((_, i) => ({ index: i, status: 'pending' as const })));
+    setReplayExecutionId(null);
     await replayRecording(id!, { useMock });
     const execs = await fetchExecutions(id!);
     setExecutions(execs);
@@ -298,11 +318,20 @@ export function RecordingDetail() {
               disabled={replayStatus === 'running'}
               className="rounded bg-green-900 px-4 py-2 text-sm hover:bg-green-800 disabled:opacity-50"
             >
-              {replayStatus === 'running' ? `⏳ 回放中 ${replayStep}/${replayTotal}` : replayStatus === 'passed' ? '✅ 通过' : replayStatus === 'failed' ? '❌ 失败' : '▶ 回放'}
+              {replayStatus === 'running' ? '⏳ 回放中' : replayStatus === 'passed' ? '✅ 通过' : replayStatus === 'failed' ? '❌ 失败' : '▶ 回放'}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Replay Panel */}
+      {replaySteps.length > 0 && (
+        <ReplayPanel
+          executionId={replayExecutionId}
+          actions={actions}
+          isRunning={replayStatus === 'running'}
+        />
+      )}
 
       {/* Tabs */}
       <div className="mb-4 flex gap-4 border-b border-zinc-800">

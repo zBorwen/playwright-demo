@@ -207,6 +207,7 @@ recordingsRouter.post('/:id/replay', async (c) => {
     type: 'replay:start',
     payload: {
       recordingId: id,
+      executionId: execution[0].id,
       actions: actionsData.actions || [],
       harRef: useMock ? `${id}/recording.har` : '',
       mockRules,
