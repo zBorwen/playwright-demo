@@ -88,11 +88,16 @@ export class ReplayEngine {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private screenshots: { stepIndex: number; path: string }[] = [];
-  private onStepCallback: ((index: number, status: 'running') => void) | null = null;
+  private onStepCallback: ((index: number, status: 'completed') => void) | null = null;
+  private onStepFailedCallback: ((index: number, error: string) => void) | null = null;
   private onScreenshotCallback: ((stepIndex: number, path: string) => void) | null = null;
 
-  onStep(callback: (index: number, status: 'running') => void): void {
+  onStep(callback: (index: number, status: 'completed') => void): void {
     this.onStepCallback = callback;
+  }
+
+  onStepFailed(callback: (index: number, error: string) => void): void {
+    this.onStepFailedCallback = callback;
   }
 
   onScreenshot(callback: (stepIndex: number, path: string) => void): void {
@@ -139,6 +144,9 @@ export class ReplayEngine {
           const errorMsg = err instanceof Error ? err.message : String(err);
           const failPath = `${screenshotDir}/failure-step-${i}.png`;
           await page.screenshot({ path: failPath, fullPage: true });
+          if (this.onStepFailedCallback) {
+            this.onStepFailedCallback(i, errorMsg);
+          }
           return {
             status: 'failed',
             stepIndex: i,
@@ -159,7 +167,7 @@ export class ReplayEngine {
         }
 
         if (this.onStepCallback) {
-          this.onStepCallback(i, 'running');
+          this.onStepCallback(i, 'completed');
         }
       }
 

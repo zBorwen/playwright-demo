@@ -16,13 +16,7 @@ import {
 import { useWebSocket } from '@/hooks/use-websocket';
 import { RecordingJsonEditor } from '@/components/recording-json-editor';
 import { NetworkTab } from '@/components/network-tab';
-import { ReplayPanel } from '@/components/replay-panel';
-
-interface ReplayStep {
-  index: number;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  error?: string;
-}
+import { ReplayPanel, type ReplayStep } from '@/components/replay-panel';
 
 const ACTION_ICONS: Record<string, string> = {
   click: '👆',
@@ -111,7 +105,6 @@ export function RecordingDetail() {
   const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording'>('idle');
   const [replayStatus, setReplayStatus] = useState<'idle' | 'running' | 'passed' | 'failed'>('idle');
   const [replaySteps, setReplaySteps] = useState<ReplayStep[]>([]);
-  const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
   const [useMock, setUseMock] = useState(false);
   const [codegen, setCodegen] = useState<string>('');
   const [copied, setCopied] = useState(false);
@@ -174,28 +167,28 @@ export function RecordingDetail() {
         break;
       }
       case 'replay:step': {
-        const stepPayload = msg.payload as { index: number; executionId: string };
-        if (stepPayload.executionId) setReplayExecutionId(stepPayload.executionId);
+        const stepPayload = msg.payload as { index: number; status: 'completed' | 'failed'; error?: string };
         setReplayStatus('running');
         setReplaySteps((prev) =>
-          prev.map((s, i) => ({
-            ...s,
-            status: i < stepPayload.index ? 'completed' : i === stepPayload.index ? 'running' : s.status,
-          }))
+          prev.map((s) =>
+            s.index === stepPayload.index
+              ? { ...s, status: stepPayload.status, error: stepPayload.error ?? s.error }
+              : s
+          )
         );
         break;
       }
       case 'replay:done': {
         const payload = msg.payload as { status: 'passed' | 'failed'; error?: string; trace?: string };
         setReplayStatus(payload.status);
-        setReplaySteps((prev) =>
-          prev.map((s) => {
-            if (s.status === 'running') {
-              return { ...s, status: payload.status === 'failed' ? 'failed' : 'completed', error: payload.error };
-            }
-            return s;
-          })
-        );
+        if (payload.status === 'failed') {
+          // Mark remaining steps as skipped
+          setReplaySteps((prev) =>
+            prev.map((s) =>
+              s.status === 'pending' ? { ...s, status: 'skipped' as const } : s
+            )
+          );
+        }
         if (id) fetchExecutions(id).then((e) => setExecutions(e));
         break;
       }
@@ -247,8 +240,12 @@ export function RecordingDetail() {
 
   const handleReplay = async () => {
     setReplayStatus('running');
-    setReplaySteps(actions.map((_, i) => ({ index: i, status: 'pending' as const })));
-    setReplayExecutionId(null);
+    setReplaySteps(actions.map((a, i) => ({
+      index: i,
+      actionName: a.name,
+      detail: formatActionDetail(a),
+      status: 'pending' as const,
+    })));
     await replayRecording(id!, { useMock });
     const execs = await fetchExecutions(id!);
     setExecutions(execs);
@@ -328,9 +325,9 @@ export function RecordingDetail() {
       {/* Replay Panel */}
       {replaySteps.length > 0 && (
         <ReplayPanel
-          executionId={replayExecutionId}
-          actions={actions}
+          steps={replaySteps}
           isRunning={replayStatus === 'running'}
+          overallStatus={replayStatus}
         />
       )}
 
