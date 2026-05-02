@@ -25,6 +25,7 @@ interface ReplayStep {
 }
 
 const ACTION_ICONS: Record<string, string> = {
+  click: '👆',
   fill: '⌨️',
   navigate: '🔗',
   hover: '👆',
