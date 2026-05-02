@@ -85,6 +85,15 @@ export function ExecutionDetail() {
           <div className="rounded-lg border border-red-800 bg-zinc-900 p-4">
             <span className="block text-sm font-medium text-red-400">错误信息</span>
             <pre className="mt-2 whitespace-pre-wrap text-sm text-red-300">{execution.error}</pre>
+            {execution.status === 'failed' && execution.trace?.includes('trace.zip') && (
+              <a
+                href={`/api/executions/${execution.id}/trace`}
+                download={`trace-${execution.id}.zip`}
+                className="mt-3 inline-block rounded bg-red-900 px-3 py-1.5 text-sm text-red-200 hover:bg-red-800 transition"
+              >
+                ⬇ 下载 Trace 文件
+              </a>
+            )}
           </div>
         )}
 

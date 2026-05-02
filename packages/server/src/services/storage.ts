@@ -61,6 +61,23 @@ export class StorageService {
     return path;
   }
 
+  async saveTrace(executionId: string, buffer: Buffer): Promise<string> {
+    const dir = `${this.base}/executions/${executionId}`;
+    await mkdir(dir, { recursive: true });
+    const tracePath = `${dir}/trace.zip`;
+    await writeFile(tracePath, buffer);
+    return tracePath;
+  }
+
+  async loadTrace(executionId: string): Promise<Buffer | null> {
+    try {
+      const tracePath = `${this.base}/executions/${executionId}/trace.zip`;
+      return await readFile(tracePath);
+    } catch {
+      return null;
+    }
+  }
+
   async deleteRecording(recordingId: string): Promise<void> {
     const dir = `${this.base}/recordings/${recordingId}`;
     await rm(dir, { recursive: true, force: true });

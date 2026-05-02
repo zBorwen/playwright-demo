@@ -112,6 +112,7 @@ export interface Execution {
   startedAt: string;
   finishedAt?: string;
   error?: string;
+  trace?: string;
 }
 
 export interface ExecutionArtifact {

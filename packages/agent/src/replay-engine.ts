@@ -1,6 +1,7 @@
 import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright-core';
 import type { RecordingAction, MockRule } from '@playwright-demo/shared';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync } from 'fs';
+import path from 'path';
 
 export interface ReplayResult {
   status: 'passed' | 'failed';
@@ -8,6 +9,7 @@ export interface ReplayResult {
   totalSteps: number;
   error?: string;
   trace?: string;
+  tracePath?: string;
   screenshots: { stepIndex: number; path: string }[];
 }
 
@@ -108,6 +110,7 @@ export class ReplayEngine {
     harPath?: string;
     headless?: boolean;
     screenshotDir?: string;
+    traceDir?: string;
     mockRules?: MockRule[];
     useMock?: boolean;
   } = {}): Promise<ReplayResult> {
@@ -116,6 +119,7 @@ export class ReplayEngine {
     const {
       headless = true,
       screenshotDir = './storage/screenshots',
+      traceDir = './storage/traces',
       harPath,
       mockRules = [],
       useMock = false,
@@ -126,6 +130,7 @@ export class ReplayEngine {
     this.browser = await chromium.launch({ headless });
     try {
       this.context = await this.browser.newContext();
+      await this.context.tracing.start({ screenshots: true, snapshots: true });
       const page = await this.context.newPage();
 
       // Set up mock/route interception if enabled
@@ -147,12 +152,17 @@ export class ReplayEngine {
           if (this.onStepFailedCallback) {
             this.onStepFailedCallback(i, errorMsg);
           }
+          // Stop tracing and save trace file for failed replay
+          mkdirSync(traceDir, { recursive: true });
+          const tracePath = path.join(traceDir, `trace-${Date.now()}.zip`);
+          await this.context.tracing.stop({ path: tracePath });
           return {
             status: 'failed',
             stepIndex: i,
             totalSteps: actions.length,
             error: errorMsg,
             trace: `Failed at step ${i}: ${action.name} (${JSON.stringify(action).slice(0, 200)})`,
+            tracePath,
             screenshots: this.screenshots,
           };
         }
@@ -170,6 +180,9 @@ export class ReplayEngine {
           this.onStepCallback(i, 'completed');
         }
       }
+
+      // Passed — stop tracing (discard trace for successful replay)
+      await this.context.tracing.stop().catch(() => {});
 
       return {
         status: 'passed',

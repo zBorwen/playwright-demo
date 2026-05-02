@@ -5,6 +5,8 @@ import { db } from '../db/index';
 import { executions, executionArtifacts } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { successResponse, errorResponse, API_CODES } from '../middleware/response';
+import type { Context } from 'hono';
+import type { Env } from '../types/env';
 
 export const executionsRouter = new Hono();
 
@@ -41,6 +43,18 @@ executionsRouter.get('/:id/artifacts', async (c) => {
     .from(executionArtifacts)
     .where(eq(executionArtifacts.executionId, id));
   return c.json(successResponse(artifacts));
+});
+
+executionsRouter.get('/:id/trace', async (c: Context<Env>) => {
+  const id = c.req.param('id');
+  if (!id) return c.json(errorResponse(API_CODES.NOT_FOUND, 'Trace 文件不存在'), 404);
+  const storage = c.var.storage;
+  const traceBuffer = await storage.loadTrace(id);
+  if (!traceBuffer) return c.json(errorResponse(API_CODES.NOT_FOUND, 'Trace 文件不存在'), 404);
+  return c.body(new Uint8Array(traceBuffer), 200, {
+    'Content-Type': 'application/zip',
+    'Content-Disposition': `attachment; filename="trace-${id}.zip"`,
+  });
 });
 
 executionsRouter.patch('/:id', async (c) => {

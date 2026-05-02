@@ -142,7 +142,17 @@ export class WsHandlers {
       }
 
       case 'replay:done': {
-        const { executionId, status, error, trace, screenshot } = msg.payload;
+        const { executionId, status, error, trace, screenshot, tracePath } = msg.payload;
+
+        // Save trace file from agent to storage
+        if (tracePath) {
+          try {
+            const traceBuffer = await readFile(tracePath);
+            await this.storage.saveTrace(executionId, traceBuffer);
+          } catch (err) {
+            console.error('Failed to save trace file:', err);
+          }
+        }
 
         // Update execution in DB
         await db
@@ -150,7 +160,7 @@ export class WsHandlers {
           .set({
             status,
             error: error ?? null,
-            trace: screenshot ?? null,
+            trace: tracePath ? `executions/${executionId}/trace.zip` : (screenshot ?? null),
             finishedAt: new Date(),
           })
           .where(eq(executions.id, executionId));

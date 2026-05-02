@@ -76,6 +76,7 @@ async function main() {
             status: result.status,
             error: result.error ?? '',
             trace: result.trace ?? '',
+            tracePath: result.tracePath,
             screenshot: result.screenshots.length > 0
               ? result.screenshots[result.screenshots.length - 1].path
               : undefined,

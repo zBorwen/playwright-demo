@@ -10,6 +10,7 @@ interface ReplayPanelProps {
   steps: ReplayStep[];
   isRunning: boolean;
   overallStatus: 'idle' | 'running' | 'passed' | 'failed';
+  executionId?: string | null;
 }
 
 function statusIcon(step: ReplayStep) {
@@ -30,7 +31,7 @@ function statusBorder(step: ReplayStep) {
   }
 }
 
-export function ReplayPanel({ steps, isRunning, overallStatus }: ReplayPanelProps) {
+export function ReplayPanel({ steps, isRunning, overallStatus, executionId }: ReplayPanelProps) {
   if (steps.length === 0) return null;
 
   const failedStep = steps.find(s => s.status === 'failed');
@@ -85,11 +86,20 @@ export function ReplayPanel({ steps, isRunning, overallStatus }: ReplayPanelProp
 
       {/* Error summary */}
       {!isRunning && failedStep && (
-        <div className="border-t border-zinc-800 px-4 py-3">
+        <div className="border-t border-zinc-800 px-4 py-3 space-y-2">
           <div className="text-sm text-red-400">
             <span className="font-medium">失败原因: </span>
             <span>{failedStep.error || `步骤 ${failedStep.index + 1} (${failedStep.actionName}) 执行失败`}</span>
           </div>
+          {executionId && (
+            <a
+              href={`/api/executions/${executionId}/trace`}
+              download={`trace-${executionId}.zip`}
+              className="inline-block rounded bg-red-900 px-3 py-1.5 text-sm text-red-200 hover:bg-red-800 transition"
+            >
+              ⬇ 下载 Trace 文件
+            </a>
+          )}
         </div>
       )}
     </div>

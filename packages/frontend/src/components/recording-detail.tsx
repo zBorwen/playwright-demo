@@ -105,6 +105,7 @@ export function RecordingDetail() {
   const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording'>('idle');
   const [replayStatus, setReplayStatus] = useState<'idle' | 'running' | 'passed' | 'failed'>('idle');
   const [replaySteps, setReplaySteps] = useState<ReplayStep[]>([]);
+  const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
   const [useMock, setUseMock] = useState(false);
   const [codegen, setCodegen] = useState<string>('');
   const [copied, setCopied] = useState(false);
@@ -167,7 +168,8 @@ export function RecordingDetail() {
         break;
       }
       case 'replay:step': {
-        const stepPayload = msg.payload as { index: number; status: 'completed' | 'failed'; error?: string };
+        const stepPayload = msg.payload as { index: number; executionId: string; status: 'completed' | 'failed'; error?: string };
+        if (stepPayload.executionId) setReplayExecutionId(stepPayload.executionId);
         setReplayStatus('running');
         setReplaySteps((prev) =>
           prev.map((s) =>
@@ -328,6 +330,7 @@ export function RecordingDetail() {
           steps={replaySteps}
           isRunning={replayStatus === 'running'}
           overallStatus={replayStatus}
+          executionId={replayExecutionId}
         />
       )}
 
