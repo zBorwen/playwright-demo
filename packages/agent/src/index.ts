@@ -50,14 +50,14 @@ async function main() {
       }
       case 'replay:start': {
         console.log(`Starting replay: ${msg.payload.recordingId}`);
-        const { actions, harRef, mockRules } = msg.payload;
+        const { actions, harRef, mockRules, executionId } = msg.payload;
 
         const engine = new ReplayEngine();
         engine.onStep((index, status) => {
-          ws.send({ type: 'replay:step', payload: { index, status } });
+          ws.send({ type: 'replay:step', payload: { executionId, index, status } });
         });
         engine.onScreenshot((stepIndex, path) => {
-          ws.send({ type: 'replay:screenshot', payload: { stepIndex, path } });
+          ws.send({ type: 'replay:screenshot', payload: { executionId, stepIndex, path } });
         });
 
         const result = await engine.replay(actions as Parameters<typeof engine.replay>[0], {
@@ -69,8 +69,10 @@ async function main() {
         ws.send({
           type: 'replay:done',
           payload: {
+            executionId,
             status: result.status,
-            trace: result.trace,
+            error: result.error ?? '',
+            trace: result.trace ?? '',
             screenshot: result.screenshots.length > 0
               ? result.screenshots[result.screenshots.length - 1].path
               : undefined,

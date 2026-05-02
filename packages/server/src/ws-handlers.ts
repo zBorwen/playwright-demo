@@ -2,7 +2,7 @@ import type { WebSocket } from 'ws';
 import type { AgentMessage, ServerMessage } from '@playwright-demo/shared';
 import { readFile } from 'fs/promises';
 import { db } from './db/index';
-import { recordings, recordingArtifacts } from './db/schema';
+import { recordings, recordingArtifacts, executions } from './db/schema';
 import { eq, and } from 'drizzle-orm';
 import { StorageService } from './services/storage';
 
@@ -92,7 +92,7 @@ export class WsHandlers {
               const harBuffer = await readFile(harPath);
               await this.storage.saveHar(recordingId, harBuffer);
 
-              const { parseAndFilterHar } = await import('./services/har-filter.js');
+              const { parseAndFilterHar } = await import('./services/har-filter');
               const entries = await parseAndFilterHar(harPath);
 
               await db.insert(recordingArtifacts).values({
@@ -131,7 +131,30 @@ export class WsHandlers {
         break;
       }
 
+      case 'replay:step': {
+        this.broadcastToClients(JSON.stringify(msg));
+        break;
+      }
+
+      case 'replay:screenshot': {
+        this.broadcastToClients(JSON.stringify(msg));
+        break;
+      }
+
       case 'replay:done': {
+        const { executionId, status, error, trace, screenshot } = msg.payload;
+
+        // Update execution in DB
+        await db
+          .update(executions)
+          .set({
+            status,
+            error: error ?? null,
+            trace: screenshot ?? null,
+            finishedAt: new Date(),
+          })
+          .where(eq(executions.id, executionId));
+
         this.broadcastToClients(JSON.stringify(msg));
         break;
       }

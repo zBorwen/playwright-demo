@@ -103,6 +103,8 @@ export function RecordingDetail() {
   const [activeTab, setActiveTab] = useState<Tab>('timeline');
   const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording'>('idle');
   const [replayStatus, setReplayStatus] = useState<'idle' | 'running' | 'passed' | 'failed'>('idle');
+  const [replayStep, setReplayStep] = useState(0);
+  const [replayTotal, setReplayTotal] = useState(0);
   const [useMock, setUseMock] = useState(false);
   const [codegen, setCodegen] = useState<string>('');
   const [copied, setCopied] = useState(false);
@@ -165,6 +167,8 @@ export function RecordingDetail() {
         break;
       }
       case 'replay:step': {
+        const stepPayload = msg.payload as { index: number; executionId: string };
+        setReplayStep(stepPayload.index + 1);
         setReplayStatus('running');
         break;
       }
@@ -222,6 +226,8 @@ export function RecordingDetail() {
 
   const handleReplay = async () => {
     setReplayStatus('running');
+    setReplayStep(0);
+    setReplayTotal(actions.length);
     await replayRecording(id!, { useMock });
     const execs = await fetchExecutions(id!);
     setExecutions(execs);
@@ -292,7 +298,7 @@ export function RecordingDetail() {
               disabled={replayStatus === 'running'}
               className="rounded bg-green-900 px-4 py-2 text-sm hover:bg-green-800 disabled:opacity-50"
             >
-              {replayStatus === 'running' ? '⏳ 回放中...' : replayStatus === 'passed' ? '✅ 通过' : replayStatus === 'failed' ? '❌ 失败' : '▶ 回放'}
+              {replayStatus === 'running' ? `⏳ 回放中 ${replayStep}/${replayTotal}` : replayStatus === 'passed' ? '✅ 通过' : replayStatus === 'failed' ? '❌ 失败' : '▶ 回放'}
             </button>
           </div>
         </div>
@@ -402,7 +408,7 @@ export function RecordingDetail() {
                           : 'bg-yellow-900 text-yellow-300'
                     }`}
                   >
-                    {ex.status}
+                    {ex.status === 'passed' ? '通过' : ex.status === 'failed' ? '失败' : '运行中'}
                   </span>
                   <span className="text-zinc-400">
                     {new Date(ex.startedAt).toLocaleString()}

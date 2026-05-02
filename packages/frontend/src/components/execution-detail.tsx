@@ -55,7 +55,7 @@ export function ExecutionDetail() {
                     : 'bg-yellow-900 text-yellow-300'
               }`}
             >
-              {execution.status}
+              {execution.status === 'passed' ? '通过' : execution.status === 'failed' ? '失败' : '运行中'}
             </span>
           </div>
           <div className="space-y-2 text-sm">
