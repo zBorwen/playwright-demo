@@ -201,61 +201,51 @@ export class ReplayEngine {
   private async executeAction(page: Page, action: RecordingAction): Promise<void> {
     switch (action.name) {
       case 'navigate': {
-        await page.goto(action.url, { timeout: 30000 });
-        await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
-          // networkidle may fail on SPAs, continue anyway
-        });
+        await page.goto(action.url, { timeout: 30000, waitUntil: 'domcontentloaded' });
+        await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
         break;
       }
       case 'click': {
-        const el = await page.$(action.selector);
-        if (el) {
-          await el.click({ button: action.button, timeout: 10000 });
-        } else {
-          throw new Error(`Element not found: ${action.selector}`);
-        }
+        await page.locator(action.selector).click({
+          button: action.button,
+          timeout: 10000,
+        });
         break;
       }
       case 'fill': {
-        await page.fill(action.selector, action.value, { timeout: 10000 });
+        await page.locator(action.selector).fill(action.value, { timeout: 10000 });
         break;
       }
       case 'hover': {
-        await page.hover(action.selector, { timeout: 10000 });
+        await page.locator(action.selector).hover({ timeout: 10000 });
         break;
       }
       case 'press': {
-        const el = await page.$(action.selector);
-        if (el) {
-          await el.press(action.key, { timeout: 10000 });
-        } else {
+        await page.locator(action.selector).press(action.key, { timeout: 10000 }).catch(async () => {
           await page.keyboard.press(action.key);
-        }
+        });
         break;
       }
       case 'select': {
-        await page.selectOption(action.selector, action.options, { timeout: 10000 });
+        await page.locator(action.selector).selectOption(action.options, { timeout: 10000 });
         break;
       }
       case 'check': {
-        await page.check(action.selector, { timeout: 10000 });
+        await page.locator(action.selector).check({ timeout: 10000 });
         break;
       }
       case 'uncheck': {
-        await page.uncheck(action.selector, { timeout: 10000 });
+        await page.locator(action.selector).uncheck({ timeout: 10000 });
         break;
       }
       case 'assertVisible': {
-        const el = await page.$(action.selector);
-        if (!el) throw new Error(`Element not visible: ${action.selector}`);
-        const visible = await el.isVisible();
+        await page.locator(action.selector).waitFor({ state: 'visible', timeout: 10000 });
+        const visible = await page.locator(action.selector).isVisible();
         if (!visible) throw new Error(`Element not visible: ${action.selector}`);
         break;
       }
       case 'assertText': {
-        const el = await page.$(action.selector);
-        if (!el) throw new Error(`Element not found: ${action.selector}`);
-        const text = await el.textContent();
+        const text = await page.locator(action.selector).textContent({ timeout: 10000 });
         const expected = action.text;
         if (action.substring) {
           if (!text?.includes(expected)) throw new Error(`Text "${expected}" not found in "${text}"`);
@@ -265,25 +255,21 @@ export class ReplayEngine {
         break;
       }
       case 'assertChecked': {
-        const el = await page.$(action.selector);
-        if (!el) throw new Error(`Element not found: ${action.selector}`);
-        const checked = await el.evaluate((node) => (node as HTMLInputElement).checked);
+        const checked = await page.locator(action.selector).isChecked({ timeout: 10000 });
         if (checked !== action.checked) {
           throw new Error(`Checkbox state mismatch: expected ${action.checked}, got ${checked}`);
         }
         break;
       }
       case 'assertValue': {
-        const el = await page.$(action.selector);
-        if (!el) throw new Error(`Element not found: ${action.selector}`);
-        const value = await el.evaluate((node) => (node as HTMLInputElement).value);
+        const value = await page.locator(action.selector).inputValue({ timeout: 10000 });
         if (value !== action.value) {
           throw new Error(`Value mismatch: expected "${action.value}", got "${value}"`);
         }
         break;
       }
       case 'setInputFiles': {
-        await page.setInputFiles(action.selector, action.files);
+        await page.locator(action.selector).setInputFiles(action.files, { timeout: 10000 });
         break;
       }
       default: {
