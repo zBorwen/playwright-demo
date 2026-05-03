@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { fetchExecution, fetchExecutionArtifacts } from '@/lib/api';
+import { fetchExecution, fetchExecutionArtifacts, executionTraceUrl } from '@/lib/api';
 import type { Execution, ExecutionArtifact } from '@/lib/api';
 
 export function ExecutionDetail() {
@@ -8,6 +8,7 @@ export function ExecutionDetail() {
   const [execution, setExecution] = useState<Execution | null>(null);
   const [artifacts, setArtifacts] = useState<ExecutionArtifact[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showTrace, setShowTrace] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -85,14 +86,13 @@ export function ExecutionDetail() {
           <div className="rounded-lg border border-red-800 bg-zinc-900 p-4">
             <span className="block text-sm font-medium text-red-400">错误信息</span>
             <pre className="mt-2 whitespace-pre-wrap text-sm text-red-300">{execution.error}</pre>
-            {execution.status === 'failed' && execution.trace?.includes('trace.zip') && (
-              <a
-                href={`/api/executions/${execution.id}/trace`}
-                download={`trace-${execution.id}.zip`}
+            {execution.status === 'failed' && execution.trace?.includes('trace.zip') && execution.id && (
+              <button
+                onClick={() => setShowTrace(true)}
                 className="mt-3 inline-block rounded bg-red-900 px-3 py-1.5 text-sm text-red-200 hover:bg-red-800 transition"
               >
-                ⬇ 下载 Trace 文件
-              </a>
+                🔍 查看 Trace
+              </button>
             )}
           </div>
         )}
@@ -118,6 +118,31 @@ export function ExecutionDetail() {
           </div>
         )}
       </div>
+
+      {/* Trace Viewer Modal */}
+      {showTrace && execution?.id && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowTrace(false)}>
+          <div className="relative h-[90vh] w-[95vw] rounded-lg bg-zinc-900 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            {/* Close button */}
+            <button
+              onClick={() => setShowTrace(false)}
+              className="absolute right-3 top-3 z-10 rounded bg-zinc-800 px-3 py-1 text-sm text-zinc-300 hover:bg-zinc-700"
+            >
+              ✕ 关闭
+            </button>
+            {/* Title */}
+            <div className="border-b border-zinc-800 px-4 py-2 text-sm text-zinc-400">
+              Trace Viewer — 执行 {execution.id}
+            </div>
+            {/* iframe */}
+            <iframe
+              src={`/trace-viewer/index.html?trace=${encodeURIComponent(executionTraceUrl(execution.id))}`}
+              className="h-[calc(100%-40px)] w-full rounded-b-lg"
+              title="Trace Viewer"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

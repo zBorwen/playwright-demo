@@ -9,6 +9,7 @@ import {
   stopRecording,
   replayRecording,
   saveRecordingActions,
+  executionTraceUrl,
   type Recording,
   type Execution,
   type RecordingAction,
@@ -106,6 +107,7 @@ export function RecordingDetail() {
   const [replayStatus, setReplayStatus] = useState<'idle' | 'running' | 'passed' | 'failed'>('idle');
   const [replaySteps, setReplaySteps] = useState<ReplayStep[]>([]);
   const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
+  const [showTrace, setShowTrace] = useState(false);
   const [useMock, setUseMock] = useState(false);
   const [codegen, setCodegen] = useState<string>('');
   const [copied, setCopied] = useState(false);
@@ -331,6 +333,10 @@ export function RecordingDetail() {
           isRunning={replayStatus === 'running'}
           overallStatus={replayStatus}
           executionId={replayExecutionId}
+          onViewTrace={(execId) => {
+            setReplayExecutionId(execId);
+            setShowTrace(true);
+          }}
         />
       )}
 
@@ -452,6 +458,28 @@ export function RecordingDetail() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Trace Viewer Modal */}
+      {showTrace && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowTrace(false)}>
+          <div className="relative h-[90vh] w-[95vw] rounded-lg bg-zinc-900 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowTrace(false)}
+              className="absolute right-3 top-3 z-10 rounded bg-zinc-800 px-3 py-1 text-sm text-zinc-300 hover:bg-zinc-700"
+            >
+              ✕ 关闭
+            </button>
+            <div className="border-b border-zinc-800 px-4 py-2 text-sm text-zinc-400">
+              Trace Viewer — 执行 {replayExecutionId}
+            </div>
+            <iframe
+              src={`/trace-viewer/index.html?trace=${replayExecutionId ? encodeURIComponent(executionTraceUrl(replayExecutionId)) : ''}`}
+              className="h-[calc(100%-40px)] w-full rounded-b-lg"
+              title="Trace Viewer"
+            />
+          </div>
         </div>
       )}
     </div>

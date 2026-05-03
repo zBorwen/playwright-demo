@@ -53,7 +53,6 @@ executionsRouter.get('/:id/trace', async (c: Context<Env>) => {
   if (!traceBuffer) return c.json(errorResponse(API_CODES.NOT_FOUND, 'Trace 文件不存在'), 404);
   return c.body(new Uint8Array(traceBuffer), 200, {
     'Content-Type': 'application/zip',
-    'Content-Disposition': `attachment; filename="trace-${id}.zip"`,
   });
 });
 

@@ -135,6 +135,10 @@ export async function fetchExecution(id: string): Promise<Execution> {
   return request(`${API_BASE}/executions/${id}`);
 }
 
+export function executionTraceUrl(executionId: string): string {
+  return `/api/executions/${executionId}/trace`;
+}
+
 // ─── Network & Mock Rules ─────────────────────────────────────
 
 export async function fetchRecordingNetwork(id: string): Promise<{ entries: NetworkEntry[] }> {
