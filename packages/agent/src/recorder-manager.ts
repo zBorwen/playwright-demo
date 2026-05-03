@@ -30,7 +30,10 @@ export class RecorderManager {
     this.onActionCallback = callback;
   }
 
-  async startRecording(targetUrl: string): Promise<void> {
+  private recordingId: string = '';
+
+  async startRecording(targetUrl: string, recordingId: string): Promise<void> {
+    this.recordingId = recordingId;
     this.browser = await chromium.launch({ headless: false });
     this.context = await this.browser.newContext({
       recordHar: { path: this.getHarPath() },
@@ -336,7 +339,7 @@ export class RecorderManager {
   }
 
   private getHarPath(): string {
-    return path.resolve(process.env.STORAGE_PATH || './storage', 'temp-recording.har');
+    return path.resolve(process.env.STORAGE_PATH || './storage', 'recordings', this.recordingId, 'temp-recording.har');
   }
 
   getActions(): Recording['actions'] {

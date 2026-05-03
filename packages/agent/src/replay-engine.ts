@@ -109,8 +109,7 @@ export class ReplayEngine {
   async replay(actions: RecordingAction[], options: {
     harPath?: string;
     headless?: boolean;
-    screenshotDir?: string;
-    traceDir?: string;
+    recordingId?: string;
     mockRules?: MockRule[];
     useMock?: boolean;
   } = {}): Promise<ReplayResult> {
@@ -118,12 +117,15 @@ export class ReplayEngine {
 
     const {
       headless = true,
-      screenshotDir = './storage/screenshots',
-      traceDir = './storage/traces',
+      recordingId = 'unknown',
       harPath,
       mockRules = [],
       useMock = false,
     } = options;
+
+    const storageBase = path.resolve(process.env.STORAGE_PATH || './storage', 'recordings', recordingId);
+    const screenshotDir = path.join(storageBase, 'screenshots');
+    const traceDir = path.join(storageBase, 'traces');
 
     const harEntries = harPath && useMock ? loadHarEntries(harPath) : [];
 

@@ -31,7 +31,7 @@ async function main() {
           };
           ws.send(agentMsg);
         });
-        await recorder.startRecording(msg.payload.targetUrl);
+        await recorder.startRecording(msg.payload.targetUrl, msg.payload.recordingId);
         break;
       }
       case 'record:stop': {
@@ -65,6 +65,7 @@ async function main() {
 
         const result = await engine.replay(actions as Parameters<typeof engine.replay>[0], {
           headless: false,
+          recordingId: msg.payload.recordingId,
           harPath: harRef ? path.resolve(process.env.STORAGE_PATH || './storage', harRef) : undefined,
           mockRules: mockRules || [],
           useMock: !!harRef || (mockRules && mockRules.length > 0),
