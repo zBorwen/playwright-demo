@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '../middleware/zod-validator';
 import { z } from 'zod';
 import { db } from '../db/index';
-import { recordings, recordingArtifacts, executions } from '../db/schema';
+import { projects, recordings, recordingArtifacts, executions } from '../db/schema';
 import { eq, desc, and, inArray } from 'drizzle-orm';
 import type { Recording, MockRule } from '@playwright-demo/shared';
 import type { Env } from '../types/env';
@@ -32,6 +32,8 @@ recordingsRouter.get('/', async (c) => {
 
 recordingsRouter.post('/', zValidator('json', createRecordingSchema), async (c) => {
   const body = c.req.valid('json');
+  const project = await db.select({ id: projects.id }).from(projects).where(eq(projects.id, body.projectId)).limit(1);
+  if (!project.length) return c.json(errorResponse(API_CODES.NOT_FOUND, '项目不存在'), 404);
   const result = await db.insert(recordings).values(body).returning();
   return c.json(successResponse(result[0]), 201);
 });

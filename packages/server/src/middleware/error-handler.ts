@@ -34,6 +34,13 @@ export function errorHandler() {
       );
     }
 
+    if (causeMessage.includes('violates foreign key constraint') || errMessage.includes('violates foreign key constraint') || causeMessage.includes('23503')) {
+      return c.json(
+        errorResponse(API_CODES.BAD_REQUEST, '关联的数据不存在（请检查 projectId 或 recordingId 是否正确）'),
+        400,
+      );
+    }
+
     console.error('[API Error]', err);
     return c.json(
       errorResponse(API_CODES.INTERNAL_ERROR, 'Internal Server Error'),
