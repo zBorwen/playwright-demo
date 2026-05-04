@@ -58,7 +58,7 @@ recordingsRouter.get('/:id/actions', async (c) => {
     )
     .orderBy(desc(recordingArtifacts.createdAt))
     .limit(1);
-  if (!artifact.length) return c.json(errorResponse(API_CODES.NOT_FOUND, 'actions 不存在'), 404);
+  if (!artifact.length) return c.json(successResponse({ recordingId: id, actions: [] }));
   const parsed = JSON.parse(artifact[0].content as string);
   // Backward compat: old artifacts stored as bare array
   if (Array.isArray(parsed)) {
