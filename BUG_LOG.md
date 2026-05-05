@@ -1,5 +1,31 @@
 # Bug 修复记录
 
+## 回放引擎 Strict Mode Violation（2026-05-05）
+
+### 现象
+录制时用户点击页面上第一个"添加剧本"按钮，录制生成的 selector 为：
+```
+button >> internal:has-text=/^添加剧本$/
+```
+但页面上有多个同名按钮，回放时 `page.locator(selector).click()` 触发 strict mode violation 报错。
+
+### 根因
+Playwright Recorder 录制时知道用户点了哪个具体按钮，但生成的 selector（带 `has-text` 正则过滤）在回放时可能匹配多个元素。Playwright 的 `locator()` 在 strict mode 下要求 selector 必须唯一匹配，否则抛错。
+
+录制中第二个同名点击的 selector 自带了 `>> nth=0` 消歧，但第一个没有。
+
+### 修复方案
+在回放引擎的 `executeAction` 中新增 `withStrictModeFallback<T>()` helper，所有 locator 操作都包裹此方法。当捕获到 strict mode violation 时，fallback 到 `.first()` 操作第一个匹配元素。
+
+**修改文件**：
+- `packages/agent/src/replay-engine.ts` — 新增 `withStrictModeFallback` 方法，所有 10 个 locator 操作改用此方法
+- `packages/shared/src/types/actions.ts` — `replay:step` payload 增加 `recordingId` 字段（配合单回放进度追踪）
+
+### 教训
+Recorder 生成的 selector 不一定在回放时保持唯一性。回放引擎应对 strict mode violation 做宽容处理，用 `.first()` fallback。
+
+---
+
 ## 批量回放状态隔离（2026-05-05）
 
 ### 问题背景

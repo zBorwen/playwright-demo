@@ -14,7 +14,7 @@ export type AgentMessage =
   | { type: 'record:action'; payload: { action: Action; code?: string; selector: string; elementInfo: ElementInfo; timestamp: number } }
   | { type: 'record:screenshot:result'; payload: { actionIndex: number; path: string } }
   | { type: 'record:complete'; payload: { recordingId: string; actions: Recording['actions']; harPath: string; codegen: string } }
-  | { type: 'replay:step'; payload: { executionId: string; index: number; status: 'completed' | 'failed'; error?: string } }
+  | { type: 'replay:step'; payload: { executionId: string; recordingId: string; index: number; status: 'completed' | 'failed'; error?: string } }
   | { type: 'replay:screenshot'; payload: { executionId: string; stepIndex: number; path: string } }
   | { type: 'replay:done'; payload: { executionId: string; status: 'passed' | 'failed'; error?: string; trace?: string; screenshot?: string; tracePath?: string } }
   | { type: 'pong' };

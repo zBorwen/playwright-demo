@@ -248,6 +248,26 @@ export class ReplayEngine {
     }
   }
 
+  /** Execute a locator action with strict-mode-violation fallback to .first(). */
+  private async withStrictModeFallback<T>(
+    page: Page,
+    selector: string,
+    action: (loc: ReturnType<Page['locator']>) => Promise<T>,
+  ): Promise<T | undefined> {
+    const locator = page.locator(selector);
+    try {
+      return await action(locator);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('strict mode violation') || msg.includes('strict mode')) {
+        console.log(`[replay] strict mode violation on selector "${selector}", falling back to .first()`);
+        return await action(locator.first());
+      } else {
+        throw err;
+      }
+    }
+  }
+
   private async executeAction(page: Page, action: RecordingAction): Promise<void> {
     switch (action.name) {
       case 'navigate': {
@@ -256,40 +276,53 @@ export class ReplayEngine {
         break;
       }
       case 'click': {
-        await page.locator(action.selector).click({
-          button: action.button,
-          timeout: 10000,
-        });
+        await this.withStrictModeFallback(page, action.selector, (loc) =>
+          loc.click({ button: action.button as 'left' | 'right' | 'middle' | undefined, timeout: 10000 }),
+        );
         break;
       }
       case 'fill': {
-        await page.locator(action.selector).fill(action.value, { timeout: 10000 });
+        await this.withStrictModeFallback(page, action.selector, (loc) =>
+          loc.fill(action.value, { timeout: 10000 }),
+        );
         break;
       }
       case 'hover': {
-        await page.locator(action.selector).hover({ timeout: 10000 });
+        await this.withStrictModeFallback(page, action.selector, (loc) =>
+          loc.hover({ timeout: 10000 }),
+        );
         break;
       }
       case 'press': {
-        await page.locator(action.selector).press(action.key, { timeout: 10000 }).catch(async () => {
+        await this.withStrictModeFallback(page, action.selector, (loc) =>
+          loc.press(action.key, { timeout: 10000 }),
+        ).catch(async () => {
           await page.keyboard.press(action.key);
         });
         break;
       }
       case 'select': {
-        await page.locator(action.selector).selectOption(action.options, { timeout: 10000 });
+        await this.withStrictModeFallback(page, action.selector, (loc) =>
+          loc.selectOption(action.options, { timeout: 10000 }),
+        );
         break;
       }
       case 'check': {
-        await page.locator(action.selector).check({ timeout: 10000 });
+        await this.withStrictModeFallback(page, action.selector, (loc) =>
+          loc.check({ timeout: 10000 }),
+        );
         break;
       }
       case 'uncheck': {
-        await page.locator(action.selector).uncheck({ timeout: 10000 });
+        await this.withStrictModeFallback(page, action.selector, (loc) =>
+          loc.uncheck({ timeout: 10000 }),
+        );
         break;
       }
       case 'assertVisible': {
-        await page.locator(action.selector).waitFor({ state: 'visible', timeout: 10000 });
+        await this.withStrictModeFallback(page, action.selector, (loc) =>
+          loc.waitFor({ state: 'visible', timeout: 10000 }),
+        );
         break;
       }
       case 'assertText': {
@@ -318,7 +351,9 @@ export class ReplayEngine {
         break;
       }
       case 'setInputFiles': {
-        await page.locator(action.selector).setInputFiles(action.files, { timeout: 10000 });
+        await this.withStrictModeFallback(page, action.selector, (loc) =>
+          loc.setInputFiles(action.files, { timeout: 10000 }),
+        );
         break;
       }
       default: {
