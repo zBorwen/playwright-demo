@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, Link, useParams } from 'react-router-dom';
 import { ProjectList } from '@/components/project-list';
 import { ProjectForm } from '@/components/project-form';
@@ -6,10 +6,36 @@ import { ProjectDetail } from '@/components/project-detail';
 import { RecordingsList } from '@/components/recordings-list';
 import { RecordingDetail } from '@/components/recording-detail';
 import { ExecutionDetail } from '@/components/execution-detail';
-import { useWebSocket } from '@/hooks/use-websocket';
+import { connect, subscribeToMessages } from '@/hooks/use-websocket';
+import { useBatchReplayStore } from '@/store/batch-replay-store';
 
 export function App() {
-  useWebSocket();
+  // Ensure single WS connection, hydrate batch state, register global batch-replay listener
+  useEffect(() => {
+    connect();
+    useBatchReplayStore.getState().hydrate();
+
+    const unsub = subscribeToMessages((msg) => {
+      if (msg.type === 'batch-replay:result') {
+        const p = msg.payload as { recordingId: string; status: 'passed' | 'failed' | 'running' | 'pending'; error?: string; executionId?: string };
+        const store = useBatchReplayStore.getState();
+        // Update ALL running batches that contain this recording
+        for (const batchId of Object.keys(store.batches)) {
+          const batch = store.batches[batchId];
+          if (!batch.isRunning) continue;
+          if (batch.items.some(i => i.recordingId === p.recordingId)) {
+            store.updateItem(batchId, p.recordingId, {
+              status: p.status,
+              error: p.error,
+              executionId: p.executionId,
+            });
+          }
+        }
+      }
+    });
+
+    return () => unsub();
+  }, []);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">

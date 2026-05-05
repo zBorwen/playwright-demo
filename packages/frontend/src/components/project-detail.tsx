@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { fetchProjects, batchReplayProjects, type Project } from '@/lib/api';
 import { RecordingsList } from '@/components/recordings-list';
-import { BatchReplayPanel, type BatchReplayItem } from '@/components/batch-replay-panel';
-import { useWebSocket } from '@/hooks/use-websocket';
+import { useBatchReplayStore } from '@/store/batch-replay-store';
 
 export function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -12,34 +11,17 @@ export function ProjectDetail() {
   const [error, setError] = useState<string | null>(null);
   const [useMock, setUseMock] = useState(false);
   const [replaying, setReplaying] = useState(false);
-  const [batchReplayState, setBatchReplayState] = useState<{
-    batchId: string;
-    items: BatchReplayItem[];
-    isRunning: boolean;
-    passed: number;
-    failed: number;
-  } | null>(null);
 
-  const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
-    switch (msg.type) {
-      case 'batch-replay:result': {
-        const p = msg.payload as { recordingId: string; status: 'passed' | 'failed' | 'running' | 'pending'; error?: string; executionId?: string };
-        setBatchReplayState(prev => {
-          if (!prev) return prev;
-          const idx = prev.items.findIndex(i => i.recordingId === p.recordingId);
-          if (idx < 0) return prev;
-          const updated = [...prev.items];
-          updated[idx] = { ...updated[idx], status: p.status, error: p.error, executionId: p.executionId };
-          const passed = updated.filter(i => i.status === 'passed').length;
-          const failed = updated.filter(i => i.status === 'failed').length;
-          return { ...prev, items: updated, passed, failed, isRunning: passed + failed < prev.items.length };
-        });
-        break;
-      }
-    }
-  }, []);
-
-  useWebSocket(handleWsMessage);
+  const batches = useBatchReplayStore(s => s.batches);
+  const projectBatch = useMemo(
+    () => id
+      ? Object.values(batches).find(
+          b => b.scope === `project:${id}` ||
+            (b.scope === 'cross-project' && b.projectIds?.includes(id)),
+        ) ?? null
+      : null,
+    [batches, id],
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -62,17 +44,14 @@ export function ProjectDetail() {
   const handleBatchReplayProject = async () => {
     if (!id) return;
     setReplaying(true);
-    setBatchReplayState({ batchId: '', items: [], isRunning: true, passed: 0, failed: 0 });
     try {
       const result = await batchReplayProjects([id], { useMock });
-      setBatchReplayState(prev => prev ? {
-        ...prev,
-        batchId: result.batchId,
-        items: result.results.map(r => ({ recordingId: r.recordingId, status: 'pending' as const })),
-      } : null);
+      const items = result.results.map(r => ({ recordingId: r.recordingId, status: 'pending' as const }));
+      useBatchReplayStore.getState().startBatch(result.batchId, items, {
+        scope: `project:${id}`,
+      });
     } catch (e) {
       console.error('Batch replay failed:', e);
-      setBatchReplayState(null);
     }
     setReplaying(false);
   };
@@ -88,7 +67,12 @@ export function ProjectDetail() {
         </Link>
         <div className="mt-2 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{project.name}</h1>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              {project.name}
+              {projectBatch?.isRunning && (
+                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
+              )}
+            </h1>
             {project.description && (
               <p className="mt-1 text-zinc-400">{project.description}</p>
             )}
@@ -113,16 +97,6 @@ export function ProjectDetail() {
           </div>
         </div>
       </div>
-
-      {batchReplayState && batchReplayState.items.length > 0 && (
-        <BatchReplayPanel
-          total={batchReplayState.items.length}
-          items={batchReplayState.items}
-          isRunning={batchReplayState.isRunning}
-          passed={batchReplayState.passed}
-          failed={batchReplayState.failed}
-        />
-      )}
 
       <RecordingsList projectId={id} useMock={useMock} />
     </div>

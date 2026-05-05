@@ -1,9 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchProjects, deleteProject, batchReplayProjects } from '@/lib/api';
 import { useAppStore } from '@/store/app-store';
-import { BatchReplayPanel, type BatchReplayItem } from '@/components/batch-replay-panel';
-import { useWebSocket } from '@/hooks/use-websocket';
+import { useBatchReplayStore } from '@/store/batch-replay-store';
 
 export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
   const { projects, loadingProjects, projectError, setProjects, setLoadingProjects, setProjectError } =
@@ -11,34 +10,13 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [replaying, setReplaying] = useState(false);
-  const [batchReplayState, setBatchReplayState] = useState<{
-    batchId: string;
-    items: BatchReplayItem[];
-    isRunning: boolean;
-    passed: number;
-    failed: number;
-  } | null>(null);
+  const [batchUseMock, setBatchUseMock] = useState(false);
 
-  const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
-    switch (msg.type) {
-      case 'batch-replay:result': {
-        const p = msg.payload as { recordingId: string; status: 'passed' | 'failed' | 'running' | 'pending'; error?: string; executionId?: string };
-        setBatchReplayState(prev => {
-          if (!prev) return prev;
-          const idx = prev.items.findIndex(i => i.recordingId === p.recordingId);
-          if (idx < 0) return prev;
-          const updated = [...prev.items];
-          updated[idx] = { ...updated[idx], status: p.status, error: p.error, executionId: p.executionId };
-          const passed = updated.filter(i => i.status === 'passed').length;
-          const failed = updated.filter(i => i.status === 'failed').length;
-          return { ...prev, items: updated, passed, failed, isRunning: passed + failed < prev.items.length };
-        });
-        break;
-      }
-    }
-  }, []);
-
-  useWebSocket(handleWsMessage);
+  const batches = useBatchReplayStore(s => s.batches);
+  const crossProjectBatch = useMemo(
+    () => Object.values(batches).find(b => b.scope === 'cross-project' && b.isRunning) ?? null,
+    [batches],
+  );
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -75,17 +53,15 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
   const handleBatchReplaySelected = async () => {
     if (selectedIds.size === 0) return;
     setReplaying(true);
-    setBatchReplayState({ batchId: '', items: [], isRunning: true, passed: 0, failed: 0 });
     try {
-      const result = await batchReplayProjects([...selectedIds]);
-      setBatchReplayState(prev => prev ? {
-        ...prev,
-        batchId: result.batchId,
-        items: result.results.map(r => ({ recordingId: r.recordingId, status: 'pending' as const })),
-      } : null);
+      const result = await batchReplayProjects([...selectedIds], { useMock: batchUseMock });
+      const items = result.results.map(r => ({ recordingId: r.recordingId, status: 'pending' as const }));
+      useBatchReplayStore.getState().startBatch(result.batchId, items, {
+        scope: 'cross-project',
+        projectIds: [...selectedIds],
+      });
     } catch (e) {
       console.error('Batch replay failed:', e);
-      setBatchReplayState(null);
     }
     setReplaying(false);
     setSelectedIds(new Set());
@@ -97,19 +73,18 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
 
   return (
     <div>
-      {batchReplayState && batchReplayState.items.length > 0 && (
-        <BatchReplayPanel
-          total={batchReplayState.items.length}
-          items={batchReplayState.items}
-          isRunning={batchReplayState.isRunning}
-          passed={batchReplayState.passed}
-          failed={batchReplayState.failed}
-        />
-      )}
-
       {selectedIds.size > 0 && (
         <div className="mb-4 flex items-center gap-3 rounded border border-zinc-700 bg-zinc-900 px-4 py-2">
           <span className="text-sm text-zinc-300">已选择 {selectedIds.size} 个项目</span>
+          <label className="flex items-center gap-1.5 text-sm text-zinc-400">
+            <input
+              type="checkbox"
+              checked={batchUseMock}
+              onChange={(e) => setBatchUseMock(e.target.checked)}
+              className="rounded border-zinc-600 bg-zinc-800"
+            />
+            Mock 模式
+          </label>
           <button
             onClick={handleBatchReplaySelected}
             disabled={replaying}
@@ -118,7 +93,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
             {replaying ? '回放中…' : '批量回放'}
           </button>
           <button
-            onClick={() => setSelectedIds(new Set())}
+            onClick={() => { setSelectedIds(new Set()); setBatchUseMock(false); }}
             className="text-sm text-zinc-400 hover:text-zinc-200"
           >
             取消选择
@@ -127,7 +102,10 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {projects.map((p) => (
+        {projects.map((p) => {
+          const isReplaying = crossProjectBatch?.isRunning && crossProjectBatch.projectIds?.includes(p.id);
+
+          return (
           <div
             key={p.id}
             className="group relative rounded-lg border border-zinc-800 bg-zinc-900 p-5 transition hover:border-zinc-600"
@@ -136,6 +114,12 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
               <h3 className="font-semibold">{p.name}</h3>
               {p.description && (
                 <p className="mt-1 text-sm text-zinc-400">{p.description}</p>
+              )}
+              {isReplaying && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-green-400">
+                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
+                  批量回放中
+                </div>
               )}
             </Link>
             <div className="absolute top-3 right-3 flex items-center gap-1">
@@ -156,7 +140,8 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
               </button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

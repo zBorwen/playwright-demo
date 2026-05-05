@@ -5,6 +5,7 @@ import {
   fetchRecordingActions,
   fetchRecordingCodegen,
   fetchExecutions,
+  fetchExecution,
   fetchProject,
   updateProjectSettings,
   startRecording,
@@ -16,11 +17,11 @@ import {
   type Execution,
   type RecordingAction,
 } from '@/lib/api';
-import { useWebSocket } from '@/hooks/use-websocket';
+import { useWebSocket, getSingleReplayProgress } from '@/hooks/use-websocket';
 import { RecordingJsonEditor } from '@/components/recording-json-editor';
 import { NetworkTab } from '@/components/network-tab';
 import { ReplayPanel, type ReplayStep } from '@/components/replay-panel';
-import { BatchReplayPanel, type BatchReplayItem } from '@/components/batch-replay-panel';
+import { detectRunningExecution } from '@/lib/replay-state';
 
 const ACTION_ICONS: Record<string, string> = {
   click: '👆',
@@ -43,12 +44,10 @@ type Tab = 'timeline' | 'codegen' | 'network' | 'json' | 'executions';
 function formatActionDetail(action: RecordingAction): string {
   const parts: string[] = [];
 
-  // Selector-based actions
   if ('selector' in action && action.selector) {
     parts.push(action.selector);
   }
 
-  // Action-specific details
   switch (action.name) {
     case 'fill':
       if (action.value) parts.push(`"${truncate(action.value, 30)}"`);
@@ -80,7 +79,6 @@ function formatActionDetail(action: RecordingAction): string {
       break;
   }
 
-  // Element info hint
   if (action.elementInfo?.role) {
     parts.unshift(`[${action.elementInfo.role}]`);
   }
@@ -98,7 +96,6 @@ export function RecordingDetail() {
   const [actions, setActions] = useState<RecordingAction[]>([]);
   const actionsRef = useRef<RecordingAction[]>([]);
 
-  // Keep ref in sync with state
   useEffect(() => {
     actionsRef.current = actions;
   }, [actions]);
@@ -110,42 +107,36 @@ export function RecordingDetail() {
   const [replayStatus, setReplayStatus] = useState<'idle' | 'running' | 'passed' | 'failed'>('idle');
   const [replaySteps, setReplaySteps] = useState<ReplayStep[]>([]);
   const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
+  const replayExecutionIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    replayExecutionIdRef.current = replayExecutionId;
+  }, [replayExecutionId]);
   const [showTrace, setShowTrace] = useState(false);
   const [useMock, setUseMock] = useState(false);
   const [projectReplaySpeed, setProjectReplaySpeed] = useState<'fast' | 'normal' | 'slow'>('normal');
   const [project, setProject] = useState<{ id: string; name: string; replaySpeed: 'fast' | 'normal' | 'slow' } | null>(null);
   const [codegen, setCodegen] = useState<string>('');
   const [copied, setCopied] = useState(false);
-  const [batchReplayState, setBatchReplayState] = useState<{
-    batchId: string;
-    items: BatchReplayItem[];
-    isRunning: boolean;
-    passed: number;
-    failed: number;
-  } | null>(null);
 
   const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
     switch (msg.type) {
       case 'record:action': {
         const payload = msg.payload as { action: RecordingAction; code?: string };
-
         const action = payload.action;
         const currentActions = actionsRef.current;
 
         if (action.name === 'fill' && 'selector' in action && action.selector) {
           const selector = action.selector;
-          // Only dedup if the last action is also a fill with the same selector (same typing session)
           const lastAction = currentActions.length > 0 ? currentActions[currentActions.length - 1] : null;
           const shouldUpdate = lastAction?.name === 'fill' && 'selector' in lastAction && lastAction.selector === selector;
 
           if (shouldUpdate) {
-            // Update last fill (same typing session)
             const updated = [...currentActions];
             updated[updated.length - 1] = action;
             actionsRef.current = updated;
             setActions(updated);
           } else {
-            // New typing session — append as new fill
             const newActions = [...currentActions, action];
             actionsRef.current = newActions;
             setActions(newActions);
@@ -166,14 +157,12 @@ export function RecordingDetail() {
         const payload = msg.payload as { actions?: RecordingAction[]; codegen?: string };
         if (payload.actions) {
           setActions(payload.actions);
-          // Auto-save actions to server
           if (id && payload.actions.length > 0) {
             saveRecordingActions(id, payload.actions).catch((e) => {
               console.error('Failed to auto-save recording actions:', e);
             });
           }
         }
-        // Fetch codegen from server on completion
         if (id) {
           fetchRecordingCodegen(id).then((r) => setCodegen(r.codegen || '')).catch((e) => {
             console.warn('Failed to fetch codegen:', e.message);
@@ -183,6 +172,8 @@ export function RecordingDetail() {
       }
       case 'replay:step': {
         const stepPayload = msg.payload as { index: number; executionId: string; status: 'completed' | 'failed'; error?: string };
+        // Ignore messages for a different execution (e.g. batch replay of other recordings)
+        if (stepPayload.executionId && replayExecutionIdRef.current && stepPayload.executionId !== replayExecutionIdRef.current) return;
         if (stepPayload.executionId) setReplayExecutionId(stepPayload.executionId);
         setReplayStatus('running');
         setReplaySteps((prev) =>
@@ -195,17 +186,17 @@ export function RecordingDetail() {
         break;
       }
       case 'replay:done': {
-        const payload = msg.payload as { status: 'passed' | 'failed'; error?: string; trace?: string };
+        const payload = msg.payload as { status: 'passed' | 'failed'; error?: string; trace?: string; executionId?: string };
+        // Ignore messages for a different execution
+        if (payload.executionId && replayExecutionIdRef.current && payload.executionId !== replayExecutionIdRef.current) return;
         setReplayStatus(payload.status);
         if (payload.status === 'failed') {
-          // Mark remaining steps as skipped
           setReplaySteps((prev) =>
             prev.map((s) =>
               s.status === 'pending' ? { ...s, status: 'skipped' as const } : s
             )
           );
         } else {
-          // On success, mark all pending steps as completed
           setReplaySteps((prev) =>
             prev.map((s) =>
               s.status === 'pending' ? { ...s, status: 'completed' as const } : s
@@ -213,20 +204,6 @@ export function RecordingDetail() {
           );
         }
         if (id) fetchExecutions(id).then((e) => setExecutions(e));
-        break;
-      }
-      case 'batch-replay:result': {
-        const p = msg.payload as { recordingId: string; status: 'passed' | 'failed' | 'running' | 'pending'; error?: string; executionId?: string };
-        setBatchReplayState(prev => {
-          if (!prev) return prev;
-          const idx = prev.items.findIndex(i => i.recordingId === p.recordingId);
-          if (idx < 0) return prev;
-          const updated = [...prev.items];
-          updated[idx] = { ...updated[idx], status: p.status, error: p.error, executionId: p.executionId };
-          const passed = updated.filter(i => i.status === 'passed').length;
-          const failed = updated.filter(i => i.status === 'failed').length;
-          return { ...prev, items: updated, passed, failed, isRunning: passed + failed < prev.items.length };
-        });
         break;
       }
     }
@@ -247,12 +224,23 @@ export function RecordingDetail() {
       setExecutions(execs);
       setCodegen(codegenResp.codegen || '');
       setLoading(false);
-      // Fetch project for replay speed
       if (rec.projectId) {
         fetchProject(rec.projectId).then((p) => {
           setProject(p);
           setProjectReplaySpeed(p.replaySpeed || 'normal');
         }).catch(() => {});
+      }
+      const restored = detectRunningExecution(execs, acts.actions || []);
+      if (restored) {
+        const maxCompleted = getSingleReplayProgress(restored.executionId);
+        const steps = restored.steps.map(s =>
+          maxCompleted >= 0 && s.index <= maxCompleted
+            ? { ...s, status: 'completed' as const }
+            : s,
+        );
+        setReplayExecutionId(restored.executionId);
+        setReplayStatus('running');
+        setReplaySteps(steps);
       }
     }).catch((e) => {
       setLoadError(e.message);
@@ -260,8 +248,28 @@ export function RecordingDetail() {
     });
   }, [id]);
 
+  // Fallback: if we restored a running execution but agent already finished,
+  // poll once after 2s to get the final state
+  useEffect(() => {
+    if (!replayExecutionId || replayStatus !== 'running') return;
+    const timer = setTimeout(() => {
+      fetchExecution(replayExecutionId).then((ex) => {
+        if (ex.status !== 'running') {
+          setReplayStatus(ex.status);
+          setReplaySteps((prev) =>
+            prev.map((s) =>
+              s.status === 'pending'
+                ? { ...s, status: ex.status === 'passed' ? 'completed' as const : 'skipped' as const }
+                : s
+            )
+          );
+        }
+      }).catch(() => {});
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [replayExecutionId, replayStatus]);
+
   const handleStartRecording = async () => {
-    // Clear old actions and codegen before starting new recording
     setActions([]);
     actionsRef.current = [];
     setCodegen('');
@@ -272,8 +280,6 @@ export function RecordingDetail() {
   const handleStopRecording = async () => {
     await stopRecording(id!);
     setRecordingStatus('idle');
-    // Actions will be updated via record:complete WS message
-    // But if WS is slow, fetch as fallback after a short delay
     setTimeout(async () => {
       if (actions.length === 0 && id) {
         const acts = await fetchRecordingActions(id).catch(() => ({ actions: [] }));
@@ -384,7 +390,7 @@ export function RecordingDetail() {
         </div>
       </div>
 
-      {/* Replay Panel */}
+      {/* Single Replay Panel */}
       {replaySteps.length > 0 && (
         <ReplayPanel
           steps={replaySteps}
@@ -395,17 +401,6 @@ export function RecordingDetail() {
             setReplayExecutionId(execId);
             setShowTrace(true);
           }}
-        />
-      )}
-
-      {/* Batch Replay Panel */}
-      {batchReplayState && batchReplayState.items.length > 0 && (
-        <BatchReplayPanel
-          total={batchReplayState.items.length}
-          items={batchReplayState.items}
-          isRunning={batchReplayState.isRunning}
-          passed={batchReplayState.passed}
-          failed={batchReplayState.failed}
         />
       )}
 

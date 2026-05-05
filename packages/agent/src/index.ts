@@ -32,10 +32,10 @@ async function main() {
 
     const engine = new ReplayEngine();
     engine.onStep((index, status) => {
-      ws.send({ type: 'replay:step', payload: { executionId, index, status } });
+      ws.send({ type: 'replay:step', payload: { recordingId: payload.recordingId, executionId, index, status } });
     });
     engine.onStepFailed((index, error) => {
-      ws.send({ type: 'replay:step', payload: { executionId, index, status: 'failed', error } });
+      ws.send({ type: 'replay:step', payload: { recordingId: payload.recordingId, executionId, index, status: 'failed', error } });
     });
     engine.onScreenshot((stepIndex, path) => {
       ws.send({ type: 'replay:screenshot', payload: { executionId, stepIndex, path } });

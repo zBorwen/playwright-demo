@@ -1,17 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchRecordings, deleteRecording, deleteRecordings, batchReplayRecordings, type Recording } from '@/lib/api';
 import { RecordingForm } from '@/components/recording-form';
-import { BatchReplayPanel, type BatchReplayItem } from '@/components/batch-replay-panel';
-import { useWebSocket } from '@/hooks/use-websocket';
+import { BatchReplayPanel } from '@/components/batch-replay-panel';
+import { useBatchReplayStore } from '@/store/batch-replay-store';
 
 interface RecordingsListProps {
   projectId?: string;
-  reloadKey?: number;
   useMock?: boolean;
 }
 
-export function RecordingsList({ projectId, reloadKey = 0, useMock }: RecordingsListProps) {
+export function RecordingsList({ projectId, useMock }: RecordingsListProps) {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,34 +18,18 @@ export function RecordingsList({ projectId, reloadKey = 0, useMock }: Recordings
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [replaying, setReplaying] = useState(false);
-  const [batchReplayState, setBatchReplayState] = useState<{
-    batchId: string;
-    items: BatchReplayItem[];
-    isRunning: boolean;
-    passed: number;
-    failed: number;
-  } | null>(null);
 
-  const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
-    switch (msg.type) {
-      case 'batch-replay:result': {
-        const p = msg.payload as { recordingId: string; status: 'passed' | 'failed' | 'running' | 'pending'; error?: string; executionId?: string };
-        setBatchReplayState(prev => {
-          if (!prev) return prev;
-          const idx = prev.items.findIndex(i => i.recordingId === p.recordingId);
-          if (idx < 0) return prev;
-          const updated = [...prev.items];
-          updated[idx] = { ...updated[idx], status: p.status, error: p.error, executionId: p.executionId };
-          const passed = updated.filter(i => i.status === 'passed').length;
-          const failed = updated.filter(i => i.status === 'failed').length;
-          return { ...prev, items: updated, passed, failed, isRunning: passed + failed < prev.items.length };
-        });
-        break;
-      }
-    }
-  }, []);
-
-  useWebSocket(handleWsMessage);
+  const batches = useBatchReplayStore(s => s.batches);
+  const activeBatch = useMemo(
+    () => projectId
+      ? Object.values(batches).find(
+          b => (b.scope === `project:${projectId}` ||
+            (b.scope === 'cross-project' && b.projectIds?.includes(projectId)))
+          && b.isRunning,
+        ) ?? null
+      : null,
+    [batches, projectId],
+  );
 
   const fetch = () => {
     setLoading(true);
@@ -64,7 +47,7 @@ export function RecordingsList({ projectId, reloadKey = 0, useMock }: Recordings
 
   useEffect(() => {
     fetch();
-  }, [projectId, reloadKey]);
+  }, [projectId]);
 
   const handleSuccess = () => {
     setShowForm(false);
@@ -98,36 +81,26 @@ export function RecordingsList({ projectId, reloadKey = 0, useMock }: Recordings
   const handleBatchReplaySelected = async () => {
     if (selectedIds.size === 0) return;
     setReplaying(true);
-    setBatchReplayState({
-      batchId: '',
-      items: Array.from(selectedIds).map(id => ({
-        recordingId: id,
-        recordingTitle: recordings.find(r => r.id === id)?.title,
-        status: 'pending' as const,
-      })),
-      isRunning: true,
-      passed: 0,
-      failed: 0,
-    });
+    const items = Array.from(selectedIds).map(recId => ({
+      recordingId: recId,
+      recordingTitle: recordings.find(r => r.id === recId)?.title,
+      status: 'pending' as const,
+    }));
     try {
       const result = await batchReplayRecordings([...selectedIds], { useMock });
-      setBatchReplayState(prev => prev ? {
-        ...prev,
-        batchId: result.batchId,
-        total: result.total,
-      } : null);
+      const scope = projectId ? `project:${projectId}` : undefined;
+      useBatchReplayStore.getState().startBatch(result.batchId, items, { scope });
     } catch (e) {
       console.error('Batch replay failed:', e);
-      setBatchReplayState(null);
     }
     setReplaying(false);
     setSelectedIds(new Set());
   };
 
-  const handleDeleteSingle = async (id: string, title: string) => {
+  const handleDeleteSingle = async (recId: string, title: string) => {
     if (!confirm(`确定要删除录制「${title}」吗？`)) return;
     setDeleting(true);
-    await deleteRecording(id);
+    await deleteRecording(recId);
     setDeleting(false);
     setSelectedIds(new Set());
     fetch();
@@ -149,13 +122,13 @@ export function RecordingsList({ projectId, reloadKey = 0, useMock }: Recordings
 
       {error && <p className="mb-4 text-red-400">{error}</p>}
 
-      {batchReplayState && batchReplayState.items.length > 0 && (
+      {activeBatch && activeBatch.items.length > 0 && (
         <BatchReplayPanel
-          total={batchReplayState.items.length}
-          items={batchReplayState.items}
-          isRunning={batchReplayState.isRunning}
-          passed={batchReplayState.passed}
-          failed={batchReplayState.failed}
+          total={activeBatch.items.length}
+          items={activeBatch.items}
+          isRunning={activeBatch.isRunning}
+          passed={activeBatch.passed}
+          failed={activeBatch.failed}
         />
       )}
 

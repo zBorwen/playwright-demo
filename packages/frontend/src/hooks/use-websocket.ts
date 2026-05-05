@@ -10,7 +10,10 @@ type Listener = (msg: WsMessage) => void;
 const listeners = new Set<Listener>();
 let ws: WebSocket | null = null;
 
-function connect(): void {
+// Global single-replay progress tracker (executionId → max completed step index)
+const singleReplayProgress = new Map<string, number>();
+
+export function connect(): void {
   if (ws && ws.readyState <= WebSocket.OPEN) return;
 
   // Dev: direct connect to backend. Prod: use relative URL (same origin).
@@ -26,6 +29,20 @@ function connect(): void {
   ws.onmessage = (event) => {
     try {
       const msg: WsMessage = JSON.parse(event.data);
+
+      // Track single-replay progress globally
+      if (msg.type === 'replay:step') {
+        const p = msg.payload as { recordingId?: string; executionId?: string; index?: number; status?: string };
+        if (p.executionId && typeof p.index === 'number') {
+          if (p.status === 'completed') {
+            const prev = singleReplayProgress.get(p.executionId) ?? -1;
+            if (p.index > prev) singleReplayProgress.set(p.executionId, p.index);
+          } else if (p.status === 'failed') {
+            singleReplayProgress.delete(p.executionId);
+          }
+        }
+      }
+
       for (const listener of listeners) {
         listener(msg);
       }
@@ -66,4 +83,15 @@ export function addWsListener(listener: Listener): void {
 
 export function removeWsListener(listener: Listener): void {
   listeners.delete(listener);
+}
+
+/** Register a message listener and return an unsubscribe function. */
+export function subscribeToMessages(onMessage: (msg: WsMessage) => void): () => void {
+  listeners.add(onMessage);
+  return () => listeners.delete(onMessage);
+}
+
+/** Get the max completed step index for a single replay execution. */
+export function getSingleReplayProgress(executionId: string): number {
+  return singleReplayProgress.get(executionId) ?? -1;
 }
