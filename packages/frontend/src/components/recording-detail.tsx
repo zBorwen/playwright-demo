@@ -18,6 +18,7 @@ import { useWebSocket } from '@/hooks/use-websocket';
 import { RecordingJsonEditor } from '@/components/recording-json-editor';
 import { NetworkTab } from '@/components/network-tab';
 import { ReplayPanel, type ReplayStep } from '@/components/replay-panel';
+import { BatchReplayPanel, type BatchReplayItem } from '@/components/batch-replay-panel';
 
 const ACTION_ICONS: Record<string, string> = {
   click: '👆',
@@ -111,6 +112,13 @@ export function RecordingDetail() {
   const [useMock, setUseMock] = useState(false);
   const [codegen, setCodegen] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [batchReplayState, setBatchReplayState] = useState<{
+    batchId: string;
+    items: BatchReplayItem[];
+    isRunning: boolean;
+    passed: number;
+    failed: number;
+  } | null>(null);
 
   const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
     switch (msg.type) {
@@ -194,6 +202,20 @@ export function RecordingDetail() {
           );
         }
         if (id) fetchExecutions(id).then((e) => setExecutions(e));
+        break;
+      }
+      case 'batch-replay:result': {
+        const p = msg.payload as { recordingId: string; status: 'passed' | 'failed' | 'running' | 'pending'; error?: string; executionId?: string };
+        setBatchReplayState(prev => {
+          if (!prev) return prev;
+          const idx = prev.items.findIndex(i => i.recordingId === p.recordingId);
+          if (idx < 0) return prev;
+          const updated = [...prev.items];
+          updated[idx] = { ...updated[idx], status: p.status, error: p.error, executionId: p.executionId };
+          const passed = updated.filter(i => i.status === 'passed').length;
+          const failed = updated.filter(i => i.status === 'failed').length;
+          return { ...prev, items: updated, passed, failed, isRunning: passed + failed < prev.items.length };
+        });
         break;
       }
     }
@@ -337,6 +359,17 @@ export function RecordingDetail() {
             setReplayExecutionId(execId);
             setShowTrace(true);
           }}
+        />
+      )}
+
+      {/* Batch Replay Panel */}
+      {batchReplayState && batchReplayState.items.length > 0 && (
+        <BatchReplayPanel
+          total={batchReplayState.items.length}
+          items={batchReplayState.items}
+          isRunning={batchReplayState.isRunning}
+          passed={batchReplayState.passed}
+          failed={batchReplayState.failed}
         />
       )}
 
