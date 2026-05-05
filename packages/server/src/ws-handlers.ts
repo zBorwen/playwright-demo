@@ -40,7 +40,7 @@ export class WsHandlers {
     return Array.from(this.agents.keys());
   }
 
-  private broadcastToClients(data: string, exclude?: WebSocket): void {
+  broadcastToClients(data: string, exclude?: WebSocket): void {
     for (const client of this.clients) {
       if (client !== exclude && client.readyState === 1) {
         client.send(data);
