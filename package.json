@@ -5,5 +5,8 @@
   "scripts": {
     "dev:server": "cd packages/server && pnpm dev",
     "dev:frontend": "cd packages/frontend && pnpm dev"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
   }
 }

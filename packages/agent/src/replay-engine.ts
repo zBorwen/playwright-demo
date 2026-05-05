@@ -86,6 +86,43 @@ async function handleMockRoute(route: Route, rules: MockRule[], harEntries: HarE
   await route.continue();
 }
 
+/**
+ * When Enter press on a form field is immediately followed (<50ms) by a click
+ * on the submit/login button, the recording captured both but in practice only
+ * the click triggers the actual submission. Skip the redundant press to avoid conflicts.
+ */
+function deduplicateActions(actions: RecordingAction[]): RecordingAction[] {
+  const result: RecordingAction[] = [];
+  let skipNext = false;
+
+  for (let i = 0; i < actions.length; i++) {
+    if (skipNext) {
+      skipNext = false;
+      continue;
+    }
+
+    const action = actions[i];
+    const next = actions[i + 1];
+
+    if (
+      action.name === 'press' &&
+      action.key === 'Enter' &&
+      next &&
+      next.name === 'click' &&
+      action.timestamp &&
+      next.timestamp &&
+      next.timestamp - action.timestamp < 50
+    ) {
+      console.log(`[replay] deduplicate: skipping press Enter (step ${i}), keeping click (step ${i + 1})`);
+      skipNext = true;
+    }
+
+    result.push(action);
+  }
+
+  return result;
+}
+
 export class ReplayEngine {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
@@ -112,6 +149,7 @@ export class ReplayEngine {
     recordingId?: string;
     mockRules?: MockRule[];
     useMock?: boolean;
+    stepDelay?: number;
   } = {}): Promise<ReplayResult> {
     this.screenshots = [];
 
@@ -121,6 +159,7 @@ export class ReplayEngine {
       harPath,
       mockRules = [],
       useMock = false,
+      stepDelay = 300,
     } = options;
 
     const storageBase = path.resolve(process.env.STORAGE_PATH || './storage', 'recordings', recordingId);
@@ -128,6 +167,9 @@ export class ReplayEngine {
     const traceDir = path.join(storageBase, 'traces');
 
     const harEntries = harPath && useMock ? loadHarEntries(harPath) : [];
+
+    // Deduplicate near-simultaneous actions (Enter + click on form submit)
+    const deduplicated = deduplicateActions(actions);
 
     this.browser = await chromium.launch({ headless });
     try {
@@ -142,11 +184,12 @@ export class ReplayEngine {
         });
       }
 
-      for (let i = 0; i < actions.length; i++) {
-        const action = actions[i];
+      for (let i = 0; i < deduplicated.length; i++) {
+        const action = deduplicated[i];
 
         try {
-          await this.executeAction(page, action);
+          console.log(`[replay] executing step ${i}/${deduplicated.length}: ${action.name}`);
+          await this.executeActionAndWait(page, action);
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           const failPath = `${screenshotDir}/failure-step-${i}.png`;
@@ -161,7 +204,7 @@ export class ReplayEngine {
           return {
             status: 'failed',
             stepIndex: i,
-            totalSteps: actions.length,
+            totalSteps: deduplicated.length,
             error: errorMsg,
             trace: `Failed at step ${i}: ${action.name} (${JSON.stringify(action).slice(0, 200)})`,
             tracePath,
@@ -181,6 +224,11 @@ export class ReplayEngine {
         if (this.onStepCallback) {
           this.onStepCallback(i, 'completed');
         }
+
+        // Delay between steps for visibility (skip on last step)
+        if (stepDelay > 0 && i < deduplicated.length - 1) {
+          await new Promise((r) => setTimeout(r, stepDelay));
+        }
       }
 
       // Passed — stop tracing (discard trace for successful replay)
@@ -188,8 +236,8 @@ export class ReplayEngine {
 
       return {
         status: 'passed',
-        stepIndex: actions.length,
-        totalSteps: actions.length,
+        stepIndex: deduplicated.length,
+        totalSteps: deduplicated.length,
         screenshots: this.screenshots,
       };
     } finally {
@@ -242,17 +290,16 @@ export class ReplayEngine {
       }
       case 'assertVisible': {
         await page.locator(action.selector).waitFor({ state: 'visible', timeout: 10000 });
-        const visible = await page.locator(action.selector).isVisible();
-        if (!visible) throw new Error(`Element not visible: ${action.selector}`);
         break;
       }
       case 'assertText': {
         const text = await page.locator(action.selector).textContent({ timeout: 10000 });
         const expected = action.text;
-        if (action.substring) {
-          if (!text?.includes(expected)) throw new Error(`Text "${expected}" not found in "${text}"`);
-        } else {
+        // Default to substring matching (matches Playwright codegen behavior)
+        if (action.substring === false) {
           if (text?.trim() !== expected.trim()) throw new Error(`Text mismatch: expected "${expected}", got "${text}"`);
+        } else {
+          if (!text?.includes(expected)) throw new Error(`Text "${expected}" not found in "${text}"`);
         }
         break;
       }
@@ -277,6 +324,24 @@ export class ReplayEngine {
       default: {
         throw new Error(`Unknown action type: ${(action as Record<string, unknown>).name}`);
       }
+    }
+  }
+
+  private async executeActionAndWait(page: Page, action: RecordingAction): Promise<void> {
+    // Only wait for navigation on actions that are likely to cause it
+    const needsNavigation = action.name === 'click' ||
+      (action.name === 'press' && action.key === 'Enter');
+
+    if (needsNavigation) {
+      const navPromise = page.waitForNavigation({ timeout: 1000 }).catch(() => null);
+      await this.executeAction(page, action);
+      const navResult = await navPromise;
+      if (navResult) {
+        await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+      }
+    } else {
+      // Non-navigation actions execute immediately — no artificial delay
+      await this.executeAction(page, action);
     }
   }
 }

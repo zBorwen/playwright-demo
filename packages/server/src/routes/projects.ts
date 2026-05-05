@@ -49,3 +49,19 @@ projectsRouter.delete('/:id', async (c) => {
   await db.delete(projects).where(eq(projects.id, id));
   return c.json(successResponse({ deleted: true }));
 });
+
+projectsRouter.patch('/:id', zValidator('json', z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().optional().nullable(),
+  replaySpeed: z.enum(['fast', 'normal', 'slow']).optional(),
+})), async (c) => {
+  const id = c.req.param('id');
+  const body = c.req.valid('json');
+  const result = await db
+    .update(projects)
+    .set({ ...body, updatedAt: new Date() })
+    .where(eq(projects.id, id))
+    .returning();
+  if (!result.length) return c.json(errorResponse(API_CODES.NOT_FOUND, '项目不存在'), 404);
+  return c.json(successResponse(result[0]));
+});

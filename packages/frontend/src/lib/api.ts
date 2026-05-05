@@ -16,6 +16,7 @@ export interface Project {
   id: string;
   name: string;
   description?: string;
+  replaySpeed: 'fast' | 'normal' | 'slow';
   createdAt: string;
   updatedAt: string;
 }
@@ -33,6 +34,10 @@ export async function fetchProjects(): Promise<Project[]> {
   return request(`${API_BASE}/projects`);
 }
 
+export async function fetchProject(id: string): Promise<Project> {
+  return request(`${API_BASE}/projects/${id}`);
+}
+
 export async function createProject(data: { name: string; description?: string }): Promise<Project> {
   return request(`${API_BASE}/projects`, {
     method: 'POST',
@@ -43,6 +48,14 @@ export async function createProject(data: { name: string; description?: string }
 
 export async function deleteProject(id: string): Promise<{ ok: boolean }> {
   return request(`${API_BASE}/projects/${id}`, { method: 'DELETE' });
+}
+
+export async function updateProjectSettings(id: string, data: { name?: string; description?: string | null; replaySpeed?: 'fast' | 'normal' | 'slow' }): Promise<Project> {
+  return request(`${API_BASE}/projects/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
 }
 
 export async function createRecording(data: { projectId: string; title: string; targetUrl?: string }): Promise<Recording> {
@@ -116,9 +129,12 @@ export async function stopRecording(id: string): Promise<{ ok: boolean }> {
   return request(`${API_BASE}/recordings/${id}/stop`, { method: 'POST' });
 }
 
-export async function replayRecording(id: string, options?: { useMock?: boolean }): Promise<{ ok: boolean; executionId: string }> {
-  const params = options?.useMock ? '?mock=true' : '';
-  return request(`${API_BASE}/recordings/${id}/replay${params}`, { method: 'POST' });
+export async function replayRecording(id: string, options?: { useMock?: boolean; replaySpeed?: 'fast' | 'normal' | 'slow' }): Promise<{ ok: boolean; executionId: string }> {
+  const params = new URLSearchParams();
+  if (options?.useMock) params.set('mock', 'true');
+  if (options?.replaySpeed && options.replaySpeed !== 'normal') params.set('replaySpeed', options.replaySpeed);
+  const qs = params.toString();
+  return request(`${API_BASE}/recordings/${id}/replay${qs ? `?${qs}` : ''}`, { method: 'POST' });
 }
 
 export interface Execution {

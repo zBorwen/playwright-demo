@@ -4,6 +4,7 @@ export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   description: text('description'),
+  replaySpeed: varchar('replay_speed', { enum: ['fast', 'normal', 'slow'] }).default('normal'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

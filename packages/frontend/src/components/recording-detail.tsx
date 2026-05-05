@@ -5,6 +5,8 @@ import {
   fetchRecordingActions,
   fetchRecordingCodegen,
   fetchExecutions,
+  fetchProject,
+  updateProjectSettings,
   startRecording,
   stopRecording,
   replayRecording,
@@ -110,6 +112,8 @@ export function RecordingDetail() {
   const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
   const [showTrace, setShowTrace] = useState(false);
   const [useMock, setUseMock] = useState(false);
+  const [projectReplaySpeed, setProjectReplaySpeed] = useState<'fast' | 'normal' | 'slow'>('normal');
+  const [project, setProject] = useState<{ id: string; name: string; replaySpeed: 'fast' | 'normal' | 'slow' } | null>(null);
   const [codegen, setCodegen] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [batchReplayState, setBatchReplayState] = useState<{
@@ -200,6 +204,13 @@ export function RecordingDetail() {
               s.status === 'pending' ? { ...s, status: 'skipped' as const } : s
             )
           );
+        } else {
+          // On success, mark all pending steps as completed
+          setReplaySteps((prev) =>
+            prev.map((s) =>
+              s.status === 'pending' ? { ...s, status: 'completed' as const } : s
+            )
+          );
         }
         if (id) fetchExecutions(id).then((e) => setExecutions(e));
         break;
@@ -236,6 +247,13 @@ export function RecordingDetail() {
       setExecutions(execs);
       setCodegen(codegenResp.codegen || '');
       setLoading(false);
+      // Fetch project for replay speed
+      if (rec.projectId) {
+        fetchProject(rec.projectId).then((p) => {
+          setProject(p);
+          setProjectReplaySpeed(p.replaySpeed || 'normal');
+        }).catch(() => {});
+      }
     }).catch((e) => {
       setLoadError(e.message);
       setLoading(false);
@@ -272,7 +290,7 @@ export function RecordingDetail() {
       detail: formatActionDetail(a),
       status: 'pending' as const,
     })));
-    await replayRecording(id!, { useMock });
+    await replayRecording(id!, { useMock, replaySpeed: projectReplaySpeed });
     const execs = await fetchExecutions(id!);
     setExecutions(execs);
   };
@@ -306,7 +324,7 @@ export function RecordingDetail() {
     <div>
       {/* Header */}
       <div className="mb-6">
-        <Link to="/" className="text-sm text-zinc-400 hover:text-zinc-200">← 返回</Link>
+        <Link to={`/projects/${recording.projectId}`} className="text-sm text-zinc-400 hover:text-zinc-200">← 返回</Link>
         <div className="mt-2 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">{recording.title}</h1>
@@ -337,13 +355,31 @@ export function RecordingDetail() {
                 ⏹ 停止
               </button>
             )}
-            <button
-              onClick={handleReplay}
-              disabled={replayStatus === 'running'}
-              className="rounded bg-green-900 px-4 py-2 text-sm hover:bg-green-800 disabled:opacity-50"
-            >
-              {replayStatus === 'running' ? '⏳ 回放中' : replayStatus === 'passed' ? '✅ 通过' : replayStatus === 'failed' ? '❌ 失败' : '▶ 回放'}
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleReplay}
+                disabled={replayStatus === 'running'}
+                className="rounded bg-green-900 px-4 py-2 text-sm hover:bg-green-800 disabled:opacity-50"
+              >
+                {replayStatus === 'running' ? '⏳ 回放中' : replayStatus === 'passed' ? '✅ 通过' : replayStatus === 'failed' ? '❌ 失败' : '▶ 回放'}
+              </button>
+              <select
+                value={projectReplaySpeed}
+                onChange={(e) => {
+                  const newSpeed = e.target.value as 'fast' | 'normal' | 'slow';
+                  setProjectReplaySpeed(newSpeed);
+                  if (project) {
+                    updateProjectSettings(project.id, { replaySpeed: newSpeed }).catch(() => {});
+                  }
+                }}
+                className="rounded border-zinc-600 bg-zinc-800 text-xs px-1 py-2"
+                title="回放速度（保存到项目）"
+              >
+                <option value="fast">快</option>
+                <option value="normal">中</option>
+                <option value="slow">慢</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>

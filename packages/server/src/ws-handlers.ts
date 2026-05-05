@@ -154,6 +154,13 @@ export class WsHandlers {
           }
         }
 
+        // Look up recordingId for batch replay progress updates
+        const exec = await db
+          .select({ recordingId: executions.recordingId })
+          .from(executions)
+          .where(eq(executions.id, executionId))
+          .limit(1);
+
         // Update execution in DB
         await db
           .update(executions)
@@ -166,6 +173,25 @@ export class WsHandlers {
           .where(eq(executions.id, executionId));
 
         this.broadcastToClients(JSON.stringify(msg));
+
+        // Broadcast batch-replay:result so frontend batch panel can update
+        if (exec.length) {
+          const recording = await db
+            .select({ title: recordings.title })
+            .from(recordings)
+            .where(eq(recordings.id, exec[0].recordingId))
+            .limit(1);
+          this.broadcastToClients(JSON.stringify({
+            type: 'batch-replay:result',
+            payload: {
+              recordingId: exec[0].recordingId,
+              recordingTitle: recording[0]?.title,
+              executionId,
+              status: status === 'passed' ? 'passed' : 'failed',
+              error: error ?? undefined,
+            },
+          }));
+        }
         break;
       }
 

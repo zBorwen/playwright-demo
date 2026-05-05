@@ -6,7 +6,7 @@ export type ServerMessage =
   | { type: 'record:start'; payload: { targetUrl: string; recordingId: string } }
   | { type: 'record:screenshot'; payload: { actionIndex: number } }
   | { type: 'record:stop'; payload: { recordingId: string } }
-  | { type: 'replay:start'; payload: { recordingId: string; executionId: string; actions: Action[]; harRef: string; mockRules: MockRule[] } }
+  | { type: 'replay:start'; payload: { recordingId: string; executionId: string; actions: Action[]; harRef: string; mockRules: MockRule[]; replaySpeed?: 'fast' | 'normal' | 'slow' } }
   | { type: 'replay:stop'; payload: { replayId: string } }
   | { type: 'ping' };
 

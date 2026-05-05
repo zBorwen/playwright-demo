@@ -164,6 +164,16 @@ recordingsRouter.post('/:id/replay', async (c) => {
   const id = c.req.param('id');
   const agentId = c.req.query('agentId') || 'default';
   const useMock = c.req.query('mock') === 'true';
+  const querySpeed = c.req.query('replaySpeed') as 'fast' | 'normal' | 'slow' | undefined;
+
+  // Look up recording to get project for project-level replay speed
+  const rec = await db.query.recordings.findFirst({
+    where: eq(recordings.id, id),
+  });
+  const project = rec?.projectId ? await db.query.projects.findFirst({
+    where: eq(projects.id, rec.projectId),
+  }) : undefined;
+  const replaySpeed = querySpeed || project?.replaySpeed || 'normal';
 
   const artifact = await db
     .select()
@@ -213,6 +223,7 @@ recordingsRouter.post('/:id/replay', async (c) => {
       actions: actionsData.actions || [],
       harRef: useMock ? `${id}/recording.har` : '',
       mockRules,
+      replaySpeed,
     },
   });
 
@@ -227,8 +238,8 @@ recordingsRouter.post('/batch-replay', zValidator('json', z.object({
 })), async (c) => {
   const { recordingIds, useMock, agentId } = c.req.valid('json');
 
-  // Validate recordings exist and have actions
-  const validRecordings: Array<{ id: string; title: string }> = [];
+  // Validate recordings exist and have actions, collect project IDs for speed lookup
+  const validRecordings: Array<{ id: string; title: string; projectId: string | null }> = [];
   for (const id of recordingIds) {
     const rec = await db.select().from(recordings).where(eq(recordings.id, id)).limit(1);
     if (!rec.length) continue;
@@ -238,7 +249,7 @@ recordingsRouter.post('/batch-replay', zValidator('json', z.object({
       .where(and(eq(recordingArtifacts.recordingId, id), eq(recordingArtifacts.type, 'actions')))
       .limit(1);
     if (!artifact.length) continue;
-    validRecordings.push({ id, title: rec[0].title });
+    validRecordings.push({ id, title: rec[0].title, projectId: rec[0].projectId });
   }
 
   if (validRecordings.length === 0) {
@@ -247,6 +258,18 @@ recordingsRouter.post('/batch-replay', zValidator('json', z.object({
 
   const batchId = crypto.randomUUID();
   const handlers = getWsHandlers();
+
+  // Look up project-level replay speeds (cache to avoid repeated DB queries)
+  const projectIds = [...new Set(validRecordings.map(r => r.projectId).filter(Boolean))];
+  const speedCache = new Map<string, string>();
+  if (projectIds.length > 0) {
+    const projs = await db.query.projects.findMany({
+      where: (projects, { inArray }) => inArray(projects.id, projectIds as string[]),
+    });
+    for (const p of projs) {
+      speedCache.set(p.id, p.replaySpeed || 'normal');
+    }
+  }
 
   // Notify frontend about batch start
   handlers.broadcastToClients(JSON.stringify({
@@ -300,6 +323,7 @@ recordingsRouter.post('/batch-replay', zValidator('json', z.object({
         actions: actionsData.actions || [],
         harRef: useMock ? `${rec.id}/recording.har` : '',
         mockRules,
+        replaySpeed: (speedCache.get(rec.projectId || '') || 'normal') as 'fast' | 'normal' | 'slow',
       },
     });
 
@@ -336,7 +360,7 @@ recordingsRouter.post('/batch-replay/projects', zValidator('json', z.object({
     return c.json(errorResponse(API_CODES.NOT_FOUND, '这些项目下没有录制'), 404);
   }
 
-  const validRecordings: Array<{ id: string; title: string }> = [];
+  const validRecordings: Array<{ id: string; title: string; projectId: string | null }> = [];
   for (const id of allRecordingIds) {
     const rec = await db.select().from(recordings).where(eq(recordings.id, id)).limit(1);
     if (!rec.length) continue;
@@ -346,7 +370,7 @@ recordingsRouter.post('/batch-replay/projects', zValidator('json', z.object({
       .where(and(eq(recordingArtifacts.recordingId, id), eq(recordingArtifacts.type, 'actions')))
       .limit(1);
     if (!artifact.length) continue;
-    validRecordings.push({ id, title: rec[0].title });
+    validRecordings.push({ id, title: rec[0].title, projectId: rec[0].projectId });
   }
 
   if (validRecordings.length === 0) {
@@ -355,6 +379,18 @@ recordingsRouter.post('/batch-replay/projects', zValidator('json', z.object({
 
   const batchId = crypto.randomUUID();
   const handlers = getWsHandlers();
+
+  // Build speed cache from projects (batch-replay/projects route)
+  const projectIdsProjectsRoute = [...new Set(validRecordings.map(r => r.projectId).filter(Boolean))];
+  const speedCache = new Map<string, string>();
+  if (projectIdsProjectsRoute.length > 0) {
+    const projs = await db.query.projects.findMany({
+      where: (projects, { inArray }) => inArray(projects.id, projectIdsProjectsRoute as string[]),
+    });
+    for (const p of projs) {
+      speedCache.set(p.id, p.replaySpeed || 'normal');
+    }
+  }
 
   handlers.broadcastToClients(JSON.stringify({
     type: 'batch-replay:start',
@@ -406,6 +442,7 @@ recordingsRouter.post('/batch-replay/projects', zValidator('json', z.object({
         actions: actionsData.actions || [],
         harRef: useMock ? `${rec.id}/recording.har` : '',
         mockRules,
+        replaySpeed: (speedCache.get(rec.projectId || '') || 'normal') as 'fast' | 'normal' | 'slow',
       },
     });
 
