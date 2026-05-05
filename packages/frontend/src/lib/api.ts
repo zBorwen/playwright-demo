@@ -92,6 +92,22 @@ export async function deleteRecordings(ids: string[]): Promise<{ ok: boolean; de
   });
 }
 
+export async function batchReplayRecordings(recordingIds: string[], options?: { useMock?: boolean }): Promise<{ batchId: string; total: number; results: Array<{ recordingId: string; executionId: string }> }> {
+  return request(`${API_BASE}/recordings/batch-replay`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recordingIds, useMock: options?.useMock ?? false }),
+  });
+}
+
+export async function batchReplayProjects(projectIds: string[], options?: { useMock?: boolean }): Promise<{ batchId: string; total: number; results: Array<{ recordingId: string; executionId: string }> }> {
+  return request(`${API_BASE}/recordings/batch-replay/projects`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectIds, useMock: options?.useMock ?? false }),
+  });
+}
+
 export async function startRecording(id: string): Promise<{ ok: boolean }> {
   return request(`${API_BASE}/recordings/${id}/start`, { method: 'POST' });
 }
