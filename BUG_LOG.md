@@ -1,5 +1,21 @@
 # Bug 修复记录
 
+## 录制漏记遮罩层点击（2026-05-07）待修复
+
+### 现象
+录制时点击对话框遮罩层（`.fixed.inset-0`）关闭对话框，Recorder 完全没有记录这个操作。生成的 codegen 和 actions 中缺少该步骤，导致回放时对话框保持打开，后续同名按钮点击触发 strict mode violation。
+
+### 根因
+Playwright Recorder 的 `api` 模式（`_enableRecorder` + `eventSink`）对无交互属性的纯 `div` 元素不敏感。遮罩层点击（如 `.fixed.inset-0`）是关闭对话框的关键操作，但 Recorder 的 `actionAdded` 和 `actionUpdated` 回调都没有触发——日志里完全没有遮罩层点击的记录。
+
+### 实际影响
+日志验证：用户执行了 13 步操作（包含 2 次遮罩层点击），但 Recorder 只记录了 11 步，遮罩层点击全部丢失。
+
+### 修复方向
+在 Recorder 之外注入页面脚本，监听所有 `click` 事件，对比 Recorder 发出的 action，补录被遗漏的点击（无 selector 或纯 div 上的点击）。
+
+---
+
 ## 回放引擎 Strict Mode Violation（2026-05-05）
 
 ### 现象
