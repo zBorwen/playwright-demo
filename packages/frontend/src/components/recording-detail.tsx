@@ -30,6 +30,7 @@ type Tab = 'timeline' | 'codegen' | 'network' | 'json' | 'executions';
 export function RecordingDetail() {
   const { id } = useParams<{ id: string }>();
   const setReplayStoreStatus = useRecordingReplayStore(s => s.setRecordingStatus);
+  const storeStatus = useRecordingReplayStore(s => id ? s.recordingReplays[id]?.status : undefined);
   const [recording, setRecording] = useState<Recording | null>(null);
   const [actions, setActions] = useState<RecordingAction[]>([]);
   const actionsRef = useRef<RecordingAction[]>([]);
@@ -319,10 +320,10 @@ export function RecordingDetail() {
             <div className="flex items-center gap-1">
               <button
                 onClick={handleReplay}
-                disabled={replayStatus === 'running'}
+                disabled={replayStatus === 'running' || storeStatus === 'running'}
                 className="rounded bg-green-900 px-4 py-2 text-sm hover:bg-green-800 disabled:opacity-50"
               >
-                {replayStatus === 'running' ? '⏳ 回放中' : replayStatus === 'passed' ? '✅ 通过' : replayStatus === 'failed' ? '❌ 失败' : '▶ 回放'}
+                {replayStatus === 'running' || storeStatus === 'running' ? '⏳ 回放中' : replayStatus === 'passed' ? '✅ 通过' : replayStatus === 'failed' ? '❌ 失败' : '▶ 回放'}
               </button>
               <select
                 value={projectReplaySpeed}
