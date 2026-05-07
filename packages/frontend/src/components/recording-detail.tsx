@@ -107,7 +107,9 @@ export function RecordingDetail() {
         break;
       }
       case 'replay:step': {
-        const stepPayload = msg.payload as { index: number; executionId: string; status: 'completed' | 'failed'; error?: string };
+        const stepPayload = msg.payload as { index: number; executionId: string; recordingId: string; status: 'completed' | 'failed'; error?: string };
+        // Ignore messages for a different recording
+        if (stepPayload.recordingId && id && stepPayload.recordingId !== id) return;
         // Ignore messages for a different execution (e.g. batch replay of other recordings)
         if (stepPayload.executionId && replayExecutionIdRef.current && stepPayload.executionId !== replayExecutionIdRef.current) return;
         if (stepPayload.executionId) setReplayExecutionId(stepPayload.executionId);
@@ -122,7 +124,9 @@ export function RecordingDetail() {
         break;
       }
       case 'replay:done': {
-        const payload = msg.payload as { status: 'passed' | 'failed'; error?: string; trace?: string; executionId?: string };
+        const payload = msg.payload as { status: 'passed' | 'failed'; error?: string; trace?: string; executionId?: string; recordingId?: string };
+        // Ignore messages for a different recording
+        if (payload.recordingId && id && payload.recordingId !== id) return;
         // Ignore messages for a different execution
         if (payload.executionId && replayExecutionIdRef.current && payload.executionId !== replayExecutionIdRef.current) return;
         setReplayStatus(payload.status);

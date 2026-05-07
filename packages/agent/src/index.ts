@@ -53,6 +53,7 @@ async function main() {
       type: 'replay:done',
       payload: {
         executionId,
+        recordingId: payload.recordingId,
         status: result.status,
         error: result.error ?? '',
         trace: result.trace ?? '',

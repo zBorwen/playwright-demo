@@ -1,5 +1,24 @@
 # Bug 修复记录
 
+## 回放状态泄漏到新录制页面（2026-05-07）
+
+### 现象
+回放录制 A 结束后，进入录制 B 的页面（或新建录制后进入），回放按钮显示"通过"/"失败"等旧状态，而不是默认"回放"。
+
+### 根因
+两个问题叠加：
+1. `App.tsx` 中 `/recordings/:id` 路由写为 `<RecordingDetail />`，没有 `key`。React Router 在录制 ID 切换时复用同一组件实例。
+2. WS handler 的 `replay:step` 和 `replay:done` 消息只按 `executionId` 过滤，初次挂载时 `replayExecutionIdRef.current` 为 null，过滤条件短路，收到其他录制的回放消息直接处理，污染了状态。
+
+### 修复方案
+1. 路由改为 `<RecordingDetailWithKey key={id} />`，ID 变化时组件完全重新挂载。
+2. `replay:step` 和 `replay:done` handler 增加 `recordingId` 过滤，不匹配当前录制的直接 return。
+3. agent 端 `replay:done` 消息携带 `recordingId` 字段。
+
+**修复文件**：`packages/frontend/src/App.tsx`、`packages/frontend/src/components/recording-detail.tsx`、`packages/agent/src/index.ts`、`packages/shared/src/types/actions.ts`
+
+---
+
 ## 录制漏记遮罩层点击（2026-05-07）待修复
 
 ### 现象

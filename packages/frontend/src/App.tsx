@@ -6,6 +6,11 @@ import { ProjectDetail } from '@/components/project-detail';
 import { RecordingsList } from '@/components/recordings-list';
 import { RecordingDetail } from '@/components/recording-detail';
 import { ExecutionDetail } from '@/components/execution-detail';
+
+function RecordingDetailWithKey() {
+  const { id } = useParams<{ id: string }>();
+  return <RecordingDetail key={id} />;
+}
 import { connect, subscribeToMessages } from '@/hooks/use-websocket';
 import { useBatchReplayStore } from '@/store/batch-replay-store';
 
@@ -55,7 +60,7 @@ export function App() {
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetail />} />
           <Route path="/projects/:projectId/recordings" element={<RecordingsPage />} />
-          <Route path="/recordings/:id" element={<RecordingDetail />} />
+          <Route path="/recordings/:id" element={<RecordingDetailWithKey />} />
           <Route path="/executions/:id" element={<ExecutionDetail />} />
         </Routes>
       </main>
