@@ -308,7 +308,8 @@ export function RecordingDetail() {
             {recordingStatus === 'idle' ? (
               <button
                 onClick={handleStartRecording}
-                className="rounded bg-red-900 px-4 py-2 text-sm hover:bg-red-800"
+                disabled={storeStatus === 'running'}
+                className="rounded bg-red-900 px-4 py-2 text-sm hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 ⏺ 录制
               </button>
@@ -324,7 +325,7 @@ export function RecordingDetail() {
               <button
                 onClick={handleReplay}
                 disabled={replayStatus === 'running' || storeStatus === 'running'}
-                className="rounded bg-green-900 px-4 py-2 text-sm hover:bg-green-800 disabled:opacity-50"
+                className="rounded bg-green-900 px-4 py-2 text-sm hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {replayStatus === 'running' || storeStatus === 'running' ? '⏳ 回放中' : replayStatus === 'passed' ? '✅ 通过' : replayStatus === 'failed' ? '❌ 失败' : '▶ 回放'}
               </button>
