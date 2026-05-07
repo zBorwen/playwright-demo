@@ -30,7 +30,6 @@ type Tab = 'timeline' | 'codegen' | 'network' | 'json' | 'executions';
 export function RecordingDetail() {
   const { id } = useParams<{ id: string }>();
   const setReplayStoreStatus = useRecordingReplayStore(s => s.setRecordingStatus);
-  const clearReplayStoreStatus = useRecordingReplayStore(s => s.clearRecordingStatus);
   const [recording, setRecording] = useState<Recording | null>(null);
   const [actions, setActions] = useState<RecordingAction[]>([]);
   const actionsRef = useRef<RecordingAction[]>([]);
@@ -47,7 +46,6 @@ export function RecordingDetail() {
   const [replaySteps, setReplaySteps] = useState<ReplayStep[]>([]);
   const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
   const replayExecutionIdRef = useRef<string | null>(null);
-  const initiatedReplayRef = useRef(false);
 
   useEffect(() => {
     replayExecutionIdRef.current = replayExecutionId;
@@ -58,13 +56,6 @@ export function RecordingDetail() {
   const [project, setProject] = useState<{ id: string; name: string; replaySpeed: 'fast' | 'normal' | 'slow' } | null>(null);
   const [codegen, setCodegen] = useState<string>('');
   const [copied, setCopied] = useState(false);
-
-  // Clear recording replay status when navigating away only if this page initiated the replay
-  useEffect(() => {
-    return () => {
-      if (id && initiatedReplayRef.current) clearReplayStoreStatus(id);
-    };
-  }, [id, clearReplayStoreStatus]);
 
   const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
     switch (msg.type) {
@@ -252,7 +243,6 @@ export function RecordingDetail() {
   };
 
   const handleReplay = async () => {
-    initiatedReplayRef.current = true;
     setReplayStoreStatus({ recordingId: id!, status: 'running' });
     setReplayStatus('running');
     setReplaySteps(actions.map((a, i) => ({
