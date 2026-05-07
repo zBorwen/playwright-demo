@@ -9,8 +9,21 @@ export function ProjectDetail() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [useMock, setUseMock] = useState(false);
+  const [useMock, setUseMock] = useState(() => {
+    try {
+      return localStorage.getItem('replay-use-mock') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [replaying, setReplaying] = useState(false);
+
+  const handleUseMockChange = (checked: boolean) => {
+    setUseMock(checked);
+    try {
+      localStorage.setItem('replay-use-mock', String(checked));
+    } catch {}
+  };
 
   const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
   const hasActiveReplay = useMemo(() => {
@@ -82,8 +95,9 @@ export function ProjectDetail() {
               <input
                 type="checkbox"
                 checked={useMock}
-                onChange={(e) => setUseMock(e.target.checked)}
-                className="rounded border-zinc-600 bg-zinc-800"
+                onChange={(e) => handleUseMockChange(e.target.checked)}
+                disabled={hasActiveReplay}
+                className="rounded border-zinc-600 bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               Mock 模式
             </label>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchProjects, deleteProject, batchReplayProjects } from '@/lib/api';
 import { useAppStore } from '@/store/app-store';
@@ -10,9 +10,25 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [replaying, setReplaying] = useState(false);
-  const [batchUseMock, setBatchUseMock] = useState(false);
-
+  const [batchUseMock, setBatchUseMock] = useState(() => {
+    try {
+      return localStorage.getItem('replay-use-mock') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
+
+  const hasActiveReplay = useMemo(() => {
+    return Object.values(recordingReplays).some(r => r.status === 'running');
+  }, [recordingReplays]);
+
+  const handleBatchUseMockChange = (checked: boolean) => {
+    setBatchUseMock(checked);
+    try {
+      localStorage.setItem('replay-use-mock', String(checked));
+    } catch {}
+  };
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -77,8 +93,9 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
             <input
               type="checkbox"
               checked={batchUseMock}
-              onChange={(e) => setBatchUseMock(e.target.checked)}
-              className="rounded border-zinc-600 bg-zinc-800"
+              onChange={(e) => handleBatchUseMockChange(e.target.checked)}
+              disabled={hasActiveReplay}
+              className="rounded border-zinc-600 bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             Mock 模式
           </label>

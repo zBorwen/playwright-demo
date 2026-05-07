@@ -55,7 +55,19 @@ export function RecordingDetail() {
   const replayStatus = storeStatus === 'running' ? 'running' : storeStatus === 'passed' ? 'passed' : storeStatus === 'failed' ? 'failed' : 'idle' as const;
 
   const [showTrace, setShowTrace] = useState(false);
-  const [useMock, setUseMock] = useState(false);
+  const [useMock, setUseMock] = useState(() => {
+    try {
+      return localStorage.getItem('replay-use-mock') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const handleUseMockChange = (checked: boolean) => {
+    setUseMock(checked);
+    try {
+      localStorage.setItem('replay-use-mock', String(checked));
+    } catch {}
+  };
   const [projectReplaySpeed, setProjectReplaySpeed] = useState<'fast' | 'normal' | 'slow'>('normal');
   const [project, setProject] = useState<{ id: string; name: string; replaySpeed: 'fast' | 'normal' | 'slow' } | null>(null);
   const [codegen, setCodegen] = useState<string>('');
@@ -300,8 +312,9 @@ export function RecordingDetail() {
               <input
                 type="checkbox"
                 checked={useMock}
-                onChange={(e) => setUseMock(e.target.checked)}
-                className="rounded border-zinc-600 bg-zinc-800"
+                onChange={(e) => handleUseMockChange(e.target.checked)}
+                disabled={replayStatus === 'running' || storeStatus === 'running'}
+                className="rounded border-zinc-600 bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               Mock 模式
             </label>
