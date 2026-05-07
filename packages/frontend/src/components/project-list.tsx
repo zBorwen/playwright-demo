@@ -13,8 +13,15 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
   const [replaying, setReplaying] = useState(false);
   const [batchUseMock, setBatchUseMock] = useState(false);
 
-  const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
-  const hasActiveReplay = Object.values(recordingReplays).some(r => r.status === 'running');
+  const batches = useBatchReplayStore(s => s.batches);
+
+  const projectHasReplay = (projectId: string): boolean => {
+    for (const batch of Object.values(batches)) {
+      if (!batch.isRunning) continue;
+      if (batch.projectIds?.includes(projectId)) return true;
+    }
+    return false;
+  };
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -108,7 +115,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {projects.map((p) => {
-          const isReplaying = hasActiveReplay;
+          const isReplaying = projectHasReplay(p.id);
 
           return (
           <div
