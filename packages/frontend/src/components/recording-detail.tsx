@@ -23,11 +23,14 @@ import { NetworkTab } from '@/components/network-tab';
 import { ReplayPanel, type ReplayStep } from '@/components/replay-panel';
 import { detectRunningExecution } from '@/lib/replay-state';
 import { ACTION_ICONS, formatActionDetail } from '@/lib/action-formatter';
+import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 type Tab = 'timeline' | 'codegen' | 'network' | 'json' | 'executions';
 
 export function RecordingDetail() {
   const { id } = useParams<{ id: string }>();
+  const setReplayStoreStatus = useRecordingReplayStore(s => s.setRecordingStatus);
+  const clearReplayStoreStatus = useRecordingReplayStore(s => s.clearRecordingStatus);
   const [recording, setRecording] = useState<Recording | null>(null);
   const [actions, setActions] = useState<RecordingAction[]>([]);
   const actionsRef = useRef<RecordingAction[]>([]);
@@ -54,6 +57,13 @@ export function RecordingDetail() {
   const [project, setProject] = useState<{ id: string; name: string; replaySpeed: 'fast' | 'normal' | 'slow' } | null>(null);
   const [codegen, setCodegen] = useState<string>('');
   const [copied, setCopied] = useState(false);
+
+  // Clear recording replay status when navigating away (single replay cleanup)
+  useEffect(() => {
+    return () => {
+      if (id) clearReplayStoreStatus(id);
+    };
+  }, [id, clearReplayStoreStatus]);
 
   const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
     switch (msg.type) {
@@ -114,6 +124,12 @@ export function RecordingDetail() {
         if (stepPayload.executionId && replayExecutionIdRef.current && stepPayload.executionId !== replayExecutionIdRef.current) return;
         if (stepPayload.executionId) setReplayExecutionId(stepPayload.executionId);
         setReplayStatus('running');
+        setReplayStoreStatus({
+          recordingId: id!,
+          status: stepPayload.status === 'failed' ? 'failed' : 'running',
+          executionId: stepPayload.executionId,
+          error: stepPayload.error,
+        });
         setReplaySteps((prev) =>
           prev.map((s) =>
             s.index === stepPayload.index
@@ -130,6 +146,12 @@ export function RecordingDetail() {
         // Ignore messages for a different execution
         if (payload.executionId && replayExecutionIdRef.current && payload.executionId !== replayExecutionIdRef.current) return;
         setReplayStatus(payload.status);
+        setReplayStoreStatus({
+          recordingId: id!,
+          status: payload.status,
+          executionId: payload.executionId,
+          error: payload.error,
+        });
         if (payload.status === 'failed') {
           setReplaySteps((prev) =>
             prev.map((s) =>
@@ -229,6 +251,7 @@ export function RecordingDetail() {
   };
 
   const handleReplay = async () => {
+    setReplayStoreStatus({ recordingId: id!, status: 'running' });
     setReplayStatus('running');
     setReplaySteps(actions.map((a, i) => ({
       index: i,

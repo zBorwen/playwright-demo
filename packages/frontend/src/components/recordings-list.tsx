@@ -2,12 +2,28 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchRecordings, deleteRecording, deleteRecordings, batchReplayRecordings, type Recording } from '@/lib/api';
 import { RecordingForm } from '@/components/recording-form';
-import { BatchReplayPanel } from '@/components/batch-replay-panel';
 import { useBatchReplayStore } from '@/store/batch-replay-store';
+import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 interface RecordingsListProps {
   projectId?: string;
   useMock?: boolean;
+}
+
+function ReplayStatusIndicator({ recordingId }: { recordingId: string }) {
+  const replay = useRecordingReplayStore(s => s.recordingReplays[recordingId]);
+  if (!replay || replay.status === 'running') {
+    return replay ? (
+      <span className="ml-2 inline-flex items-center gap-1.5 text-xs">
+        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
+        <span className="text-green-400">回放中</span>
+      </span>
+    ) : null;
+  }
+  if (replay.status === 'passed') {
+    return <span className="ml-2 text-xs text-green-400">✓</span>;
+  }
+  return <span className="ml-2 text-xs text-red-400">✗</span>;
 }
 
 export function RecordingsList({ projectId, useMock }: RecordingsListProps) {
@@ -25,7 +41,7 @@ export function RecordingsList({ projectId, useMock }: RecordingsListProps) {
       ? Object.values(batches).find(
           b => (b.scope === `project:${projectId}` ||
             (b.scope === 'cross-project' && b.projectIds?.includes(projectId)))
-          && b.isRunning,
+          && b.isRunning && b.items.length > 0,
         ) ?? null
       : null,
     [batches, projectId],
@@ -90,6 +106,13 @@ export function RecordingsList({ projectId, useMock }: RecordingsListProps) {
       const result = await batchReplayRecordings([...selectedIds], { useMock });
       const scope = projectId ? `project:${projectId}` : undefined;
       useBatchReplayStore.getState().startBatch(result.batchId, items, { scope });
+      // Set all recordings to running in the recording replay store
+      for (const recId of selectedIds) {
+        useRecordingReplayStore.getState().setRecordingStatus({
+          recordingId: recId,
+          status: 'running',
+        });
+      }
     } catch (e) {
       console.error('Batch replay failed:', e);
     }
@@ -121,16 +144,6 @@ export function RecordingsList({ projectId, useMock }: RecordingsListProps) {
       </div>
 
       {error && <p className="mb-4 text-red-400">{error}</p>}
-
-      {activeBatch && activeBatch.items.length > 0 && (
-        <BatchReplayPanel
-          total={activeBatch.items.length}
-          items={activeBatch.items}
-          isRunning={activeBatch.isRunning}
-          passed={activeBatch.passed}
-          failed={activeBatch.failed}
-        />
-      )}
 
       {selectedIds.size > 0 && (
         <div className="mb-4 flex items-center gap-3 rounded border border-zinc-700 bg-zinc-900 px-4 py-2">
@@ -179,7 +192,7 @@ export function RecordingsList({ projectId, useMock }: RecordingsListProps) {
                 className="flex flex-1 cursor-pointer items-center justify-between"
               >
                 <div>
-                  <h3 className="font-medium">{r.title}</h3>
+                  <h3 className="font-medium">{r.title}<ReplayStatusIndicator recordingId={r.id} /></h3>
                   {r.targetUrl && (
                     <p className="mt-1 text-sm text-zinc-400">{r.targetUrl}</p>
                   )}

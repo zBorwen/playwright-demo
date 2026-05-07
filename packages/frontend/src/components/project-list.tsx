@@ -1,8 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchProjects, deleteProject, batchReplayProjects } from '@/lib/api';
 import { useAppStore } from '@/store/app-store';
 import { useBatchReplayStore } from '@/store/batch-replay-store';
+import { useRecordingReplayStore } from '@/store/recording-replay-store';
+
+import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
   const { projects, loadingProjects, projectError, setProjects, setLoadingProjects, setProjectError } =
@@ -12,11 +15,8 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
   const [replaying, setReplaying] = useState(false);
   const [batchUseMock, setBatchUseMock] = useState(false);
 
-  const batches = useBatchReplayStore(s => s.batches);
-  const crossProjectBatch = useMemo(
-    () => Object.values(batches).find(b => b.scope === 'cross-project' && b.isRunning) ?? null,
-    [batches],
-  );
+  const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
+  const hasActiveReplay = Object.values(recordingReplays).some(r => r.status === 'running');
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -60,6 +60,13 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
         scope: 'cross-project',
         projectIds: [...selectedIds],
       });
+      // Set all recordings to running in the recording replay store
+      for (const recId of result.results.map(r => r.recordingId)) {
+        useRecordingReplayStore.getState().setRecordingStatus({
+          recordingId: recId,
+          status: 'running',
+        });
+      }
     } catch (e) {
       console.error('Batch replay failed:', e);
     }
@@ -103,7 +110,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {projects.map((p) => {
-          const isReplaying = crossProjectBatch?.isRunning && crossProjectBatch.projectIds?.includes(p.id);
+          const isReplaying = hasActiveReplay;
 
           return (
           <div

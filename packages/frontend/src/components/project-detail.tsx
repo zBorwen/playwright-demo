@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { fetchProjects, batchReplayProjects, type Project } from '@/lib/api';
 import { RecordingsList } from '@/components/recordings-list';
 import { useBatchReplayStore } from '@/store/batch-replay-store';
+import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 export function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -13,15 +14,13 @@ export function ProjectDetail() {
   const [replaying, setReplaying] = useState(false);
 
   const batches = useBatchReplayStore(s => s.batches);
-  const projectBatch = useMemo(
-    () => id
-      ? Object.values(batches).find(
-          b => b.scope === `project:${id}` ||
-            (b.scope === 'cross-project' && b.projectIds?.includes(id)),
-        ) ?? null
-      : null,
-    [batches, id],
-  );
+  const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
+  const hasActiveReplay = useMemo(() => {
+    if (!id) return false;
+    return Object.values(recordingReplays).some(
+      r => r.status === 'running',
+    );
+  }, [recordingReplays, id]);
 
   useEffect(() => {
     if (!id) return;
@@ -50,6 +49,12 @@ export function ProjectDetail() {
       useBatchReplayStore.getState().startBatch(result.batchId, items, {
         scope: `project:${id}`,
       });
+      for (const recId of result.results.map(r => r.recordingId)) {
+        useRecordingReplayStore.getState().setRecordingStatus({
+          recordingId: recId,
+          status: 'running',
+        });
+      }
     } catch (e) {
       console.error('Batch replay failed:', e);
     }
@@ -69,7 +74,7 @@ export function ProjectDetail() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               {project.name}
-              {projectBatch?.isRunning && (
+              {hasActiveReplay && (
                 <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
               )}
             </h1>
