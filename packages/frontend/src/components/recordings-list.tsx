@@ -39,6 +39,8 @@ function setRecordingMock(recordingId: string, checked: boolean): void {
 }
 
 function MockToggle({ recordingId }: { recordingId: string }) {
+  const replay = useRecordingReplayStore(s => s.recordingReplays[recordingId]);
+  const isRunning = replay?.status === 'running';
   const [checked, setChecked] = useState(() => getRecordingMock(recordingId));
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,7 +55,8 @@ function MockToggle({ recordingId }: { recordingId: string }) {
         type="checkbox"
         checked={checked}
         onChange={handleChange}
-        className="h-3.5 w-3.5 rounded border-zinc-600 bg-zinc-800"
+        disabled={isRunning}
+        className="h-3.5 w-3.5 rounded border-zinc-600 bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
       />
       Mock
     </label>
