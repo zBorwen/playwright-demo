@@ -5,8 +5,6 @@ import { useAppStore } from '@/store/app-store';
 import { useBatchReplayStore } from '@/store/batch-replay-store';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
-import { useRecordingReplayStore } from '@/store/recording-replay-store';
-
 export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
   const { projects, loadingProjects, projectError, setProjects, setLoadingProjects, setProjectError } =
     useAppStore();

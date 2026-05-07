@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchRecordings, deleteRecording, deleteRecordings, batchReplayRecordings, type Recording } from '@/lib/api';
 import { RecordingForm } from '@/components/recording-form';
@@ -34,18 +34,6 @@ export function RecordingsList({ projectId, useMock }: RecordingsListProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [replaying, setReplaying] = useState(false);
-
-  const batches = useBatchReplayStore(s => s.batches);
-  const activeBatch = useMemo(
-    () => projectId
-      ? Object.values(batches).find(
-          b => (b.scope === `project:${projectId}` ||
-            (b.scope === 'cross-project' && b.projectIds?.includes(projectId)))
-          && b.isRunning && b.items.length > 0,
-        ) ?? null
-      : null,
-    [batches, projectId],
-  );
 
   const fetch = () => {
     setLoading(true);

@@ -13,7 +13,6 @@ export function ProjectDetail() {
   const [useMock, setUseMock] = useState(false);
   const [replaying, setReplaying] = useState(false);
 
-  const batches = useBatchReplayStore(s => s.batches);
   const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
   const hasActiveReplay = useMemo(() => {
     if (!id) return false;

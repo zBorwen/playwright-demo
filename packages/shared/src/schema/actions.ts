@@ -36,8 +36,6 @@ const SignalSchema = z.discriminatedUnion('name', [
   z.object({ name: z.literal('dialog'), dialogAlias: z.string() }),
 ]);
 
-type Signal = z.infer<typeof SignalSchema>;
-
 // ---------------------------------------------------------------------------
 // Action schemas
 // ---------------------------------------------------------------------------
@@ -164,8 +162,6 @@ const PageContextSchema = z.object({
   url: z.string(),
   title: z.string().optional(),
 });
-
-type PageContext = z.infer<typeof PageContextSchema>;
 
 // ---------------------------------------------------------------------------
 // RecordingAction (each action variant extended with recording metadata)
