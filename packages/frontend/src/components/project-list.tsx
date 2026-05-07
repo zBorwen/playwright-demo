@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchProjects, deleteProject, batchReplayProjects } from '@/lib/api';
 import { useAppStore } from '@/store/app-store';
-import { useBatchReplayStore } from '@/store/batch-replay-store';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
@@ -13,15 +12,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
   const [replaying, setReplaying] = useState(false);
   const [batchUseMock, setBatchUseMock] = useState(false);
 
-  const batches = useBatchReplayStore(s => s.batches);
-
-  const projectHasReplay = (projectId: string): boolean => {
-    for (const batch of Object.values(batches)) {
-      if (!batch.isRunning) continue;
-      if (batch.projectIds?.includes(projectId)) return true;
-    }
-    return false;
-  };
+  const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -41,7 +32,6 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
     setDeleting(id);
     await deleteProject(id);
     setDeleting(null);
-    // Refresh the list
     const data = await fetchProjects();
     setProjects(data);
   };
@@ -60,16 +50,11 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
     setReplaying(true);
     try {
       const result = await batchReplayProjects([...selectedIds], { useMock: batchUseMock });
-      const items = result.results.map(r => ({ recordingId: r.recordingId, status: 'pending' as const }));
-      useBatchReplayStore.getState().startBatch(result.batchId, items, {
-        scope: 'cross-project',
-        projectIds: [...selectedIds],
-      });
-      // Set all recordings to running in the recording replay store
-      for (const recId of result.results.map(r => r.recordingId)) {
+      for (const r of result.results) {
         useRecordingReplayStore.getState().setRecordingStatus({
-          recordingId: recId,
+          recordingId: r.recordingId,
           status: 'running',
+          projectId: r.projectId,
         });
       }
     } catch (e) {
@@ -115,7 +100,9 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {projects.map((p) => {
-          const isReplaying = projectHasReplay(p.id);
+          const isReplaying = Object.values(recordingReplays).some(
+            r => r.projectId === p.id && r.status === 'running',
+          );
 
           return (
           <div

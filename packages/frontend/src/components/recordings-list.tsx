@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchRecordings, deleteRecording, deleteRecordings, batchReplayRecordings, type Recording } from '@/lib/api';
 import { RecordingForm } from '@/components/recording-form';
-import { useBatchReplayStore } from '@/store/batch-replay-store';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 interface RecordingsListProps {
@@ -85,20 +84,13 @@ export function RecordingsList({ projectId, useMock }: RecordingsListProps) {
   const handleBatchReplaySelected = async () => {
     if (selectedIds.size === 0) return;
     setReplaying(true);
-    const items = Array.from(selectedIds).map(recId => ({
-      recordingId: recId,
-      recordingTitle: recordings.find(r => r.id === recId)?.title,
-      status: 'pending' as const,
-    }));
     try {
       const result = await batchReplayRecordings([...selectedIds], { useMock });
-      const scope = projectId ? `project:${projectId}` : undefined;
-      useBatchReplayStore.getState().startBatch(result.batchId, items, { scope });
-      // Set all recordings to running in the recording replay store
-      for (const recId of selectedIds) {
+      for (const r of result.results) {
         useRecordingReplayStore.getState().setRecordingStatus({
-          recordingId: recId,
+          recordingId: r.recordingId,
           status: 'running',
+          projectId: r.projectId,
         });
       }
     } catch (e) {

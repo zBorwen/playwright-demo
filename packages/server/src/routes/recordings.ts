@@ -26,7 +26,7 @@ async function executeBatchReplay(
   useMock: boolean,
   agentId: string,
   batchId: string,
-): Promise<{ results: Array<{ recordingId: string; executionId: string }> }> {
+): Promise<{ results: Array<{ recordingId: string; executionId: string; projectId?: string }> }> {
   // Look up project-level replay speeds
   const projectIds = [...new Set(validRecordings.map(r => r.projectId).filter(Boolean))];
   const speedCache = new Map<string, string>();
@@ -45,7 +45,7 @@ async function executeBatchReplay(
     payload: { batchId, totalRecordings: validRecordings.length },
   }));
 
-  const results: Array<{ recordingId: string; executionId: string }> = [];
+  const results: Array<{ recordingId: string; executionId: string; projectId?: string }> = [];
   for (const rec of validRecordings) {
     const artifact = await db
       .select()
@@ -78,6 +78,7 @@ async function executeBatchReplay(
         recordingId: rec.id,
         recordingTitle: rec.title,
         executionId: execution[0].id,
+        projectId: rec.projectId || undefined,
         status: 'running' as const,
       },
     }));
@@ -95,7 +96,7 @@ async function executeBatchReplay(
     });
 
     if (sent) {
-      results.push({ recordingId: rec.id, executionId: execution[0].id });
+      results.push({ recordingId: rec.id, executionId: execution[0].id, projectId: rec.projectId || undefined });
     }
   }
 

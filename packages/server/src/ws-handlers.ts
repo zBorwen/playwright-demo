@@ -170,10 +170,10 @@ export class WsHandlers {
 
         this.broadcastToClients(JSON.stringify(msg));
 
-        // Broadcast batch-replay:result so frontend batch panel can update
+        // Broadcast batch-replay:result so frontend can update
         if (exec.length) {
           const recording = await db
-            .select({ title: recordings.title })
+            .select({ title: recordings.title, projectId: recordings.projectId })
             .from(recordings)
             .where(eq(recordings.id, exec[0].recordingId))
             .limit(1);
@@ -183,6 +183,7 @@ export class WsHandlers {
               recordingId: exec[0].recordingId,
               recordingTitle: recording[0]?.title,
               executionId,
+              projectId: recording[0]?.projectId || undefined,
               status: status === 'passed' ? 'passed' : 'failed',
               error: error ?? undefined,
             },

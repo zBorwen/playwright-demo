@@ -12,46 +12,26 @@ function RecordingDetailWithKey() {
   return <RecordingDetail key={id} />;
 }
 import { connect, subscribeToMessages } from '@/hooks/use-websocket';
-import { useBatchReplayStore } from '@/store/batch-replay-store';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 export function App() {
-  // Ensure single WS connection, hydrate batch state, register global batch-replay listener
+  // Ensure single WS connection, hydrate replay state, register global replay listener
   useEffect(() => {
     connect();
-    useBatchReplayStore.getState().hydrate();
+    useRecordingReplayStore.getState().hydrate();
 
     const unsub = subscribeToMessages((msg) => {
       if (msg.type === 'batch-replay:result') {
-        const p = msg.payload as { recordingId: string; status: 'passed' | 'failed' | 'running' | 'pending'; error?: string; executionId?: string };
-        const batchStore = useBatchReplayStore.getState();
-        // Update ALL running batches that contain this recording
-        for (const batchId of Object.keys(batchStore.batches)) {
-          const batch = batchStore.batches[batchId];
-          if (!batch.isRunning) continue;
-          if (batch.items.some(i => i.recordingId === p.recordingId)) {
-            batchStore.updateItem(batchId, p.recordingId, {
-              status: p.status,
-              error: p.error,
-              executionId: p.executionId,
-            });
-          }
-        }
-        // Also update the per-recording status store
-        useRecordingReplayStore.getState().setRecordingStatus({
-          recordingId: p.recordingId,
-          status: p.status === 'pending' ? 'running' : p.status,
-          error: p.error,
-          executionId: p.executionId,
-        });
-      }
-      // Clear recording statuses when a batch completes
-      if (msg.type === 'batch-replay:done') {
-        const p = msg.payload as { batchId: string };
-        const batchStore = useBatchReplayStore.getState();
-        const batch = batchStore.batches[p.batchId];
-        if (batch) {
-          useRecordingReplayStore.getState().clearBatch(batch.items.map(i => i.recordingId));
+        const p = msg.payload as { recordingId: string; status: 'passed' | 'failed' | 'running' | 'pending'; error?: string; executionId?: string; projectId?: string };
+        // Map 'pending' from server to 'running' on frontend (playback has started)
+        if (p.status !== 'pending') {
+          useRecordingReplayStore.getState().setRecordingStatus({
+            recordingId: p.recordingId,
+            status: p.status === 'running' ? 'running' : p.status,
+            error: p.error,
+            executionId: p.executionId,
+            projectId: p.projectId,
+          });
         }
       }
     });

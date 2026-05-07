@@ -105,7 +105,7 @@ export async function deleteRecordings(ids: string[]): Promise<{ ok: boolean; de
   });
 }
 
-export async function batchReplayRecordings(recordingIds: string[], options?: { useMock?: boolean }): Promise<{ batchId: string; total: number; results: Array<{ recordingId: string; executionId: string }> }> {
+export async function batchReplayRecordings(recordingIds: string[], options?: { useMock?: boolean }): Promise<{ batchId: string; total: number; results: Array<{ recordingId: string; executionId: string; projectId?: string }> }> {
   return request(`${API_BASE}/recordings/batch-replay`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -113,7 +113,7 @@ export async function batchReplayRecordings(recordingIds: string[], options?: { 
   });
 }
 
-export async function batchReplayProjects(projectIds: string[], options?: { useMock?: boolean }): Promise<{ batchId: string; total: number; results: Array<{ recordingId: string; executionId: string }> }> {
+export async function batchReplayProjects(projectIds: string[], options?: { useMock?: boolean }): Promise<{ batchId: string; total: number; results: Array<{ recordingId: string; executionId: string; projectId?: string }> }> {
   return request(`${API_BASE}/recordings/batch-replay/projects`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

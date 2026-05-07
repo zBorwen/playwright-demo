@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { fetchProjects, batchReplayProjects, type Project } from '@/lib/api';
 import { RecordingsList } from '@/components/recordings-list';
-import { useBatchReplayStore } from '@/store/batch-replay-store';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 export function ProjectDetail() {
@@ -17,7 +16,7 @@ export function ProjectDetail() {
   const hasActiveReplay = useMemo(() => {
     if (!id) return false;
     return Object.values(recordingReplays).some(
-      r => r.status === 'running',
+      r => r.projectId === id && r.status === 'running',
     );
   }, [recordingReplays, id]);
 
@@ -44,14 +43,11 @@ export function ProjectDetail() {
     setReplaying(true);
     try {
       const result = await batchReplayProjects([id], { useMock });
-      const items = result.results.map(r => ({ recordingId: r.recordingId, status: 'pending' as const }));
-      useBatchReplayStore.getState().startBatch(result.batchId, items, {
-        scope: `project:${id}`,
-      });
-      for (const recId of result.results.map(r => r.recordingId)) {
+      for (const r of result.results) {
         useRecordingReplayStore.getState().setRecordingStatus({
-          recordingId: recId,
+          recordingId: r.recordingId,
           status: 'running',
+          projectId: r.projectId,
         });
       }
     } catch (e) {
