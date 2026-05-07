@@ -240,6 +240,65 @@ const activeBatches = useMemo(
 
 ---
 
+## 回放状态单一数据源重构 (2026-05-07)
+
+### 问题背景
+
+回放状态管理存在两套重叠的系统：
+1. `batchReplayStore` — per-batch 模型，追踪批次级别状态
+2. `recordingReplayStore` — per-recording 模型，追踪单个录制状态
+
+两套系统追踪同一份数据，导致双写、WS 双重更新、刷新后不同步。方案从 per-batch 切换到 per-recording 时旧代码未删除，两套叠加。
+
+### 根本原因
+
+UI 需求是"每个 recording 卡片显示自己的回放状态"——这是 per-recording 视角，但先实现了 per-batch 模型，后补了 per-recording 模型来满足不同步。
+
+### 修复方案
+
+删除 `batchReplayStore`，`recordingReplayStore` 成为唯一数据源：
+- `recordingReplayStore` 新增 `projectId`、`startedAt` 字段，支持 sessionStorage 持久化和 hydration
+- 服务端 `batch-replay:result` 消息 payload 新增 `projectId` 字段
+- 所有组件从 `recordingReplayStore` 读取和写入，不再双写
+- `batch-replay-storage.ts` 改为 recording 级别存储 API
+
+### 衍生 Bug 修复
+
+#### Bug 1: 录制详情页离开时清除批量回放状态
+
+**现象**：批量回放运行时进入录制详情页，返回列表后该录制状态丢失。
+
+**根因**：`recording-detail.tsx` 离开页面时调用 `clearReplayStoreStatus(id)`，不管状态是单个回放还是批量回放设置的。
+
+**修复**：彻底移除卸载清理逻辑，状态完全由 WS 消息驱动更新和最终清理。
+
+#### Bug 2: 录制详情页回放状态与全局不同步
+
+**现象**：批量回放 A、B → 进入 A 详情页 → A 完成 → 进入 B 详情页 → B 的回放按钮仍可点击 → 用户点击发起第二个回放 → 冲突。
+
+**根因**：`replayStatus` 是组件内部 `useState`，mount 时为 `'idle'`，不感知 store 中的 `'running'`。
+
+**修复**：`replayStatus` 改为从 `storeStatus` 派生，组件 mount 时即感知全局状态，按钮显示"回放中"且禁用。移除所有 `setReplayStatus` 调用，状态统一由 store 驱动。
+
+### 涉及文件
+- `packages/frontend/src/store/batch-replay-store.ts` — **删除**
+- `packages/frontend/src/store/recording-replay-store.ts` — 增强：hydrate + auto-persist
+- `packages/frontend/src/lib/batch-replay-storage.ts` — 改为 recording 级别 API
+- `packages/frontend/src/App.tsx` — WS listener 只更新一个 store，移除死代码
+- `packages/frontend/src/components/project-list.tsx` — 移除 useBatchReplayStore
+- `packages/frontend/src/components/project-detail.tsx` — 移除 useBatchReplayStore
+- `packages/frontend/src/components/recordings-list.tsx` — 移除 useBatchReplayStore
+- `packages/frontend/src/components/recording-detail.tsx` — replayStatus 从 store 派生
+- `packages/server/src/routes/recordings.ts` — batch-replay:result 带上 projectId
+- `packages/server/src/ws-handlers.ts` — 同上
+
+### 教训
+- 方案切换时旧代码必须彻底清理，不能叠加
+- 组件内部状态与全局 store 不一致时，应从 store 派生而非各自维护
+- 页面卸载时清理状态要区分"主动发起"和"被动接收"，否则会清理掉别人的状态
+
+---
+
 ## 数据回显、回放、Codegen（迭代 3 次修复）
 
 ### 第一轮：三个问题 (77787fd)
