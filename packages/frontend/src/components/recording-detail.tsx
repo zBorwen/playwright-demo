@@ -47,6 +47,7 @@ export function RecordingDetail() {
   const [replaySteps, setReplaySteps] = useState<ReplayStep[]>([]);
   const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
   const replayExecutionIdRef = useRef<string | null>(null);
+  const initiatedReplayRef = useRef(false);
 
   useEffect(() => {
     replayExecutionIdRef.current = replayExecutionId;
@@ -58,10 +59,10 @@ export function RecordingDetail() {
   const [codegen, setCodegen] = useState<string>('');
   const [copied, setCopied] = useState(false);
 
-  // Clear recording replay status when navigating away (single replay cleanup)
+  // Clear recording replay status when navigating away only if this page initiated the replay
   useEffect(() => {
     return () => {
-      if (id) clearReplayStoreStatus(id);
+      if (id && initiatedReplayRef.current) clearReplayStoreStatus(id);
     };
   }, [id, clearReplayStoreStatus]);
 
@@ -251,6 +252,7 @@ export function RecordingDetail() {
   };
 
   const handleReplay = async () => {
+    initiatedReplayRef.current = true;
     setReplayStoreStatus({ recordingId: id!, status: 'running' });
     setReplayStatus('running');
     setReplaySteps(actions.map((a, i) => ({
