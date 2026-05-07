@@ -57,7 +57,7 @@ export function RecordingDetail() {
   const [showTrace, setShowTrace] = useState(false);
   const [useMock, setUseMock] = useState(() => {
     try {
-      return localStorage.getItem('replay-use-mock') === 'true';
+      return localStorage.getItem(`replay-use-mock:${id}`) === 'true';
     } catch {
       return false;
     }
@@ -66,7 +66,7 @@ export function RecordingDetail() {
   const handleUseMockChange = (checked: boolean) => {
     setUseMock(checked);
     try {
-      localStorage.setItem('replay-use-mock', String(checked));
+      if (id) localStorage.setItem(`replay-use-mock:${id}`, String(checked));
     } catch {}
   };
   const [projectReplaySpeed, setProjectReplaySpeed] = useState<'fast' | 'normal' | 'slow'>('normal');

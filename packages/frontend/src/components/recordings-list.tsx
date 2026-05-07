@@ -6,7 +6,6 @@ import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 interface RecordingsListProps {
   projectId?: string;
-  useMock?: boolean;
 }
 
 function ReplayStatusIndicator({ recordingId }: { recordingId: string }) {
@@ -25,7 +24,43 @@ function ReplayStatusIndicator({ recordingId }: { recordingId: string }) {
   return <span className="ml-2 text-xs text-red-400">✗</span>;
 }
 
-export function RecordingsList({ projectId, useMock }: RecordingsListProps) {
+function getRecordingMock(recordingId: string): boolean {
+  try {
+    return localStorage.getItem(`replay-use-mock:${recordingId}`) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function setRecordingMock(recordingId: string, checked: boolean): void {
+  try {
+    localStorage.setItem(`replay-use-mock:${recordingId}`, String(checked));
+  } catch {}
+}
+
+function MockToggle({ recordingId }: { recordingId: string }) {
+  const [checked, setChecked] = useState(() => getRecordingMock(recordingId));
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const next = e.target.checked;
+    setChecked(next);
+    setRecordingMock(recordingId, next);
+  };
+
+  return (
+    <label className="flex items-center gap-1 text-xs text-zinc-500" title="Mock 模式" onClick={(e) => e.stopPropagation()}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={handleChange}
+        className="h-3.5 w-3.5 rounded border-zinc-600 bg-zinc-800"
+      />
+      Mock
+    </label>
+  );
+}
+
+export function RecordingsList({ projectId }: RecordingsListProps) {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,8 +120,26 @@ export function RecordingsList({ projectId, useMock }: RecordingsListProps) {
     if (selectedIds.size === 0) return;
     setReplaying(true);
     try {
-      const result = await batchReplayRecordings([...selectedIds], { useMock });
-      for (const r of result.results) {
+      // Group by mock setting, make separate API calls
+      const mockOn: string[] = [];
+      const mockOff: string[] = [];
+      for (const id of selectedIds) {
+        if (getRecordingMock(id)) mockOn.push(id);
+        else mockOff.push(id);
+      }
+
+      const allResults: Array<{ recordingId: string; executionId: string; projectId?: string }> = [];
+
+      if (mockOn.length > 0) {
+        const r = await batchReplayRecordings(mockOn, { useMock: true });
+        allResults.push(...r.results);
+      }
+      if (mockOff.length > 0) {
+        const r = await batchReplayRecordings(mockOff, { useMock: false });
+        allResults.push(...r.results);
+      }
+
+      for (const r of allResults) {
         useRecordingReplayStore.getState().setRecordingStatus({
           recordingId: r.recordingId,
           status: 'running',
@@ -181,6 +234,7 @@ export function RecordingsList({ projectId, useMock }: RecordingsListProps) {
                   {new Date(r.createdAt).toLocaleDateString()}
                 </span>
               </Link>
+              <MockToggle recordingId={r.id} />
               <button
                 onClick={(e) => { e.stopPropagation(); handleDeleteSingle(r.id, r.title); }}
                 disabled={deleting}

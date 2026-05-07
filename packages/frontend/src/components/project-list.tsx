@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchProjects, deleteProject, batchReplayProjects } from '@/lib/api';
 import { useAppStore } from '@/store/app-store';
@@ -10,25 +10,8 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [replaying, setReplaying] = useState(false);
-  const [batchUseMock, setBatchUseMock] = useState(() => {
-    try {
-      return localStorage.getItem('replay-use-mock') === 'true';
-    } catch {
-      return false;
-    }
-  });
+
   const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
-
-  const hasActiveReplay = useMemo(() => {
-    return Object.values(recordingReplays).some(r => r.status === 'running');
-  }, [recordingReplays]);
-
-  const handleBatchUseMockChange = (checked: boolean) => {
-    setBatchUseMock(checked);
-    try {
-      localStorage.setItem('replay-use-mock', String(checked));
-    } catch {}
-  };
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -65,7 +48,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
     if (selectedIds.size === 0) return;
     setReplaying(true);
     try {
-      const result = await batchReplayProjects([...selectedIds], { useMock: batchUseMock });
+      const result = await batchReplayProjects([...selectedIds], { useMock: false });
       for (const r of result.results) {
         useRecordingReplayStore.getState().setRecordingStatus({
           recordingId: r.recordingId,
@@ -89,16 +72,6 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
       {selectedIds.size > 0 && (
         <div className="mb-4 flex items-center gap-3 rounded border border-zinc-700 bg-zinc-900 px-4 py-2">
           <span className="text-sm text-zinc-300">已选择 {selectedIds.size} 个项目</span>
-          <label className="flex items-center gap-1.5 text-sm text-zinc-400">
-            <input
-              type="checkbox"
-              checked={batchUseMock}
-              onChange={(e) => handleBatchUseMockChange(e.target.checked)}
-              disabled={hasActiveReplay}
-              className="rounded border-zinc-600 bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-            Mock 模式
-          </label>
           <button
             onClick={handleBatchReplaySelected}
             disabled={replaying}
@@ -107,7 +80,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
             {replaying ? '回放中…' : '批量回放'}
           </button>
           <button
-            onClick={() => { setSelectedIds(new Set()); setBatchUseMock(false); }}
+            onClick={() => setSelectedIds(new Set())}
             className="text-sm text-zinc-400 hover:text-zinc-200"
           >
             取消选择

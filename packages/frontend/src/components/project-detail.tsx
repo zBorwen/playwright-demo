@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { fetchProjects, batchReplayProjects, type Project } from '@/lib/api';
+import { fetchProjects, type Project } from '@/lib/api';
 import { RecordingsList } from '@/components/recordings-list';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
@@ -9,21 +9,6 @@ export function ProjectDetail() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [useMock, setUseMock] = useState(() => {
-    try {
-      return localStorage.getItem('replay-use-mock') === 'true';
-    } catch {
-      return false;
-    }
-  });
-  const [replaying, setReplaying] = useState(false);
-
-  const handleUseMockChange = (checked: boolean) => {
-    setUseMock(checked);
-    try {
-      localStorage.setItem('replay-use-mock', String(checked));
-    } catch {}
-  };
 
   const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
   const hasActiveReplay = useMemo(() => {
@@ -51,24 +36,6 @@ export function ProjectDetail() {
       });
   }, [id]);
 
-  const handleBatchReplayProject = async () => {
-    if (!id) return;
-    setReplaying(true);
-    try {
-      const result = await batchReplayProjects([id], { useMock });
-      for (const r of result.results) {
-        useRecordingReplayStore.getState().setRecordingStatus({
-          recordingId: r.recordingId,
-          status: 'running',
-          projectId: r.projectId,
-        });
-      }
-    } catch (e) {
-      console.error('Batch replay failed:', e);
-    }
-    setReplaying(false);
-  };
-
   if (loading) return <p className="text-zinc-500">加载中...</p>;
   if (error || !project) return <p className="text-red-400">{error || '项目不存在'}</p>;
 
@@ -78,41 +45,20 @@ export function ProjectDetail() {
         <Link to="/projects" className="text-sm text-zinc-400 hover:text-zinc-200">
           ← 返回项目列表
         </Link>
-        <div className="mt-2 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              {project.name}
-              {hasActiveReplay && (
-                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
-              )}
-            </h1>
-            {project.description && (
-              <p className="mt-1 text-zinc-400">{project.description}</p>
+        <div className="mt-2">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            {project.name}
+            {hasActiveReplay && (
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
             )}
-          </div>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5 text-sm text-zinc-400">
-              <input
-                type="checkbox"
-                checked={useMock}
-                onChange={(e) => handleUseMockChange(e.target.checked)}
-                disabled={hasActiveReplay}
-                className="rounded border-zinc-600 bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              Mock 模式
-            </label>
-            <button
-              onClick={handleBatchReplayProject}
-              disabled={replaying}
-              className="rounded bg-green-900 px-4 py-2 text-sm hover:bg-green-800 disabled:opacity-50"
-            >
-              {replaying ? '⏳ 批量回放中' : '▶ 批量回放本项目'}
-            </button>
-          </div>
+          </h1>
+          {project.description && (
+            <p className="mt-1 text-zinc-400">{project.description}</p>
+          )}
         </div>
       </div>
 
-      <RecordingsList projectId={id} useMock={useMock} />
+      <RecordingsList projectId={id} />
     </div>
   );
 }
