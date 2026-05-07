@@ -1,20 +1,14 @@
-export interface BatchReplayItem {
-  recordingId: string;
-  recordingTitle?: string;
-  executionId?: string;
-  status: 'pending' | 'running' | 'passed' | 'failed';
-  error?: string;
-}
+import { type BatchItem } from '@/store/batch-replay-store';
 
 interface BatchReplayPanelProps {
   total: number;
-  items: BatchReplayItem[];
+  items: BatchItem[];
   isRunning: boolean;
   passed: number;
   failed: number;
 }
 
-function itemBorder(item: BatchReplayItem) {
+function itemBorder(item: BatchItem) {
   switch (item.status) {
     case 'passed': return 'border-green-800 bg-green-950/30';
     case 'failed': return 'border-red-800 bg-red-950/30';
@@ -23,7 +17,7 @@ function itemBorder(item: BatchReplayItem) {
   }
 }
 
-function itemIcon(item: BatchReplayItem) {
+function itemIcon(item: BatchItem) {
   switch (item.status) {
     case 'passed': return '✓';
     case 'failed': return '✗';

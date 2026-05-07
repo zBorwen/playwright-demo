@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile, rm } from 'fs/promises';
+import { mkdir, writeFile, readFile } from 'fs/promises';
 import type { Recording } from '@playwright-demo/shared';
 
 const STORAGE_BASE = process.env.STORAGE_PATH || './storage';
@@ -36,31 +36,6 @@ export class StorageService {
     return path;
   }
 
-  async loadHar(recordingId: string): Promise<Buffer | null> {
-    try {
-      const path = `${this.base}/recordings/${recordingId}/recording.har`;
-      return await readFile(path);
-    } catch {
-      return null; // File not found
-    }
-  }
-
-  async saveScreenshot(executionId: string, stepIndex: number, buffer: Buffer): Promise<string> {
-    const dir = `${this.base}/executions/${executionId}/screenshots`;
-    await mkdir(dir, { recursive: true });
-    const path = `${dir}/step-${stepIndex}.png`;
-    await writeFile(path, buffer);
-    return path;
-  }
-
-  async saveExecutionHar(executionId: string, buffer: Buffer): Promise<string> {
-    const dir = `${this.base}/executions/${executionId}`;
-    await mkdir(dir, { recursive: true });
-    const path = `${dir}/replay.har`;
-    await writeFile(path, buffer);
-    return path;
-  }
-
   async saveTrace(executionId: string, buffer: Buffer): Promise<string> {
     const dir = `${this.base}/executions/${executionId}`;
     await mkdir(dir, { recursive: true });
@@ -76,15 +51,5 @@ export class StorageService {
     } catch {
       return null;
     }
-  }
-
-  async deleteRecording(recordingId: string): Promise<void> {
-    const dir = `${this.base}/recordings/${recordingId}`;
-    await rm(dir, { recursive: true, force: true });
-  }
-
-  async deleteExecution(executionId: string): Promise<void> {
-    const dir = `${this.base}/executions/${executionId}`;
-    await rm(dir, { recursive: true, force: true });
   }
 }

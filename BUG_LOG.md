@@ -11,6 +11,29 @@ Playwright Recorder 的 `api` 模式（`_enableRecorder` + `eventSink`）对无�
 ### 实际影响
 日志验证：用户执行了 13 步操作（包含 2 次遮罩层点击），但 Recorder 只记录了 11 步，遮罩层点击全部丢失。
 
+### 根因源码分析
+
+Playwright Recorder 内部通过 `recorderMode` 参数选择两套不同的 action 采集工具：
+
+```
+// node_modules/playwright-core/lib/generated/pollingRecorderSource.js
+"recording": options.recorderMode === "api"
+    ? new JsonRecordActionTool(this)
+    : new RecordActionTool(this)
+```
+
+| 模式 | 使用的工具 | 能力 |
+|------|-----------|------|
+| `default` | `RecordActionTool` | 有 `onMouseMove` + `_hoveredElement` + `_updateModelForHoveredElement`，鼠标移动时实时生成并预览 selector |
+| `api` | `JsonRecordActionTool` | 只有 `onClick` / `onInput` / `onKeyDown` / `onContextMenu`，**没有 hover 追踪** |
+
+`JsonRecordActionTool` 的 `onClick` 直接对 `event.target` 调用 `_ariaSnapshot(element)` → `generateSelector(element)`。对于纯 `div` 元素（如 `.fixed.inset-0`），`generateSelector` 很难生成可靠的 selector，可能返回空或不可靠的结果，导致 action 被静默丢弃。
+
+default 模式下，鼠标在遮罩层上移动时，`RecordActionTool` 的 hover 追踪机制有时间反复尝试生成 selector，视觉上表现为"selector 逐渐识别到"的延迟过程。
+
+### 结论
+API 模式天生缺少 hover-based selector resolution 机制，对无交互属性的纯 div 元素不敏感是架构层面的限制。
+
 ### 修复方向
 在 Recorder 之外注入页面脚本，监听所有 `click` 事件，对比 Recorder 发出的 action，补录被遗漏的点击（无 selector 或纯 div 上的点击）。
 

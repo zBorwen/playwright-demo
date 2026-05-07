@@ -1,7 +1,7 @@
 import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright-core';
 import type { RecordingAction, MockRule } from '@playwright-demo/shared';
 import { readFileSync, existsSync, mkdirSync } from 'fs';
-import path from 'path';
+import path from 'node:path';
 
 export interface ReplayResult {
   status: 'passed' | 'failed';

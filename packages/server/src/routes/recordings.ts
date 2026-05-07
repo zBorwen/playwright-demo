@@ -9,10 +9,98 @@ import type { Env } from '../types/env';
 import { getWsHandlers } from '../context';
 import { generateCodegen } from '../services/codegen';
 import { rm } from 'fs/promises';
-import path from 'path';
+import path from 'node:path';
 import { successResponse, errorResponse, API_CODES } from '../middleware/response';
 
 export const recordingsRouter = new Hono<Env>();
+
+interface ValidRecording {
+  id: string;
+  title: string;
+  projectId: string | null;
+}
+
+/** Shared batch replay execution logic used by both /batch-replay routes. */
+async function executeBatchReplay(
+  validRecordings: ValidRecording[],
+  useMock: boolean,
+  agentId: string,
+  batchId: string,
+): Promise<{ results: Array<{ recordingId: string; executionId: string }> }> {
+  // Look up project-level replay speeds
+  const projectIds = [...new Set(validRecordings.map(r => r.projectId).filter(Boolean))];
+  const speedCache = new Map<string, string>();
+  if (projectIds.length > 0) {
+    const projs = await db.query.projects.findMany({
+      where: (projects, { inArray }) => inArray(projects.id, projectIds as string[]),
+    });
+    for (const p of projs) {
+      speedCache.set(p.id, p.replaySpeed || 'normal');
+    }
+  }
+
+  const handlers = getWsHandlers();
+  handlers.broadcastToClients(JSON.stringify({
+    type: 'batch-replay:start',
+    payload: { batchId, totalRecordings: validRecordings.length },
+  }));
+
+  const results: Array<{ recordingId: string; executionId: string }> = [];
+  for (const rec of validRecordings) {
+    const artifact = await db
+      .select()
+      .from(recordingArtifacts)
+      .where(and(eq(recordingArtifacts.recordingId, rec.id), eq(recordingArtifacts.type, 'actions')))
+      .limit(1);
+
+    const actionsData = JSON.parse(artifact[0].content as string);
+    let mockRules: MockRule[] = [];
+    if (useMock) {
+      const mockArtifact = await db
+        .select()
+        .from(recordingArtifacts)
+        .where(and(eq(recordingArtifacts.recordingId, rec.id), eq(recordingArtifacts.type, 'mock_rules')))
+        .limit(1);
+      if (mockArtifact.length && mockArtifact[0].content) {
+        mockRules = JSON.parse(mockArtifact[0].content) as MockRule[];
+      }
+    }
+
+    const execution = await db.insert(executions).values({
+      recordingId: rec.id,
+      status: 'running',
+    }).returning();
+
+    handlers.broadcastToClients(JSON.stringify({
+      type: 'batch-replay:result',
+      payload: {
+        batchId,
+        recordingId: rec.id,
+        recordingTitle: rec.title,
+        executionId: execution[0].id,
+        status: 'running' as const,
+      },
+    }));
+
+    const sent = handlers.sendToAgent(agentId, {
+      type: 'replay:start',
+      payload: {
+        recordingId: rec.id,
+        executionId: execution[0].id,
+        actions: actionsData.actions || [],
+        harRef: useMock ? `${rec.id}/recording.har` : '',
+        mockRules,
+        replaySpeed: (speedCache.get(rec.projectId || '') || 'normal') as 'fast' | 'normal' | 'slow',
+      },
+    });
+
+    if (sent) {
+      results.push({ recordingId: rec.id, executionId: execution[0].id });
+    }
+  }
+
+  return { results };
+}
 
 const createRecordingSchema = z.object({
   projectId: z.string().uuid(),
@@ -257,80 +345,7 @@ recordingsRouter.post('/batch-replay', zValidator('json', z.object({
   }
 
   const batchId = crypto.randomUUID();
-  const handlers = getWsHandlers();
-
-  // Look up project-level replay speeds (cache to avoid repeated DB queries)
-  const projectIds = [...new Set(validRecordings.map(r => r.projectId).filter(Boolean))];
-  const speedCache = new Map<string, string>();
-  if (projectIds.length > 0) {
-    const projs = await db.query.projects.findMany({
-      where: (projects, { inArray }) => inArray(projects.id, projectIds as string[]),
-    });
-    for (const p of projs) {
-      speedCache.set(p.id, p.replaySpeed || 'normal');
-    }
-  }
-
-  // Notify frontend about batch start
-  handlers.broadcastToClients(JSON.stringify({
-    type: 'batch-replay:start',
-    payload: { batchId, totalRecordings: validRecordings.length },
-  }));
-
-  const results: Array<{ recordingId: string; executionId: string }> = [];
-  for (const rec of validRecordings) {
-    const artifact = await db
-      .select()
-      .from(recordingArtifacts)
-      .where(and(eq(recordingArtifacts.recordingId, rec.id), eq(recordingArtifacts.type, 'actions')))
-      .limit(1);
-
-    const actionsData = JSON.parse(artifact[0].content as string);
-    let mockRules: MockRule[] = [];
-    if (useMock) {
-      const mockArtifact = await db
-        .select()
-        .from(recordingArtifacts)
-        .where(and(eq(recordingArtifacts.recordingId, rec.id), eq(recordingArtifacts.type, 'mock_rules')))
-        .limit(1);
-      if (mockArtifact.length && mockArtifact[0].content) {
-        mockRules = JSON.parse(mockArtifact[0].content) as MockRule[];
-      }
-    }
-
-    const execution = await db.insert(executions).values({
-      recordingId: rec.id,
-      status: 'running',
-    }).returning();
-
-    // Notify frontend about this recording being queued
-    handlers.broadcastToClients(JSON.stringify({
-      type: 'batch-replay:result',
-      payload: {
-        batchId,
-        recordingId: rec.id,
-        recordingTitle: rec.title,
-        executionId: execution[0].id,
-        status: 'running' as const,
-      },
-    }));
-
-    const sent = handlers.sendToAgent(agentId, {
-      type: 'replay:start',
-      payload: {
-        recordingId: rec.id,
-        executionId: execution[0].id,
-        actions: actionsData.actions || [],
-        harRef: useMock ? `${rec.id}/recording.har` : '',
-        mockRules,
-        replaySpeed: (speedCache.get(rec.projectId || '') || 'normal') as 'fast' | 'normal' | 'slow',
-      },
-    });
-
-    if (sent) {
-      results.push({ recordingId: rec.id, executionId: execution[0].id });
-    }
-  }
+  const { results } = await executeBatchReplay(validRecordings, useMock, agentId, batchId);
 
   return c.json(successResponse({
     batchId,
@@ -378,78 +393,7 @@ recordingsRouter.post('/batch-replay/projects', zValidator('json', z.object({
   }
 
   const batchId = crypto.randomUUID();
-  const handlers = getWsHandlers();
-
-  // Build speed cache from projects (batch-replay/projects route)
-  const projectIdsProjectsRoute = [...new Set(validRecordings.map(r => r.projectId).filter(Boolean))];
-  const speedCache = new Map<string, string>();
-  if (projectIdsProjectsRoute.length > 0) {
-    const projs = await db.query.projects.findMany({
-      where: (projects, { inArray }) => inArray(projects.id, projectIdsProjectsRoute as string[]),
-    });
-    for (const p of projs) {
-      speedCache.set(p.id, p.replaySpeed || 'normal');
-    }
-  }
-
-  handlers.broadcastToClients(JSON.stringify({
-    type: 'batch-replay:start',
-    payload: { batchId, totalRecordings: validRecordings.length },
-  }));
-
-  const results: Array<{ recordingId: string; executionId: string }> = [];
-  for (const rec of validRecordings) {
-    const artifact = await db
-      .select()
-      .from(recordingArtifacts)
-      .where(and(eq(recordingArtifacts.recordingId, rec.id), eq(recordingArtifacts.type, 'actions')))
-      .limit(1);
-
-    const actionsData = JSON.parse(artifact[0].content as string);
-    let mockRules: MockRule[] = [];
-    if (useMock) {
-      const mockArtifact = await db
-        .select()
-        .from(recordingArtifacts)
-        .where(and(eq(recordingArtifacts.recordingId, rec.id), eq(recordingArtifacts.type, 'mock_rules')))
-        .limit(1);
-      if (mockArtifact.length && mockArtifact[0].content) {
-        mockRules = JSON.parse(mockArtifact[0].content) as MockRule[];
-      }
-    }
-
-    const execution = await db.insert(executions).values({
-      recordingId: rec.id,
-      status: 'running',
-    }).returning();
-
-    handlers.broadcastToClients(JSON.stringify({
-      type: 'batch-replay:result',
-      payload: {
-        batchId,
-        recordingId: rec.id,
-        recordingTitle: rec.title,
-        executionId: execution[0].id,
-        status: 'running' as const,
-      },
-    }));
-
-    const sent = handlers.sendToAgent(agentId, {
-      type: 'replay:start',
-      payload: {
-        recordingId: rec.id,
-        executionId: execution[0].id,
-        actions: actionsData.actions || [],
-        harRef: useMock ? `${rec.id}/recording.har` : '',
-        mockRules,
-        replaySpeed: (speedCache.get(rec.projectId || '') || 'normal') as 'fast' | 'normal' | 'slow',
-      },
-    });
-
-    if (sent) {
-      results.push({ recordingId: rec.id, executionId: execution[0].id });
-    }
-  }
+  const { results } = await executeBatchReplay(validRecordings, useMock, agentId, batchId);
 
   return c.json(successResponse({
     batchId,

@@ -1,5 +1,6 @@
 import type { Execution } from '@/lib/api';
 import type { RecordingAction } from '@playwright-demo/shared';
+import { formatActionDetail } from '@/lib/action-formatter';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000;
 
@@ -11,15 +12,6 @@ export interface RunningExecution {
     detail: string;
     status: 'pending';
   }>;
-}
-
-function formatActionDetail(action: RecordingAction): string {
-  const parts: string[] = [];
-  if ('selector' in action && action.selector) parts.push(action.selector as string);
-  if ('value' in action && action.value) parts.push(String(action.value));
-  if ('key' in action && action.key) parts.push(action.key);
-  if ('text' in action && action.text) parts.push(`"${action.text}"`);
-  return parts.join(' ');
 }
 
 export function detectRunningExecution(

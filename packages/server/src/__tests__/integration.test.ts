@@ -111,7 +111,7 @@ describe('Projects routes', () => {
       const res = await testApp.request('/api/projects');
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body).toEqual(mockProjects);
+      expect(body).toEqual({ success: true, data: mockProjects, code: 'OK' });
     });
   });
 
@@ -129,7 +129,7 @@ describe('Projects routes', () => {
 
       expect(res.status).toBe(201);
       const body = await res.json();
-      expect(body).toEqual({ id: 'test-id', name: 'New Project' });
+      expect(body).toEqual({ success: true, data: { id: 'test-id', name: 'New Project' }, code: 'OK' });
     });
 
     it('rejects project with empty name', async () => {

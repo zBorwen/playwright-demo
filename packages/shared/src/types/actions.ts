@@ -18,35 +18,3 @@ export type AgentMessage =
   | { type: 'replay:screenshot'; payload: { executionId: string; stepIndex: number; path: string } }
   | { type: 'replay:done'; payload: { executionId: string; status: 'passed' | 'failed'; error?: string; trace?: string; screenshot?: string; tracePath?: string } }
   | { type: 'pong' };
-
-// ─── Batch Replay (server → frontend broadcast) ────────────────────
-
-export interface BatchReplayStartMessage {
-  type: 'batch-replay:start';
-  payload: {
-    batchId: string;
-    totalRecordings: number;
-  };
-}
-
-export interface BatchReplayResultMessage {
-  type: 'batch-replay:result';
-  payload: {
-    batchId: string;
-    recordingId: string;
-    recordingTitle: string;
-    executionId: string;
-    status: 'pending' | 'running' | 'passed' | 'failed';
-    error?: string;
-  };
-}
-
-export interface BatchReplayDoneMessage {
-  type: 'batch-replay:done';
-  payload: {
-    batchId: string;
-    total: number;
-    passed: number;
-    failed: number;
-  };
-}

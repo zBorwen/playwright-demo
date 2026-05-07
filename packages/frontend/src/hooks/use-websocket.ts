@@ -77,14 +77,6 @@ export function useWebSocket(onMessage?: (msg: WsMessage) => void): void {
   }, []);
 }
 
-export function addWsListener(listener: Listener): void {
-  listeners.add(listener);
-}
-
-export function removeWsListener(listener: Listener): void {
-  listeners.delete(listener);
-}
-
 /** Register a message listener and return an unsubscribe function. */
 export function subscribeToMessages(onMessage: (msg: WsMessage) => void): () => void {
   listeners.add(onMessage);

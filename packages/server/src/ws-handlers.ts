@@ -36,10 +36,6 @@ export class WsHandlers {
     return true;
   }
 
-  getConnectedAgents(): string[] {
-    return Array.from(this.agents.keys());
-  }
-
   broadcastToClients(data: string, exclude?: WebSocket): void {
     for (const client of this.clients) {
       if (client !== exclude && client.readyState === 1) {
