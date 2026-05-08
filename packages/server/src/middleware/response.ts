@@ -7,15 +7,15 @@ export const API_CODES = {
   AGENT_UNAVAILABLE: 'AGENT_UNAVAILABLE',
 } as const;
 
-export type ApiCode = (typeof API_CODES)[keyof typeof API_CODES];
+type ApiCode = (typeof API_CODES)[keyof typeof API_CODES];
 
-export interface SuccessResponse<T = unknown> {
+interface SuccessResponse<T = unknown> {
   success: true;
   data: T;
   code: ApiCode;
 }
 
-export interface ErrorResponse {
+interface ErrorResponse {
   success: false;
   error: {
     code: string;

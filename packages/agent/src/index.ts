@@ -37,9 +37,6 @@ async function main() {
     engine.onStepFailed((index, error) => {
       ws.send({ type: 'replay:step', payload: { recordingId: payload.recordingId, executionId, index, status: 'failed', error } });
     });
-    engine.onScreenshot((stepIndex, path) => {
-      ws.send({ type: 'replay:screenshot', payload: { executionId, stepIndex, path } });
-    });
 
     const result = await engine.replay(actions as Parameters<typeof engine.replay>[0], {
       headless: false,

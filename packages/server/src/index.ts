@@ -18,7 +18,7 @@ const server = serve({
 console.log(`Server running on http://localhost:${port}`);
 
 const wsHandlers = new WsHandlers(storage);
-setContext(wsHandlers, storage);
+setContext(wsHandlers);
 
 const wss = new WebSocketServer({ server: server as unknown as Server, path: '/ws' });
 

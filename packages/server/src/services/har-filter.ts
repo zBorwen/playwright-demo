@@ -32,7 +32,7 @@ function isStaticAsset(mimeType: string): boolean {
   return false;
 }
 
-export interface HarEntry {
+interface HarEntry {
   request: {
     url: string;
     method: string;
@@ -57,7 +57,7 @@ export interface HarEntry {
   };
 }
 
-export interface HarLog {
+interface HarLog {
   log: {
     entries: HarEntry[];
   };

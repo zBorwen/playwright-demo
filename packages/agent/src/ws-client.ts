@@ -72,10 +72,4 @@ export class WsClient {
       this.ws.send(JSON.stringify(msg));
     }
   }
-
-  disconnect(): void {
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.ws?.close();
-    this.ws = null;
-  }
 }

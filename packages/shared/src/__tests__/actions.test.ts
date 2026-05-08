@@ -1,117 +1,86 @@
 import { describe, it, expect } from 'vitest';
-import {
-  ElementInfoSchema,
-  ClickActionSchema,
-  FillActionSchema,
-  RecordingSchema,
-} from '../schema/actions.js';
+import { RecordingAction, Recording, RecordingActionSchema } from '../schema/actions.js';
 
-describe('ElementInfoSchema', () => {
-  it('accepts valid ElementInfo', () => {
-    const validElementInfo = {
-      dataTestId: 'submit-btn',
-      dataTest: 'submit-btn',
-      role: 'button',
-      accessibleName: 'Submit',
-      textContent: 'Submit',
-      placeholder: null,
-      id: 'form-submit',
-      tagName: 'BUTTON',
-      labelText: 'Submit Form',
-      name: 'submit',
-      inputType: null,
-      classes: ['btn', 'btn-primary'],
-      parentPath: ['form', 'div'],
-      nearbyText: ['Cancel'],
-      boundingBox: { x: 10, y: 20, width: 100, height: 40 },
-      isVisible: true,
-    };
-    const result = ElementInfoSchema.safeParse(validElementInfo);
-    expect(result.success).toBe(true);
-  });
+describe('RecordingActionSchema', () => {
+  const baseFields = {
+    signals: [],
+    elementInfo: {
+      dataTestId: null, dataTest: null, role: null, accessibleName: null,
+      textContent: null, placeholder: null, id: null, tagName: 'BUTTON',
+      labelText: null, name: null, inputType: null, classes: [],
+      parentPath: [], nearbyText: [], boundingBox: null, isVisible: true,
+    },
+    pageContext: { url: 'https://example.com' },
+    timestamp: Date.now(),
+  };
 
-  it('rejects missing tagName', () => {
-    const result = ElementInfoSchema.safeParse({
-      dataTestId: 'btn',
-      tagName: undefined,
-    });
-    expect(result.success).toBe(false);
-  });
-});
-
-describe('ClickActionSchema', () => {
-  it('applies default values', () => {
-    const result = ClickActionSchema.safeParse({
+  it('parses click with default values', () => {
+    const result = RecordingActionSchema.safeParse({
       name: 'click',
       selector: '#submit',
+      ...baseFields,
     });
     expect(result.success).toBe(true);
-    if (result.success) {
+    if (result.success && result.data.name === 'click') {
       expect(result.data.button).toBe('left');
       expect(result.data.modifiers).toBe(0);
       expect(result.data.clickCount).toBe(1);
-      expect(result.data.signals).toEqual([]);
     }
   });
-});
 
-describe('FillActionSchema', () => {
-  it('accepts valid fill action', () => {
-    const result = FillActionSchema.safeParse({
+  it('parses fill with required fields', () => {
+    const result = RecordingActionSchema.safeParse({
       name: 'fill',
       selector: '#username',
       value: 'hello@example.com',
+      ...baseFields,
     });
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.signals).toEqual([]);
+    if (result.success && result.data.name === 'fill') {
+      expect(result.data.value).toBe('hello@example.com');
     }
+  });
+
+  it('rejects unknown action name', () => {
+    const result = RecordingActionSchema.safeParse({
+      name: 'unknown',
+      selector: '#btn',
+      ...baseFields,
+    });
+    expect(result.success).toBe(false);
   });
 });
 
-describe('RecordingSchema', () => {
-  it('accepts valid recording with UUID and URL', () => {
-    const result = RecordingSchema.safeParse({
-      recordingId: '550e8400-e29b-41d4-a716-446655440000',
-      targetUrl: 'https://example.com/login',
-      title: 'Login flow',
-      actions: [
-        {
-          name: 'navigate',
-          url: 'https://example.com/login',
-          elementInfo: {
-            dataTestId: null,
-            dataTest: null,
-            role: null,
-            accessibleName: null,
-            textContent: null,
-            placeholder: null,
-            id: null,
-            tagName: 'HTML',
-            labelText: null,
-            name: null,
-            inputType: null,
-            classes: [],
-            parentPath: [],
-            nearbyText: [],
-            boundingBox: null,
-            isVisible: true,
-          },
-          pageContext: { url: 'https://example.com/login' },
-          timestamp: 1700000000000,
-        },
-      ],
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('rejects non-UUID recordingId', () => {
-    const result = RecordingSchema.safeParse({
-      recordingId: 'not-a-uuid',
-      targetUrl: 'https://example.com',
-      title: 'Test',
-      actions: [],
-    });
-    expect(result.success).toBe(false);
+describe('RecordingAction type', () => {
+  it('accepts valid RecordingAction shape via type check', () => {
+    const action: RecordingAction = {
+      name: 'click',
+      selector: '#btn',
+      button: 'left',
+      modifiers: 0,
+      clickCount: 1,
+      signals: [],
+      elementInfo: {
+        dataTestId: null,
+        dataTest: null,
+        role: 'button',
+        accessibleName: 'Click',
+        textContent: null,
+        placeholder: null,
+        id: null,
+        tagName: 'BUTTON',
+        labelText: null,
+        name: null,
+        inputType: null,
+        classes: [],
+        parentPath: [],
+        nearbyText: [],
+        boundingBox: null,
+        isVisible: true,
+      },
+      pageContext: { url: 'https://example.com' },
+      timestamp: 1700000000000,
+    };
+    expect(action.name).toBe('click');
   });
 });

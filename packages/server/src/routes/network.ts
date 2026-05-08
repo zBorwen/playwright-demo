@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { db } from '../db/index';
 import { recordingArtifacts } from '../db/schema';
 import { eq, desc, and } from 'drizzle-orm';
-import { successResponse, errorResponse, API_CODES } from '../middleware/response';
+import { successResponse } from '../middleware/response';
 
 export const networkRouter = new Hono();
 

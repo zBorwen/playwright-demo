@@ -1,5 +1,5 @@
 import type { RecordingAction, NetworkEntry, MockRule } from '@playwright-demo/shared';
-export type { RecordingAction, NetworkEntry, MockRule };
+export type { RecordingAction };
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 

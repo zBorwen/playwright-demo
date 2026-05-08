@@ -3,7 +3,7 @@ import type { RecordingAction, MockRule } from '@playwright-demo/shared';
 import { readFileSync, existsSync, mkdirSync } from 'fs';
 import path from 'node:path';
 
-export interface ReplayResult {
+interface ReplayResult {
   status: 'passed' | 'failed';
   stepIndex: number;
   totalSteps: number;
@@ -129,7 +129,6 @@ export class ReplayEngine {
   private screenshots: { stepIndex: number; path: string }[] = [];
   private onStepCallback: ((index: number, status: 'completed') => void) | null = null;
   private onStepFailedCallback: ((index: number, error: string) => void) | null = null;
-  private onScreenshotCallback: ((stepIndex: number, path: string) => void) | null = null;
 
   onStep(callback: (index: number, status: 'completed') => void): void {
     this.onStepCallback = callback;
@@ -137,10 +136,6 @@ export class ReplayEngine {
 
   onStepFailed(callback: (index: number, error: string) => void): void {
     this.onStepFailedCallback = callback;
-  }
-
-  onScreenshot(callback: (stepIndex: number, path: string) => void): void {
-    this.onScreenshotCallback = callback;
   }
 
   async replay(actions: RecordingAction[], options: {
@@ -210,15 +205,6 @@ export class ReplayEngine {
             tracePath,
             screenshots: this.screenshots,
           };
-        }
-
-        if ((action as Record<string, unknown>).screenshot === true) {
-          const path = `${screenshotDir}/step-${i}.png`;
-          await page.screenshot({ path, fullPage: true });
-          this.screenshots.push({ stepIndex: i, path });
-          if (this.onScreenshotCallback) {
-            this.onScreenshotCallback(i, path);
-          }
         }
 
         if (this.onStepCallback) {

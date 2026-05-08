@@ -341,8 +341,4 @@ export class RecorderManager {
   private getHarPath(): string {
     return path.resolve(process.env.STORAGE_PATH || './storage', 'recordings', this.recordingId, 'temp-recording.har');
   }
-
-  getActions(): Recording['actions'] {
-    return this.actions;
-  }
 }

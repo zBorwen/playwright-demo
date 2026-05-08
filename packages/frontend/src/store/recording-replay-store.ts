@@ -3,17 +3,8 @@ import {
   loadAllRecordingReplayStates,
   saveRecordingReplayState,
   clearRecordingReplayState,
-  type PersistedRecordingReplayState,
-} from '@/lib/batch-replay-storage';
-
-export interface RecordingReplayStatus {
-  recordingId: string;
-  status: 'running' | 'passed' | 'failed';
-  projectId?: string;
-  error?: string;
-  executionId?: string;
-  startedAt: number;
-}
+  type PersistedRecordingReplayState as RecordingReplayStatus,
+} from '@/lib/recording-replay-storage';
 
 interface RecordingReplayStore {
   recordingReplays: Record<string, RecordingReplayStatus>;
@@ -36,7 +27,6 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
         [entry.recordingId]: entry,
       },
     }));
-    saveRecordingReplayState(entry as PersistedRecordingReplayState);
   },
 
   clearRecordingStatus(recordingId) {
@@ -44,7 +34,6 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
       const { [recordingId]: _, ...rest } = s.recordingReplays;
       return { recordingReplays: rest };
     });
-    clearRecordingReplayState(recordingId);
   },
 
   hydrate() {
@@ -53,9 +42,17 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
   },
 }));
 
-// Auto-persist: when store changes, save all entries
-useRecordingReplayStore.subscribe((state) => {
+// Auto-persist: when store changes, save all entries and clear removed ones
+useRecordingReplayStore.subscribe((state, prevState) => {
+  // Save changed entries
   for (const entry of Object.values(state.recordingReplays)) {
-    saveRecordingReplayState(entry as PersistedRecordingReplayState);
+    saveRecordingReplayState(entry);
+  }
+  // Clear removed entries
+  const currentIds = new Set(Object.keys(state.recordingReplays));
+  for (const prevId of Object.keys(prevState.recordingReplays)) {
+    if (!currentIds.has(prevId)) {
+      clearRecordingReplayState(prevId);
+    }
   }
 });

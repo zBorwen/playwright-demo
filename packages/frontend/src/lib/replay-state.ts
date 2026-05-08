@@ -4,7 +4,7 @@ import { formatActionDetail } from '@/lib/action-formatter';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000;
 
-export interface RunningExecution {
+interface RunningExecution {
   executionId: string;
   steps: Array<{
     index: number;

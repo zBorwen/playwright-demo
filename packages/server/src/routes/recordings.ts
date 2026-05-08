@@ -3,7 +3,7 @@ import { zValidator } from '../middleware/zod-validator';
 import { z } from 'zod';
 import { db } from '../db/index';
 import { projects, recordings, recordingArtifacts, executions } from '../db/schema';
-import { eq, desc, and, inArray } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import type { Recording, MockRule } from '@playwright-demo/shared';
 import type { Env } from '../types/env';
 import { getWsHandlers } from '../context';
@@ -18,6 +18,43 @@ interface ValidRecording {
   id: string;
   title: string;
   projectId: string | null;
+}
+
+/** Load the actions artifact content for a recording, or null if none exists. */
+async function loadActionsArtifact(id: string): Promise<string | null> {
+  const artifact = await db
+    .select()
+    .from(recordingArtifacts)
+    .where(and(eq(recordingArtifacts.recordingId, id), eq(recordingArtifacts.type, 'actions')))
+    .orderBy(desc(recordingArtifacts.createdAt))
+    .limit(1);
+  return artifact.length ? artifact[0].content : null;
+}
+
+/** Load mock rules for a recording, or empty array if none exist. */
+async function loadMockRules(id: string): Promise<MockRule[]> {
+  const artifact = await db
+    .select()
+    .from(recordingArtifacts)
+    .where(and(eq(recordingArtifacts.recordingId, id), eq(recordingArtifacts.type, 'mock_rules')))
+    .limit(1);
+  if (artifact.length && artifact[0].content) {
+    return JSON.parse(artifact[0].content) as MockRule[];
+  }
+  return [];
+}
+
+/** Load valid recordings (have actions artifact) from a list of IDs. */
+async function loadValidRecordings(ids: string[]): Promise<ValidRecording[]> {
+  const valid: ValidRecording[] = [];
+  for (const id of ids) {
+    const rec = await db.select().from(recordings).where(eq(recordings.id, id)).limit(1);
+    if (!rec.length) continue;
+    const content = await loadActionsArtifact(id);
+    if (content === null) continue;
+    valid.push({ id, title: rec[0].title, projectId: rec[0].projectId });
+  }
+  return valid;
 }
 
 /** Shared batch replay execution logic used by both /batch-replay routes. */
@@ -47,24 +84,11 @@ async function executeBatchReplay(
 
   const results: Array<{ recordingId: string; executionId: string; projectId?: string }> = [];
   for (const rec of validRecordings) {
-    const artifact = await db
-      .select()
-      .from(recordingArtifacts)
-      .where(and(eq(recordingArtifacts.recordingId, rec.id), eq(recordingArtifacts.type, 'actions')))
-      .limit(1);
+    const content = await loadActionsArtifact(rec.id);
+    if (!content) continue;
 
-    const actionsData = JSON.parse(artifact[0].content as string);
-    let mockRules: MockRule[] = [];
-    if (useMock) {
-      const mockArtifact = await db
-        .select()
-        .from(recordingArtifacts)
-        .where(and(eq(recordingArtifacts.recordingId, rec.id), eq(recordingArtifacts.type, 'mock_rules')))
-        .limit(1);
-      if (mockArtifact.length && mockArtifact[0].content) {
-        mockRules = JSON.parse(mockArtifact[0].content) as MockRule[];
-      }
-    }
+    const actionsData = JSON.parse(content);
+    const mockRules = useMock ? await loadMockRules(rec.id) : [];
 
     const execution = await db.insert(executions).values({
       recordingId: rec.id,
@@ -136,19 +160,9 @@ recordingsRouter.get('/:id', async (c) => {
 
 recordingsRouter.get('/:id/actions', async (c) => {
   const id = c.req.param('id');
-  const artifact = await db
-    .select()
-    .from(recordingArtifacts)
-    .where(
-      and(
-        eq(recordingArtifacts.recordingId, id),
-        eq(recordingArtifacts.type, 'actions'),
-      ),
-    )
-    .orderBy(desc(recordingArtifacts.createdAt))
-    .limit(1);
-  if (!artifact.length) return c.json(successResponse({ recordingId: id, actions: [] }));
-  const parsed = JSON.parse(artifact[0].content as string);
+  const content = await loadActionsArtifact(id);
+  if (content === null) return c.json(successResponse({ recordingId: id, actions: [] }));
+  const parsed = JSON.parse(content);
   // Backward compat: old artifacts stored as bare array
   if (Array.isArray(parsed)) {
     return c.json(successResponse({ recordingId: id, actions: parsed }));
@@ -158,19 +172,9 @@ recordingsRouter.get('/:id/actions', async (c) => {
 
 recordingsRouter.get('/:id/codegen', async (c) => {
   const id = c.req.param('id');
-  const artifact = await db
-    .select()
-    .from(recordingArtifacts)
-    .where(
-      and(
-        eq(recordingArtifacts.recordingId, id),
-        eq(recordingArtifacts.type, 'actions'),
-      ),
-    )
-    .orderBy(desc(recordingArtifacts.createdAt))
-    .limit(1);
-  if (!artifact.length) return c.json(successResponse({ codegen: '' }));
-  const parsed = JSON.parse(artifact[0].content as string);
+  const content = await loadActionsArtifact(id);
+  if (content === null) return c.json(successResponse({ codegen: '' }));
+  const parsed = JSON.parse(content);
   const actions = Array.isArray(parsed) ? parsed : parsed.actions ?? [];
   try {
     const code = generateCodegen(actions);
@@ -264,39 +268,14 @@ recordingsRouter.post('/:id/replay', async (c) => {
   }) : undefined;
   const replaySpeed = querySpeed || project?.replaySpeed || 'normal';
 
-  const artifact = await db
-    .select()
-    .from(recordingArtifacts)
-    .where(
-      and(
-        eq(recordingArtifacts.recordingId, id),
-        eq(recordingArtifacts.type, 'actions'),
-      ),
-    )
-    .limit(1);
+  const content = await loadActionsArtifact(id);
 
-  if (!artifact.length) return c.json(errorResponse(API_CODES.NOT_FOUND, 'actions 不存在'), 404);
+  if (content === null) return c.json(errorResponse(API_CODES.NOT_FOUND, 'actions 不存在'), 404);
 
-  const actionsData = JSON.parse(artifact[0].content as string);
+  const actionsData = JSON.parse(content);
 
   // Load mock rules if mock mode enabled
-  let mockRules: MockRule[] = [];
-  if (useMock) {
-    const mockArtifact = await db
-      .select()
-      .from(recordingArtifacts)
-      .where(
-        and(
-          eq(recordingArtifacts.recordingId, id),
-          eq(recordingArtifacts.type, 'mock_rules'),
-        ),
-      )
-      .limit(1);
-
-    if (mockArtifact.length && mockArtifact[0].content) {
-      mockRules = JSON.parse(mockArtifact[0].content) as MockRule[];
-    }
-  }
+  const mockRules = useMock ? await loadMockRules(id) : [];
 
   const execution = await db.insert(executions).values({
     recordingId: id,
@@ -327,19 +306,7 @@ recordingsRouter.post('/batch-replay', zValidator('json', z.object({
 })), async (c) => {
   const { recordingIds, useMock, agentId } = c.req.valid('json');
 
-  // Validate recordings exist and have actions, collect project IDs for speed lookup
-  const validRecordings: Array<{ id: string; title: string; projectId: string | null }> = [];
-  for (const id of recordingIds) {
-    const rec = await db.select().from(recordings).where(eq(recordings.id, id)).limit(1);
-    if (!rec.length) continue;
-    const artifact = await db
-      .select()
-      .from(recordingArtifacts)
-      .where(and(eq(recordingArtifacts.recordingId, id), eq(recordingArtifacts.type, 'actions')))
-      .limit(1);
-    if (!artifact.length) continue;
-    validRecordings.push({ id, title: rec[0].title, projectId: rec[0].projectId });
-  }
+  const validRecordings = await loadValidRecordings(recordingIds);
 
   if (validRecordings.length === 0) {
     return c.json(errorResponse(API_CODES.NOT_FOUND, '没有找到有效的录制'), 404);
@@ -376,18 +343,7 @@ recordingsRouter.post('/batch-replay/projects', zValidator('json', z.object({
     return c.json(errorResponse(API_CODES.NOT_FOUND, '这些项目下没有录制'), 404);
   }
 
-  const validRecordings: Array<{ id: string; title: string; projectId: string | null }> = [];
-  for (const id of allRecordingIds) {
-    const rec = await db.select().from(recordings).where(eq(recordings.id, id)).limit(1);
-    if (!rec.length) continue;
-    const artifact = await db
-      .select()
-      .from(recordingArtifacts)
-      .where(and(eq(recordingArtifacts.recordingId, id), eq(recordingArtifacts.type, 'actions')))
-      .limit(1);
-    if (!artifact.length) continue;
-    validRecordings.push({ id, title: rec[0].title, projectId: rec[0].projectId });
-  }
+  const validRecordings = await loadValidRecordings(allRecordingIds);
 
   if (validRecordings.length === 0) {
     return c.json(errorResponse(API_CODES.NOT_FOUND, '没有找到有效的录制'), 404);

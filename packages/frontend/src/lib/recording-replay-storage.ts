@@ -17,7 +17,7 @@ export function saveRecordingReplayState(state: PersistedRecordingReplayState): 
   sessionStorage.setItem(buildKey(state.recordingId), JSON.stringify(state));
 }
 
-export function loadRecordingReplayState(recordingId: string): PersistedRecordingReplayState | null {
+function loadRecordingReplayState(recordingId: string): PersistedRecordingReplayState | null {
   const raw = sessionStorage.getItem(buildKey(recordingId));
   if (!raw) return null;
   try {
@@ -48,7 +48,7 @@ export function loadAllRecordingReplayStates(): Record<string, PersistedRecordin
 
 const REPLAY_STALE_THRESHOLD_MS = 30 * 60 * 1000;
 
-export function isRecordingReplayStateStale(state: PersistedRecordingReplayState): boolean {
+function isRecordingReplayStateStale(state: PersistedRecordingReplayState): boolean {
   if (state.status !== 'running' || !state.startedAt) return false;
   return Date.now() - state.startedAt > REPLAY_STALE_THRESHOLD_MS;
 }

@@ -1,6 +1,6 @@
 import type { Page } from 'playwright-core';
 
-export interface ElementFingerprint {
+interface ElementFingerprint {
   dataTestId: string | null;
   dataTest: string | null;
   role: string | null;

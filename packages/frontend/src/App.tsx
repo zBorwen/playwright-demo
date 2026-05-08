@@ -6,13 +6,13 @@ import { ProjectDetail } from '@/components/project-detail';
 import { RecordingsList } from '@/components/recordings-list';
 import { RecordingDetail } from '@/components/recording-detail';
 import { ExecutionDetail } from '@/components/execution-detail';
+import { connect, subscribeToMessages } from '@/hooks/use-websocket';
+import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 function RecordingDetailWithKey() {
   const { id } = useParams<{ id: string }>();
   return <RecordingDetail key={id} />;
 }
-import { connect, subscribeToMessages } from '@/hooks/use-websocket';
-import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 export function App() {
   // Ensure single WS connection, hydrate replay state, register global replay listener

@@ -4,7 +4,7 @@ import { z } from 'zod';
 // ElementInfo
 // ---------------------------------------------------------------------------
 
-export const ElementInfoSchema = z.object({
+const ElementInfoSchema = z.object({
   dataTestId: z.string().nullable(),
   dataTest: z.string().nullable(),
   role: z.string().nullable(),
@@ -40,7 +40,7 @@ const SignalSchema = z.discriminatedUnion('name', [
 // Action schemas
 // ---------------------------------------------------------------------------
 
-export const ClickActionSchema = z.object({
+const ClickActionSchema = z.object({
   name: z.literal('click'),
   selector: z.string(),
   button: z.enum(['left', 'middle', 'right']).default('left'),
@@ -50,7 +50,7 @@ export const ClickActionSchema = z.object({
   signals: z.array(SignalSchema).default([]),
 });
 
-export const FillActionSchema = z.object({
+const FillActionSchema = z.object({
   name: z.literal('fill'),
   selector: z.string(),
   value: z.string(),
@@ -175,7 +175,7 @@ const recordingExtraFields = {
   screenshot: z.boolean().optional(),
 };
 
-const RecordingActionSchema = z.discriminatedUnion('name', [
+export const RecordingActionSchema = z.discriminatedUnion('name', [
   ClickActionSchema.extend(recordingExtraFields),
   FillActionSchema.extend(recordingExtraFields),
   HoverActionSchema.extend(recordingExtraFields),
@@ -242,7 +242,7 @@ export type MockRule = z.infer<typeof MockRuleSchema>;
 // Recording
 // ---------------------------------------------------------------------------
 
-export const RecordingSchema = z.object({
+const RecordingSchema = z.object({
   recordingId: z.string().uuid(),
   targetUrl: z.string().url(),
   title: z.string(),

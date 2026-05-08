@@ -21,11 +21,20 @@ import { useWebSocket, getSingleReplayProgress } from '@/hooks/use-websocket';
 import { RecordingJsonEditor } from '@/components/recording-json-editor';
 import { NetworkTab } from '@/components/network-tab';
 import { ReplayPanel, type ReplayStep } from '@/components/replay-panel';
+import { ExecutionList } from '@/components/execution-list';
+import { TraceViewerModal } from '@/components/trace-viewer-modal';
 import { detectRunningExecution } from '@/lib/replay-state';
 import { ACTION_ICONS, formatActionDetail } from '@/lib/action-formatter';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 type Tab = 'timeline' | 'codegen' | 'network' | 'json' | 'executions';
+
+const REPLAY_BUTTON_TEXT: Record<string, string> = {
+  running: '⏳ 回放中',
+  passed: '✅ 通过',
+  failed: '❌ 失败',
+  idle: '▶ 回放',
+};
 
 export function RecordingDetail() {
   const { id } = useParams<{ id: string }>();
@@ -51,14 +60,14 @@ export function RecordingDetail() {
     replayExecutionIdRef.current = replayExecutionId;
   }, [replayExecutionId]);
 
-  // Sync local replay status with store on mount / store change
-  const replayStatus = storeStatus === 'running' ? 'running' : storeStatus === 'passed' ? 'passed' : storeStatus === 'failed' ? 'failed' : 'idle' as const;
+  const replayStatus = storeStatus ?? 'idle';
 
   const [showTrace, setShowTrace] = useState(false);
   const [useMock, setUseMock] = useState(() => {
     try {
       return localStorage.getItem(`replay-use-mock:${id}`) === 'true';
     } catch {
+      // localStorage may be blocked; non-critical
       return false;
     }
   });
@@ -67,7 +76,9 @@ export function RecordingDetail() {
     setUseMock(checked);
     try {
       if (id) localStorage.setItem(`replay-use-mock:${id}`, String(checked));
-    } catch {}
+    } catch {
+      // localStorage may be blocked; non-critical
+    }
   };
   const [projectReplaySpeed, setProjectReplaySpeed] = useState<'fast' | 'normal' | 'slow'>('normal');
   const [project, setProject] = useState<{ id: string; name: string; replaySpeed: 'fast' | 'normal' | 'slow' } | null>(null);
@@ -197,7 +208,7 @@ export function RecordingDetail() {
         fetchProject(rec.projectId).then((p) => {
           setProject(p);
           setProjectReplaySpeed(p.replaySpeed || 'normal');
-        }).catch(() => {});
+        }).catch((e) => console.warn('Failed to fetch project settings:', e.message));
       }
       const restored = detectRunningExecution(execs, acts.actions || []);
       if (restored) {
@@ -236,7 +247,7 @@ export function RecordingDetail() {
             )
           );
         }
-      }).catch(() => {});
+      }).catch(() => {}); // Fallback poll failure is non-critical
     }, 2000);
     return () => clearTimeout(timer);
   }, [replayExecutionId, replayStatus]);
@@ -341,7 +352,7 @@ export function RecordingDetail() {
                 disabled={replayStatus === 'running' || storeStatus === 'running'}
                 className="rounded bg-green-900 px-4 py-2 text-sm hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {replayStatus === 'running' || storeStatus === 'running' ? '⏳ 回放中' : replayStatus === 'passed' ? '✅ 通过' : replayStatus === 'failed' ? '❌ 失败' : '▶ 回放'}
+                {REPLAY_BUTTON_TEXT[replayStatus] || '▶ 回放'}
               </button>
               <select
                 value={projectReplaySpeed}
@@ -349,7 +360,7 @@ export function RecordingDetail() {
                   const newSpeed = e.target.value as 'fast' | 'normal' | 'slow';
                   setProjectReplaySpeed(newSpeed);
                   if (project) {
-                    updateProjectSettings(project.id, { replaySpeed: newSpeed }).catch(() => {});
+                    updateProjectSettings(project.id, { replaySpeed: newSpeed }).catch((e) => console.warn('Failed to save replay speed:', e.message));
                   }
                 }}
                 className="rounded border-zinc-600 bg-zinc-800 text-xs px-1 py-2"
@@ -461,64 +472,15 @@ export function RecordingDetail() {
         />
       )}
 
-      {activeTab === 'executions' && (
-        <div>
-          {executions.length === 0 ? (
-            <p className="text-zinc-500">暂无执行记录</p>
-          ) : (
-            <div className="space-y-2">
-              {executions.map((ex) => (
-                <Link
-                  key={ex.id}
-                  to={`/executions/${ex.id}`}
-                  className="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm transition hover:border-zinc-600"
-                >
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs font-medium ${
-                      ex.status === 'passed'
-                        ? 'bg-green-900 text-green-300'
-                        : ex.status === 'failed'
-                          ? 'bg-red-900 text-red-300'
-                          : 'bg-yellow-900 text-yellow-300'
-                    }`}
-                  >
-                    {ex.status === 'passed' ? '通过' : ex.status === 'failed' ? '失败' : '运行中'}
-                  </span>
-                  <span className="text-zinc-400">
-                    {new Date(ex.startedAt).toLocaleString()}
-                  </span>
-                  {ex.finishedAt && (
-                    <span className="text-zinc-500">
-                      → {new Date(ex.finishedAt).toLocaleTimeString()}
-                    </span>
-                  )}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {activeTab === 'executions' && <ExecutionList executions={executions} />}
 
       {/* Trace Viewer Modal */}
-      {showTrace && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setShowTrace(false)}>
-          <div className="relative h-[90vh] w-[95vw] rounded-lg bg-zinc-900 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setShowTrace(false)}
-              className="absolute right-3 top-3 z-10 rounded bg-zinc-800 px-3 py-1 text-sm text-zinc-300 hover:bg-zinc-700"
-            >
-              ✕ 关闭
-            </button>
-            <div className="border-b border-zinc-800 px-4 py-2 text-sm text-zinc-400">
-              Trace Viewer — 执行 {replayExecutionId}
-            </div>
-            <iframe
-              src={`/trace-viewer/index.html?trace=${replayExecutionId ? encodeURIComponent(executionTraceUrl(replayExecutionId)) : ''}`}
-              className="h-[calc(100%-40px)] w-full rounded-b-lg"
-              title="Trace Viewer"
-            />
-          </div>
-        </div>
+      {showTrace && replayExecutionId && (
+        <TraceViewerModal
+          traceUrl={executionTraceUrl(replayExecutionId)}
+          title={`执行 ${replayExecutionId}`}
+          onClose={() => setShowTrace(false)}
+        />
       )}
     </div>
   );

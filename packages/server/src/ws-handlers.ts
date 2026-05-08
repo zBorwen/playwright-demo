@@ -60,7 +60,7 @@ export class WsHandlers {
       }
 
       case 'record:complete': {
-        const { recordingId, actions, harPath, codegen } = msg.payload;
+        const { recordingId, actions, harPath } = msg.payload;
 
         try {
           await db
@@ -128,11 +128,6 @@ export class WsHandlers {
       }
 
       case 'replay:step': {
-        this.broadcastToClients(JSON.stringify(msg));
-        break;
-      }
-
-      case 'replay:screenshot': {
         this.broadcastToClients(JSON.stringify(msg));
         break;
       }

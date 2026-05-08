@@ -35,7 +35,9 @@ function getRecordingMock(recordingId: string): boolean {
 function setRecordingMock(recordingId: string, checked: boolean): void {
   try {
     localStorage.setItem(`replay-use-mock:${recordingId}`, String(checked));
-  } catch {}
+  } catch {
+    // localStorage may be blocked in private mode; non-critical
+  }
 }
 
 function MockToggle({ recordingId }: { recordingId: string }) {
@@ -72,7 +74,7 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
   const [deleting, setDeleting] = useState(false);
   const [replaying, setReplaying] = useState(false);
 
-  const fetch = () => {
+  const loadData = () => {
     setLoading(true);
     fetchRecordings(projectId)
       .then((data) => {
@@ -87,12 +89,12 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
   };
 
   useEffect(() => {
-    fetch();
+    loadData();
   }, [projectId]);
 
   const handleSuccess = () => {
     setShowForm(false);
-    fetch();
+    loadData();
   };
 
   const toggleSelect = (id: string) => {
@@ -116,7 +118,7 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
     }
     setSelectedIds(new Set());
     setDeleting(false);
-    fetch();
+    loadData();
   };
 
   const handleBatchReplaySelected = async () => {
@@ -162,7 +164,7 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
     await deleteRecording(recId);
     setDeleting(false);
     setSelectedIds(new Set());
-    fetch();
+    loadData();
   };
 
   if (loading) return <p className="text-zinc-500">加载中...</p>;

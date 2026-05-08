@@ -18,16 +18,6 @@ export class StorageService {
     return path;
   }
 
-  async loadRecording(recordingId: string): Promise<Recording | null> {
-    try {
-      const path = `${this.base}/recordings/${recordingId}/actions.json`;
-      const content = await readFile(path, 'utf-8');
-      return JSON.parse(content) as Recording;
-    } catch {
-      return null; // File not found or invalid JSON
-    }
-  }
-
   async saveHar(recordingId: string, buffer: Buffer): Promise<string> {
     const dir = `${this.base}/recordings/${recordingId}`;
     await mkdir(dir, { recursive: true });
