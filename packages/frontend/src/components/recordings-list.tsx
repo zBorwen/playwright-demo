@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, Play, Globe, Calendar } from 'lucide-react';
+import { Trash2, Play, Globe, Calendar, Check, X } from 'lucide-react';
 import { fetchRecordings, deleteRecording, deleteRecordings, batchReplayRecordings, type Recording } from '@/lib/api';
 import { RecordingForm } from '@/components/recording-form';
 import { StatusBadge, StatusIcon } from '@/components/status-badge';
@@ -47,23 +47,29 @@ function MockToggle({ recordingId }: { recordingId: string }) {
   const isRunning = replay?.status === 'running';
   const [checked, setChecked] = useState(() => getRecordingMock(recordingId));
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const next = e.target.checked;
+  const handleChange = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = !checked;
     setChecked(next);
     setRecordingMock(recordingId, next);
   };
 
   return (
-    <label className="flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-1 text-xs text-zinc-400 cursor-pointer hover:text-zinc-300 transition-colors" title="Mock 模式" onClick={(e) => e.stopPropagation()}>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={handleChange}
-        disabled={isRunning}
-        className="h-3.5 w-3.5 rounded border-zinc-600 bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
-      />
+    <button
+      type="button"
+      onClick={handleChange}
+      disabled={isRunning}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${
+        checked
+          ? 'bg-violet-500/20 text-violet-400 ring-1 ring-violet-500/30'
+          : 'border border-zinc-700 bg-zinc-800 text-zinc-500 hover:text-zinc-300'
+      } disabled:opacity-50 disabled:cursor-not-allowed`}
+      title="Mock 模式"
+    >
+      <span className={`h-2 w-2 rounded-full transition-colors ${checked ? 'bg-violet-400' : 'bg-zinc-600'}`} />
       Mock
-    </label>
+    </button>
   );
 }
 
@@ -88,41 +94,50 @@ function RecordingCard({ recording, selected, onToggleSelect, onDelete }: {
   return (
     <Link
       to={`/recordings/${recording.id}`}
-      className="group relative flex flex-col rounded-lg border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-600 hover:bg-zinc-800/50"
+      className={`group relative flex flex-col rounded-xl border p-4 transition-all hover:shadow-lg hover:shadow-black/20 ${
+        selected
+          ? 'border-violet-400/50'
+          : 'border-zinc-800 bg-zinc-900 hover:border-zinc-600 hover:bg-zinc-800/50'
+      }`}
     >
-      {/* Top row: icon + title + actions */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
-            <Globe className="h-4 w-4 text-blue-400" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-medium text-zinc-100">
-              {recording.title}
-              <ReplayStatusIndicator recordingId={recording.id} />
-            </h3>
-          </div>
+      {/* Selection checkbox — top-right corner, visible on hover or when selected */}
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={selected}
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSelect(); }}
+        className={`absolute top-2.5 right-2.5 flex h-5 w-5 items-center justify-center rounded transition-all ${
+          selected
+            ? 'bg-violet-500 text-white'
+            : 'opacity-0 group-hover:opacity-100 border border-zinc-600 bg-zinc-800 text-zinc-400 hover:border-zinc-400 hover:text-zinc-200'
+        }`}
+      >
+        {selected && <Check className="h-3 w-3" />}
+      </button>
+
+      {/* Icon + Title */}
+      <div className="flex items-start gap-3 pr-8">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 ring-1 ring-blue-500/20">
+          <Globe className="h-4 w-4 text-blue-400" />
         </div>
-        {/* Action buttons - shown on hover */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-auto" onClick={(e) => e.preventDefault()}>
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={onToggleSelect}
-            onClick={(e) => e.stopPropagation()}
-            className="rounded border-zinc-600 bg-zinc-800"
-          />
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
-            className="rounded p-1 text-zinc-500 transition hover:text-red-400 hover:bg-red-950"
-            title="删除录制"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-medium text-zinc-100">
+            {recording.title}
+            <ReplayStatusIndicator recordingId={recording.id} />
+          </h3>
         </div>
       </div>
 
-      {/* Bottom row: stats */}
+      {/* Delete button */}
+      <button
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
+        className="absolute bottom-2.5 right-2.5 rounded p-1.5 text-zinc-600 opacity-0 transition-all hover:text-red-400 hover:bg-red-950/50 group-hover:opacity-100"
+        title="删除录制"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+
+      {/* Bottom row: URL, time, mock toggle */}
       <div className="mt-3 flex items-center gap-4 border-t border-zinc-800 pt-3 text-xs text-zinc-500">
         {recording.targetUrl && (
           <span className="truncate max-w-[200px]" title={recording.targetUrl}>
@@ -133,7 +148,7 @@ function RecordingCard({ recording, selected, onToggleSelect, onDelete }: {
           <Calendar className="h-3 w-3" />
           {timeAgo}
         </span>
-        <span className="z-10 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+        <span className="ml-auto z-10 pointer-events-auto">
           <MockToggle recordingId={recording.id} />
         </span>
       </div>
@@ -246,32 +261,48 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
 
   return (
     <div>
-      {selectedIds.size > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5">
-          <span className="text-sm font-medium text-zinc-300">已选择 {selectedIds.size} 条录制</span>
+      {/* Batch action bar */}
+      <div
+        className={`mb-4 flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/80 px-4 py-2.5 transition-all duration-200 ease-out ${
+          selectedIds.size > 0
+            ? 'opacity-100 visible'
+            : 'opacity-0 invisible h-0 py-0 border-0 overflow-hidden'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          {/* Selection count pill */}
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-400">
+            <Check className="h-3 w-3" />
+            {selectedIds.size} 条录制
+          </span>
+          {/* Primary action */}
           <button
             onClick={handleBatchReplaySelected}
             disabled={replaying}
-            className="inline-flex items-center gap-1.5 rounded bg-green-900 px-3 py-1.5 text-sm font-medium text-green-200 transition-colors hover:bg-green-800 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-medium text-white shadow-sm shadow-violet-600/20 transition-all hover:bg-violet-500 hover:shadow-violet-500/30 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Play className="h-3.5 w-3.5" />
             {replaying ? '回放中…' : '批量回放'}
           </button>
+          {/* Danger action */}
           <button
             onClick={handleDeleteSelected}
             disabled={deleting}
-            className="rounded bg-red-900 px-3 py-1.5 text-sm text-red-200 hover:bg-red-800 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3.5 py-2 text-xs font-medium text-red-400 transition-all hover:bg-red-500/20 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
           >
+            <Trash2 className="h-3.5 w-3.5" />
             {deleting ? '删除中…' : '批量删除'}
           </button>
-          <button
-            onClick={() => setSelectedIds(new Set())}
-            className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
-          >
-            取消选择
-          </button>
         </div>
-      )}
+        {/* Cancel */}
+        <button
+          onClick={() => setSelectedIds(new Set())}
+          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+        >
+          <X className="h-3.5 w-3.5" />
+          取消
+        </button>
+      </div>
 
       {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { saveRecordingActions, type RecordingAction } from '@/lib/api';
+import { highlightJSON } from '@/lib/syntax-highlight';
 
 interface RecordingJsonEditorProps {
   recordingId: string;
@@ -32,6 +33,7 @@ export function RecordingJsonEditor({ recordingId, actions, onSave }: RecordingJ
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const rawActionsRef = useRef(actions);
 
   useEffect(() => {
@@ -56,6 +58,7 @@ export function RecordingJsonEditor({ recordingId, actions, onSave }: RecordingJ
       const parsed = JSON.parse(jsonText);
       setJsonText(JSON.stringify(maskPasswordInActions(parsed), null, 2));
       setError(null);
+      setIsEditing(false);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -87,17 +90,35 @@ export function RecordingJsonEditor({ recordingId, actions, onSave }: RecordingJ
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <button
-          onClick={handleFormat}
-          className="rounded bg-zinc-800 px-3 py-1.5 text-sm hover:bg-zinc-700"
-        >
-          格式化
-        </button>
+      {/* Toolbar */}
+      <div className="flex items-center gap-3">
+        {!isEditing ? (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+          >
+            编辑
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={handleFormat}
+              className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            >
+              格式化
+            </button>
+            <button
+              onClick={() => setIsEditing(false)}
+              className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            >
+              取消编辑
+            </button>
+          </>
+        )}
         <button
           onClick={handleSave}
           disabled={saving || !!error}
-          className="rounded bg-blue-900 px-3 py-1.5 text-sm hover:bg-blue-800 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-md bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? '保存中...' : '保存'}
         </button>
@@ -105,21 +126,31 @@ export function RecordingJsonEditor({ recordingId, actions, onSave }: RecordingJ
       </div>
 
       {error && (
-        <div className="rounded border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-300">
+        <div className="rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-300">
           JSON 错误: {error}
         </div>
       )}
 
-      <textarea
-        className="h-96 w-full rounded border border-zinc-700 bg-zinc-900 p-3 font-mono text-sm text-zinc-100"
-        value={jsonText}
-        onChange={(e) => {
-          setJsonText(e.target.value);
-          setSaved(false);
-          setError(null);
-        }}
-        spellCheck={false}
-      />
+      {/* Content */}
+      <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 overflow-hidden">
+        {isEditing ? (
+          <textarea
+            className="h-96 w-full bg-transparent p-4 font-mono text-sm text-zinc-100 outline-none"
+            value={jsonText}
+            onChange={(e) => {
+              setJsonText(e.target.value);
+              setSaved(false);
+              setError(null);
+            }}
+            spellCheck={false}
+          />
+        ) : (
+          <pre
+            className="overflow-auto p-4 text-sm font-mono text-zinc-300"
+            dangerouslySetInnerHTML={{ __html: highlightJSON(jsonText) }}
+          />
+        )}
+      </div>
     </div>
   );
 }

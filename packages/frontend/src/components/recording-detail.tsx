@@ -30,6 +30,7 @@ import { CodegenTab } from '@/components/codegen-tab';
 import { TabBar } from '@/components/tab-bar';
 import { StepListPanel } from '@/components/step-list-panel';
 import { Code } from 'lucide-react';
+import { highlightJSON } from '@/lib/syntax-highlight';
 
 type Tab = 'timeline' | 'codegen' | 'network' | 'json' | 'executions';
 
@@ -395,11 +396,16 @@ export function RecordingDetail() {
                         </div>
                       )}
                       {/* Action parameters */}
-                      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
-                        <h4 className="mb-2 text-xs font-medium text-zinc-400">操作参数</h4>
-                        <pre className="overflow-auto text-xs font-mono text-zinc-300">
-                          {JSON.stringify(maskedAction, null, 2)}
-                        </pre>
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50">
+                        <div className="flex items-center gap-1.5 border-b border-zinc-800 px-4 py-2.5">
+                          <span className="text-xs font-medium text-zinc-400">操作参数</span>
+                        </div>
+                        <pre
+                          className="overflow-auto p-4 text-xs font-mono text-zinc-300"
+                          dangerouslySetInnerHTML={{
+                            __html: highlightJSON(JSON.stringify(maskedAction, null, 2)),
+                          }}
+                        />
                       </div>
                     </div>
                   );

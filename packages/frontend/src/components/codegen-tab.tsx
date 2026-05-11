@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Code, Copy, Check } from 'lucide-react';
+import { highlightTypeScript } from '@/lib/syntax-highlight';
 
 interface CodegenTabProps {
   codegen: string;
@@ -69,9 +70,10 @@ export function CodegenTab({ codegen }: CodegenTabProps) {
         </button>
       </div>
       {/* Code */}
-      <pre className="overflow-auto p-4 text-sm font-mono text-zinc-300 leading-relaxed">
-        {displayCodegen}
-      </pre>
+      <pre
+        className="overflow-auto p-4 text-sm font-mono leading-relaxed text-zinc-300"
+        dangerouslySetInnerHTML={{ __html: highlightTypeScript(displayCodegen) }}
+      />
     </div>
   );
 }

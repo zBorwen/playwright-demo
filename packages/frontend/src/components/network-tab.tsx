@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { NetworkEntry, MockRule } from '@playwright-demo/shared';
 import {
   fetchRecordingNetwork,
   fetchRecordingMockRules,
   saveRecordingMockRules,
 } from '@/lib/api';
+import { ChevronDown, ChevronRight, Wand2, Pencil, X } from 'lucide-react';
+import { highlightJSON } from '@/lib/syntax-highlight';
 
 const METHOD_COLORS: Record<string, string> = {
   GET: 'text-green-400',
@@ -26,72 +28,275 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-function totalTiming(t: NetworkEntry['timing']): number {
-  return t.blocked + t.dns + t.connect + t.send + t.wait + t.receive;
+function totalTiming(t: NetworkEntry['timing']): string {
+  const ms = t.blocked + t.dns + t.connect + t.send + t.wait + t.receive;
+  return `${ms.toFixed(2)}ms`;
 }
 
-// ─── Detail Panel ─────────────────────────────────────────────
+function formatBody(raw: string): string {
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
+}
 
-function EntryDetailPanel({
+// ─── Mock Edit Modal ──────────────────────────────────────────
+
+function MockEditModal({
+  entry,
+  initialBody,
+  onClose,
+  onSave,
+}: {
+  entry: NetworkEntry;
+  initialBody: string;
+  onClose: () => void;
+  onSave: (body: string) => void;
+}) {
+  const [bodyText, setBodyText] = useState(() => formatBody(initialBody));
+  const [formatError, setFormatError] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLPreElement>(null);
+
+  // Lock body scroll
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
+  // Focus textarea
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  // Escape to close
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
+  // Sync scroll: highlight pre follows textarea
+  const handleScroll = () => {
+    if (textareaRef.current && highlightRef.current) {
+      highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+      highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
+  };
+
+  // Real-time validation
+  const liveError = (() => {
+    if (!bodyText.trim()) return null;
+    try {
+      JSON.parse(bodyText);
+      return null;
+    } catch (e) {
+      return (e as Error).message;
+    }
+  })();
+
+  const handleFormat = () => {
+    try {
+      const parsed = JSON.parse(bodyText);
+      setBodyText(JSON.stringify(parsed, null, 2));
+      setFormatError(null);
+    } catch (e) {
+      setFormatError((e as Error).message);
+    }
+  };
+
+  const handleSave = () => {
+    if (liveError) {
+      setFormatError(liveError);
+      return;
+    }
+    setFormatError(null);
+    onSave(bodyText);
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      onClick={onClose}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60" />
+
+      {/* Modal */}
+      <div
+        className="relative z-10 flex w-[90vw] max-w-5xl flex-col rounded-xl border border-zinc-800 bg-zinc-950 shadow-2xl"
+        style={{ maxHeight: '85vh' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-6 py-4">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-200">Mock Response Body</h3>
+            <p className="mt-1 truncate max-w-2xl text-xs font-mono text-zinc-500">{entry.url}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex shrink-0 items-center gap-3 border-b border-zinc-800 px-6 py-3">
+          <button
+            onClick={handleFormat}
+            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+          >
+            <Wand2 className="h-3.5 w-3.5" />
+            格式化
+          </button>
+          <div className="flex-1" />
+          <button
+            onClick={onClose}
+            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSave}
+            className="inline-flex items-center gap-1.5 rounded-md bg-violet-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-violet-400"
+          >
+            保存
+          </button>
+        </div>
+
+        {/* Editor with syntax highlight overlay */}
+        <div className="relative min-h-0 flex-1 overflow-hidden" style={{ minHeight: '50vh' }}>
+          {/* Highlighted background */}
+          <pre
+            ref={highlightRef}
+            className="absolute inset-0 overflow-auto p-4 text-sm font-mono leading-relaxed pointer-events-none"
+            aria-hidden="true"
+            dangerouslySetInnerHTML={{ __html: highlightJSON(bodyText || '') }}
+          />
+          {/* Transparent textarea on top */}
+          <textarea
+            ref={textareaRef}
+            value={bodyText}
+            onChange={(e) => {
+              setBodyText(e.target.value);
+              setFormatError(null);
+            }}
+            onScroll={handleScroll}
+            className="absolute inset-0 w-full h-full p-4 text-sm font-mono leading-relaxed bg-transparent text-transparent caret-zinc-200 outline-none resize-none"
+            spellCheck={false}
+            autoCapitalize="off"
+            autoComplete="off"
+            autoCorrect="off"
+          />
+        </div>
+
+        {/* Footer: live validation */}
+        {(liveError || formatError) && (
+          <div className="shrink-0 border-t border-zinc-800 px-6 py-3">
+            <span className="text-xs text-red-400">JSON 语法错误: {liveError || formatError}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Inline Detail (row-expanded) ─────────────────────────────
+
+function InlineDetail({
   entry,
   mockRule,
   onToggleMock,
-  onResponseBodyChange,
+  onOpenMockEdit,
 }: {
   entry: NetworkEntry;
   mockRule?: MockRule;
   onToggleMock: () => void;
-  onResponseBodyChange: (body: string) => void;
+  onOpenMockEdit: () => void;
 }) {
   const isMocked = !!mockRule;
-  const [bodyText, setBodyText] = useState(mockRule?.responseBody ?? entry.responseBody ?? '');
-
-  useEffect(() => {
-    setBodyText(mockRule?.responseBody ?? entry.responseBody ?? '');
-  }, [entry.id, mockRule?.responseBody, entry.responseBody]);
 
   return (
-    <div className="rounded border border-zinc-700 bg-zinc-900 p-4 space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-sm text-zinc-100 truncate">{entry.url}</span>
-        <label className="flex items-center gap-1.5 text-xs text-zinc-400 shrink-0">
-          <input
-            type="checkbox"
-            checked={isMocked}
-            onChange={onToggleMock}
-            className="rounded border-zinc-600 bg-zinc-800"
-          />
-          Mock
-        </label>
-      </div>
-      <div className="grid grid-cols-2 gap-2 text-xs text-zinc-400">
-        <span>Method: <span className="text-zinc-200">{entry.method}</span></span>
-        <span>Status: <span className={statusColor(entry.status)}>{entry.status} {entry.statusText}</span></span>
-        <span>Type: <span className="text-zinc-200 font-mono">{entry.mimeType}</span></span>
-        <span>Size: <span className="text-zinc-200">{formatSize(entry.contentSize)}</span></span>
-        <span>Wait: <span className="text-zinc-200">{entry.timing.wait}ms</span></span>
-        <span>Total: <span className="text-zinc-200">{totalTiming(entry.timing)}ms</span></span>
-      </div>
-      {isMocked && (
+    <div className="bg-zinc-900/80 border-t border-zinc-800">
+      <div className="p-6 space-y-5">
+        {/* ── Section 1: Request Info ── */}
         <div>
-          <label className="text-xs text-zinc-400 block mb-1">Mock Response Body</label>
-          <textarea
-            value={bodyText}
-            onChange={(e) => setBodyText(e.target.value)}
-            onBlur={() => onResponseBodyChange(bodyText)}
-            rows={8}
-            className="w-full rounded border border-zinc-700 bg-zinc-950 p-2 font-mono text-xs text-zinc-300"
-          />
+          <span className="mb-3 block text-xs font-medium text-zinc-400">请求信息</span>
+          <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-5">
+            <div className="grid grid-cols-3 gap-x-6 gap-y-4">
+              <InfoRow label="Method" value={entry.method} color={METHOD_COLORS[entry.method] ?? 'text-zinc-200'} />
+              <InfoRow label="Status" value={`${entry.status} ${entry.statusText}`} color={statusColor(entry.status)} />
+              <InfoRow label="MIME" value={entry.mimeType} />
+              <InfoRow label="Size" value={formatSize(entry.contentSize)} />
+              <InfoRow label="Wait" value={`${entry.timing.wait}ms`} />
+              <InfoRow label="Total" value={totalTiming(entry.timing)} />
+            </div>
+          </div>
         </div>
-      )}
-      {entry.responseBody && (
-        <details>
-          <summary className="text-xs text-zinc-500 cursor-pointer">原始响应</summary>
-          <pre className="mt-1 max-h-48 overflow-auto text-xs text-zinc-400 font-mono whitespace-pre-wrap break-all">
-            {entry.responseBody}
-          </pre>
-        </details>
-      )}
+
+        {/* ── Section 2: Mock ── */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-zinc-400">Mock</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onToggleMock}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  isMocked
+                    ? 'bg-violet-600/20 text-violet-400 ring-1 ring-violet-600/30'
+                    : 'bg-zinc-800 text-zinc-500 ring-1 ring-zinc-700 hover:bg-zinc-750 hover:text-zinc-300'
+                }`}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                {isMocked ? '已启用' : '未启用'}
+              </button>
+              {isMocked && (
+                <button
+                  onClick={onOpenMockEdit}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+                >
+                  <Pencil className="h-3 w-3" />
+                  编辑 Mock
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Section 3: Raw Response ── */}
+        {entry.responseBody && (
+          <div>
+            <span className="mb-3 block text-xs font-medium text-zinc-400">原始响应</span>
+            <div className="rounded-lg border border-zinc-800 bg-zinc-950/50 overflow-hidden">
+              <details className="group">
+                <summary className="cursor-pointer px-4 py-3 text-xs text-zinc-500 transition-colors hover:text-zinc-300">
+                  点击展开查看
+                </summary>
+                <pre
+                  className="border-t border-zinc-800 max-h-[32rem] overflow-auto p-4 text-sm font-mono text-zinc-400 whitespace-pre-wrap break-all"
+                  dangerouslySetInnerHTML={{ __html: highlightJSON(entry.responseBody ?? '') }}
+                />
+              </details>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[11px] text-zinc-500">{label}</span>
+      <span className={`font-mono text-sm ${color ?? 'text-zinc-200'}`}>{value}</span>
     </div>
   );
 }
@@ -101,7 +306,8 @@ function EntryDetailPanel({
 export function NetworkTab({ recordingId }: { recordingId: string }) {
   const [entries, setEntries] = useState<NetworkEntry[]>([]);
   const [rules, setRules] = useState<MockRule[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showMockModal, setShowMockModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -120,8 +326,8 @@ export function NetworkTab({ recordingId }: { recordingId: string }) {
     });
   }, [recordingId]);
 
-  const selectedEntry = entries.find((e) => e.id === selectedId);
-  const selectedRule = rules.find((r) => r.urlPattern === selectedEntry?.url);
+  const expandedEntry = entries.find((e) => e.id === expandedId);
+  const expandedRule = rules.find((r) => r.urlPattern === expandedEntry?.url);
 
   const toggleMock = useCallback(async (entry: NetworkEntry) => {
     const existing = rules.findIndex((r) => r.urlPattern === entry.url);
@@ -159,63 +365,84 @@ export function NetworkTab({ recordingId }: { recordingId: string }) {
   if (entries.length === 0) return <p className="text-zinc-500 py-8 text-center">无网络请求记录</p>;
 
   return (
-    <div className="flex gap-4" style={{ minHeight: '500px' }}>
-      {/* Entry list */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-zinc-950 text-zinc-500 text-xs">
-            <tr className="border-b border-zinc-800">
-              <th className="text-left px-2 py-1 w-16">Method</th>
-              <th className="text-left px-2 py-1">URL</th>
-              <th className="text-left px-2 py-1 w-16">Status</th>
-              <th className="text-left px-2 py-1 w-20">Time</th>
-              <th className="text-left px-2 py-1 w-16">Size</th>
-              <th className="text-left px-2 py-1 w-12">Mock</th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((entry) => {
-              const isMocked = rules.some((r) => r.urlPattern === entry.url);
-              return (
-                <tr
-                  key={entry.id}
-                  onClick={() => setSelectedId(entry.id)}
-                  className={`border-b border-zinc-800 cursor-pointer transition hover:bg-zinc-900 ${
-                    selectedId === entry.id ? 'bg-zinc-800' : ''
-                  }`}
-                >
-                  <td className={`px-2 py-1 font-mono text-xs font-bold ${METHOD_COLORS[entry.method] ?? 'text-zinc-400'}`}>
-                    {entry.method}
-                  </td>
-                  <td className="px-2 py-1 text-zinc-300 truncate max-w-[400px]" title={entry.url}>
-                    {entry.url}
-                  </td>
-                  <td className={`px-2 py-1 font-mono text-xs ${statusColor(entry.status)}`}>
-                    {entry.status}
-                  </td>
-                  <td className="px-2 py-1 text-zinc-500 text-xs">{entry.timing.wait}ms</td>
-                  <td className="px-2 py-1 text-zinc-500 text-xs">{formatSize(entry.contentSize)}</td>
-                  <td className="px-2 py-1 text-center">
-                    {isMocked && <span className="text-yellow-400 text-xs font-bold">M</span>}
-                    {saving && selectedId === entry.id && <span className="text-zinc-600 text-xs">…</span>}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+    <div className="min-h-[500px]">
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden">
+        {/* Table header */}
+        <div className="sticky top-0 bg-zinc-900 text-zinc-500 text-xs border-b border-zinc-800">
+          <div className="grid grid-cols-[4rem_1fr_4rem_5rem_4rem_2rem] items-center px-3 py-2">
+            <span className="text-left">Method</span>
+            <span className="text-left">URL</span>
+            <span className="text-left">Status</span>
+            <span className="text-left">Time</span>
+            <span className="text-left">Size</span>
+            <span className="text-center">Mock</span>
+          </div>
+        </div>
+
+        {/* Rows */}
+        {entries.map((entry) => {
+          const isMocked = rules.some((r) => r.urlPattern === entry.url);
+          const isExpanded = expandedId === entry.id;
+
+          return (
+            <div key={entry.id}>
+              <div
+                onClick={() => setExpandedId(isExpanded ? null : entry.id)}
+                className={`grid grid-cols-[4rem_1fr_4rem_5rem_4rem_2rem] items-center px-3 py-1.5 cursor-pointer transition-colors border-b border-zinc-800/50 ${
+                  isExpanded
+                    ? 'bg-zinc-800'
+                    : 'hover:bg-zinc-800/50'
+                }`}
+              >
+                <span className={`font-mono text-xs font-bold ${METHOD_COLORS[entry.method] ?? 'text-zinc-400'}`}>
+                  {entry.method}
+                </span>
+                <span className="text-zinc-300 truncate text-xs" title={entry.url}>
+                  {entry.url}
+                </span>
+                <span className={`font-mono text-xs ${statusColor(entry.status)}`}>
+                  {entry.status}
+                </span>
+                <span className="text-zinc-500 text-xs">{entry.timing.wait}ms</span>
+                <span className="text-zinc-500 text-xs">{formatSize(entry.contentSize)}</span>
+                <span className="flex items-center justify-center gap-1">
+                  {isMocked && (
+                    <span className="rounded-full bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-bold text-yellow-400">M</span>
+                  )}
+                  {isExpanded ? (
+                    <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5 text-zinc-500" />
+                  )}
+                </span>
+              </div>
+
+              {/* Expanded detail */}
+              {isExpanded && expandedEntry && (
+                <InlineDetail
+                  entry={expandedEntry}
+                  mockRule={expandedRule}
+                  onToggleMock={() => toggleMock(expandedEntry)}
+                  onOpenMockEdit={() => setShowMockModal(true)}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Detail panel */}
-      {selectedEntry && (
-        <div className="w-96 shrink-0 overflow-auto">
-          <EntryDetailPanel
-            entry={selectedEntry}
-            mockRule={selectedRule}
-            onToggleMock={() => toggleMock(selectedEntry)}
-            onResponseBodyChange={(body) => updateResponseBody(selectedEntry.url, body)}
-          />
-        </div>
+      {/* Mock Edit Modal */}
+      {showMockModal && expandedEntry && (
+        <MockEditModal
+          entry={expandedEntry}
+          initialBody={expandedRule?.responseBody ?? expandedEntry.responseBody ?? ''}
+          onClose={() => setShowMockModal(false)}
+          onSave={(body) => updateResponseBody(expandedEntry.url, body)}
+        />
+      )}
+
+      {saving && (
+        <p className="mt-2 text-center text-xs text-zinc-500">保存中...</p>
       )}
     </div>
   );
