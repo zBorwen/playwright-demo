@@ -20,14 +20,14 @@ const ROUTE_LABELS: Record<string, BreadcrumbItem[]> = {
 export function Breadcrumb({ items }: BreadcrumbProps) {
   return (
     <nav className="flex items-center gap-1 text-sm text-zinc-500" aria-label="面包屑导航">
-      <Link to="/" className="flex items-center gap-1 hover:text-zinc-300 transition-colors">
+      <Link to="/" className="flex cursor-pointer items-center gap-1 hover:text-zinc-300 transition-colors">
         <Home className="h-3.5 w-3.5" />
       </Link>
       {items.map((item, i) => (
         <div key={i} className="flex items-center gap-1">
           <ChevronRight className="h-3 w-3 text-zinc-700" />
           {item.href ? (
-            <Link to={item.href} className="hover:text-zinc-300 transition-colors">
+            <Link to={item.href} className="cursor-pointer hover:text-zinc-300 transition-colors">
               {item.label}
             </Link>
           ) : (

@@ -24,10 +24,10 @@ export function TabBar({ activeTab, onChange, counts }: TabBarProps) {
           <button
             key={tab.key}
             onClick={() => onChange(tab.key)}
-            className={`relative px-3 py-2 text-xs font-medium transition-colors ${
+            className={`relative cursor-pointer px-3 py-2 text-xs font-medium transition-colors ${
               isActive
                 ? 'text-zinc-100'
-                : 'text-zinc-500 hover:text-zinc-300'
+                : 'text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300'
             }`}
           >
             {tab.label}
@@ -37,7 +37,7 @@ export function TabBar({ activeTab, onChange, counts }: TabBarProps) {
               </span>
             )}
             {isActive && (
-              <span className="absolute bottom-0 left-0 right-0 h-px bg-zinc-100" />
+              <span className="absolute bottom-0 left-0 right-0 h-px bg-violet-500" />
             )}
           </button>
         );

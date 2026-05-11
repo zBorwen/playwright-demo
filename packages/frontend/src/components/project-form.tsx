@@ -43,7 +43,7 @@ export function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
       role="dialog"
       aria-modal="true"
       aria-label="新建项目"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={() => !submitting && onCancel()}
     >
       <div
@@ -51,14 +51,14 @@ export function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="mb-4 text-lg font-semibold">新建项目</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="project-name" className="mb-1 block text-sm text-zinc-400">
+            <label htmlFor="project-name" className="mb-1.5 block text-sm font-medium text-zinc-300">
               名称 <span className="text-red-400">*</span>
             </label>
             <input
               id="project-name"
-              className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none"
+              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -68,12 +68,12 @@ export function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
             />
           </div>
           <div>
-            <label htmlFor="project-desc" className="mb-1 block text-sm text-zinc-400">
+            <label htmlFor="project-desc" className="mb-1.5 block text-sm font-medium text-zinc-300">
               描述
             </label>
             <textarea
               id="project-desc"
-              className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none"
+              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="可选"
@@ -81,10 +81,10 @@ export function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
             />
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-3 pt-2">
             <button
               type="button"
-              className="rounded px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200"
+              className="rounded-md px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
               onClick={onCancel}
               disabled={submitting}
             >
@@ -93,7 +93,7 @@ export function ProjectForm({ onSuccess, onCancel }: ProjectFormProps) {
             <button
               type="submit"
               disabled={submitting || !name.trim()}
-              className="rounded bg-zinc-200 px-4 py-2 text-sm font-medium text-zinc-900 disabled:opacity-50 hover:bg-white"
+              className="rounded-md bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? '创建中...' : '创建'}
             </button>

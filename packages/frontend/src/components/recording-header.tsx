@@ -1,5 +1,6 @@
 import { Play, Loader2, CheckCircle, XCircle, Circle, Square } from 'lucide-react';
 import { ControlBar } from '@/components/control-bar';
+import { StatusBadge } from '@/components/status-badge';
 import type { Recording } from '@/lib/api';
 
 const REPLAY_BUTTON_CONFIG: Record<string, { icon: React.ComponentType<{ className?: string }>; text: string; className?: string }> = {
@@ -51,7 +52,7 @@ export function RecordingHeader({
       {/* Title row */}
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold text-zinc-100">{recording.title}</h1>
+          <h1 className="text-xl font-semibold text-zinc-100">{recording.title}</h1>
           <div className="mt-1 flex items-center gap-3 text-xs text-zinc-500">
             {recording.targetUrl && (
               <span className="truncate max-w-[400px] font-mono" title={recording.targetUrl}>
@@ -66,22 +67,11 @@ export function RecordingHeader({
         </div>
         {/* Execution status badge */}
         {lastExecutionStatus && (
-          <div className="flex shrink-0 items-center gap-1.5 rounded-md bg-zinc-800 px-3 py-1.5 text-xs">
-            {lastExecutionStatus === 'passed' ? (
-              <CheckCircle className="h-3.5 w-3.5 text-green-400" />
-            ) : lastExecutionStatus === 'failed' ? (
-              <XCircle className="h-3.5 w-3.5 text-red-400" />
-            ) : (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
-            )}
-            <span className={
-              lastExecutionStatus === 'passed' ? 'text-green-400'
-                : lastExecutionStatus === 'failed' ? 'text-red-400'
-                : 'text-blue-400'
-            }>
-              {lastExecutionStatus === 'passed' ? '通过' : lastExecutionStatus === 'failed' ? '失败' : '执行中'}
-            </span>
-            {lastExecutedAt && <span className="text-zinc-500">{lastExecutedAt}</span>}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <StatusBadge
+              status={lastExecutionStatus === 'passed' ? 'passed' : lastExecutionStatus === 'failed' ? 'failed' : 'running'}
+            />
+            {lastExecutedAt && <span className="text-xs text-zinc-500">{lastExecutedAt}</span>}
           </div>
         )}
       </div>
@@ -92,14 +82,14 @@ export function RecordingHeader({
           <button
             onClick={onStartRecording}
             disabled={storeStatus === 'running'}
-            className="inline-flex items-center gap-2 rounded-md bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Circle className="h-4 w-4 fill-current" /> 录制
           </button>
         ) : (
           <button
             onClick={onStopRecording}
-            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
           >
             <Square className="h-4 w-4 fill-current" /> 停止
           </button>
@@ -107,11 +97,11 @@ export function RecordingHeader({
         <button
           onClick={onReplay}
           disabled={isRunning}
-          className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`inline-flex cursor-pointer items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
             replayStatus === 'passed'
-              ? 'border border-green-700 text-green-400 hover:bg-green-900/50'
+              ? 'border-green-700 text-green-400 hover:bg-green-900/50'
               : replayStatus === 'failed'
-              ? 'border border-red-700 text-red-400 hover:bg-red-900/50'
+              ? 'border-red-700 text-red-400 hover:bg-red-900/50'
               : 'border border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
           }`}
         >

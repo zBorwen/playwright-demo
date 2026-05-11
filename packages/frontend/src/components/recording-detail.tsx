@@ -19,7 +19,7 @@ import {
 import { useWebSocket, getSingleReplayProgress } from '@/hooks/use-websocket';
 import { RecordingJsonEditor } from '@/components/recording-json-editor';
 import { NetworkTab } from '@/components/network-tab';
-import { ReplayPanel, type ReplayStep } from '@/components/replay-panel';
+import { type ReplayStep } from '@/components/replay-panel';
 import { ExecutionList } from '@/components/execution-list';
 import { TraceViewerModal } from '@/components/trace-viewer-modal';
 import { detectRunningExecution } from '@/lib/replay-state';
@@ -29,7 +29,7 @@ import { RecordingHeader } from '@/components/recording-header';
 import { CodegenTab } from '@/components/codegen-tab';
 import { TabBar } from '@/components/tab-bar';
 import { StepListPanel } from '@/components/step-list-panel';
-import { Code } from 'lucide-react';
+import { Code, Eye } from 'lucide-react';
 import { highlightJSON } from '@/lib/syntax-highlight';
 
 type Tab = 'timeline' | 'codegen' | 'network' | 'json' | 'executions';
@@ -325,22 +325,6 @@ export function RecordingDetail() {
         onSpeedChange={handleSpeedChange}
       />
 
-      {/* Replay Panel (during replay) */}
-      {replaySteps.length > 0 && replayStatus === 'running' && (
-        <div className="mb-4">
-          <ReplayPanel
-            steps={replaySteps}
-            isRunning={replayStatus === 'running'}
-            overallStatus={replayStatus}
-            executionId={replayExecutionId}
-            onViewTrace={(execId) => {
-              setReplayExecutionId(execId);
-              setShowTrace(true);
-            }}
-          />
-        </div>
-      )}
-
       {/* Tab bar */}
       <TabBar
         activeTab={activeTab}
@@ -372,7 +356,7 @@ export function RecordingDetail() {
                   </h3>
                   <button
                     onClick={() => setSelectedStep(null)}
-                    className="text-xs text-zinc-500 hover:text-zinc-300"
+                    className="cursor-pointer text-xs text-zinc-500 hover:text-zinc-300"
                   >
                     返回列表
                   </button>
@@ -388,11 +372,21 @@ export function RecordingDetail() {
                     <div className="space-y-3">
                       {/* Error message for failed steps */}
                       {step?.status === 'failed' && step?.error && (
-                        <div className="rounded-lg border border-red-800 bg-red-950/50 p-4">
-                          <h4 className="mb-2 text-xs font-medium text-red-400">错误信息</h4>
-                          <pre className="overflow-auto text-xs font-mono text-red-300 whitespace-pre-wrap">
-                            {step.error}
-                          </pre>
+                        <div className="rounded-lg border border-red-800 bg-red-950/50 p-4 space-y-3">
+                          <div>
+                            <h4 className="mb-2 text-xs font-medium text-red-400">错误信息</h4>
+                            <pre className="overflow-auto text-xs font-mono text-red-300 whitespace-pre-wrap">
+                              {step.error}
+                            </pre>
+                          </div>
+                          {replayExecutionId && (
+                            <button
+                              onClick={() => setShowTrace(true)}
+                              className="inline-flex cursor-pointer items-center gap-1.5 rounded bg-red-900 px-3 py-1.5 text-sm text-red-200 hover:bg-red-800 transition"
+                            >
+                              <Eye className="h-4 w-4" /> 查看 Trace
+                            </button>
+                          )}
                         </div>
                       )}
                       {/* Action parameters */}

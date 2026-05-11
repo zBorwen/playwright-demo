@@ -93,20 +93,20 @@ export function Dashboard() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowNewRecording(true)}
-            className="inline-flex items-center gap-2 rounded-md bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400"
           >
             <Play className="h-4 w-4" />
             新建录制
           </button>
           <button
-            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
             title="批量重跑（开发中）"
           >
             <Loader2 className="h-4 w-4" />
             批量重跑
           </button>
           <button
-            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
             title="导出报告（开发中）"
           >
             <Download className="h-4 w-4" />
@@ -144,7 +144,7 @@ export function Dashboard() {
               <Link
                 key={r.recordingId}
                 to={`/recordings/${r.recordingId}`}
-                className="flex items-center justify-between rounded-md bg-zinc-800/50 px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
+                className="flex cursor-pointer items-center justify-between rounded-md bg-zinc-800/50 px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
               >
                 <span>录制 {r.recordingId.slice(0, 8)}...</span>
                 <StatusBadge status="running" />
@@ -173,7 +173,7 @@ export function Dashboard() {
                 <Link
                   key={ex.id}
                   to={`/executions/${ex.id}`}
-                  className="block rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2.5 text-sm transition-colors hover:bg-red-500/10"
+                  className="block cursor-pointer rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2.5 text-sm transition-colors hover:bg-red-500/10"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-zinc-300">执行 {ex.id.slice(0, 8)}...</span>

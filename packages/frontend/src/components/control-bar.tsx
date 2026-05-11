@@ -21,7 +21,7 @@ export function ControlBar({ mockEnabled, replaySpeed, disabled, onMockChange, o
       <button
         onClick={() => !disabled && onMockChange(!mockEnabled)}
         disabled={disabled}
-        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed ${
+        className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed ${
           mockEnabled
             ? 'bg-violet-600/20 text-violet-400 ring-1 ring-violet-600/30'
             : 'bg-zinc-800 text-zinc-500 ring-1 ring-zinc-700 hover:bg-zinc-750 hover:text-zinc-300'
@@ -38,7 +38,7 @@ export function ControlBar({ mockEnabled, replaySpeed, disabled, onMockChange, o
             key={opt.value}
             onClick={() => !disabled && onSpeedChange(opt.value)}
             disabled={disabled}
-            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-all disabled:cursor-not-allowed ${
+            className={`inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-all disabled:cursor-not-allowed ${
               opt.value === replaySpeed
                 ? 'bg-violet-600 text-white shadow-sm'
                 : 'text-zinc-500 hover:text-zinc-300'

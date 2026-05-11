@@ -79,7 +79,7 @@ export function StepListPanel({ actions, steps, isRunning, selectedStep, onSelec
                 onSelectStep(i);
                 if (isFailed && selectedStep !== i) setExpandedStep(i);
               }}
-              className={`group flex w-full items-start gap-1.5 px-2.5 py-1.5 text-left transition-colors ${
+              className={`group flex w-full cursor-pointer items-start gap-1.5 px-2.5 py-1.5 text-left transition-colors ${
                 selectedStep === i
                   ? 'bg-violet-600/10 border-l-2 border-l-violet-500'
                   : isFailed

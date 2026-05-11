@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/app-store';
 import { StatusBadge } from '@/components/status-badge';
 import { CardSkeleton } from '@/components/skeleton';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 
 interface ProjectStats {
   recordingCount: number;
@@ -24,7 +25,7 @@ function ProjectCard({ project, stats, isReplaying, selected, onToggleSelect, on
   return (
     <Link
       to={`/projects/${project.id}`}
-      className={`group relative flex flex-col rounded-xl border p-5 transition-all hover:shadow-lg hover:shadow-black/20 ${
+      className={`group relative flex cursor-pointer flex-col rounded-xl border p-4 transition-all hover:shadow-lg hover:shadow-black/20 ${
         selected
           ? 'border-violet-400/50'
           : 'border-zinc-800 bg-zinc-900 hover:border-zinc-600 hover:bg-zinc-800/50'
@@ -36,7 +37,7 @@ function ProjectCard({ project, stats, isReplaying, selected, onToggleSelect, on
         role="checkbox"
         aria-checked={selected}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSelect(); }}
-        className={`absolute top-3 right-3 flex h-5 w-5 items-center justify-center rounded transition-all ${
+        className={`absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded transition-all ${
           selected
             ? 'bg-violet-500 text-white'
             : 'opacity-0 group-hover:opacity-100 border border-zinc-600 bg-zinc-800 text-zinc-400 hover:border-zinc-400 hover:text-zinc-200'
@@ -46,12 +47,12 @@ function ProjectCard({ project, stats, isReplaying, selected, onToggleSelect, on
       </button>
 
       {/* Icon + Name + Description */}
-      <div className="flex items-start gap-3 pr-8">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 ring-1 ring-violet-500/20">
-          <FolderOpen className="h-5 w-5 text-violet-400" />
+      <div className="flex items-center gap-3 pr-7">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 ring-1 ring-violet-500/20">
+          <FolderOpen className="h-4 w-4 text-violet-400" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-semibold text-zinc-100">{project.name}</h3>
+          <h3 className="truncate text-sm font-medium text-zinc-100">{project.name}</h3>
           {project.description && (
             <p className="mt-0.5 truncate text-xs text-zinc-500">{project.description}</p>
           )}
@@ -61,14 +62,15 @@ function ProjectCard({ project, stats, isReplaying, selected, onToggleSelect, on
       {/* Delete button */}
       <button
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
-        className="absolute bottom-3 right-3 rounded p-1.5 text-zinc-600 opacity-0 transition-all hover:text-red-400 hover:bg-red-950/50 group-hover:opacity-100"
+        className="absolute bottom-2.5 right-2.5 cursor-pointer rounded-md p-1.5 text-zinc-500 opacity-0 transition-all hover:bg-red-950/50 hover:text-red-400 group-hover:opacity-100"
         title="删除项目"
+        aria-label={`删除项目「${project.name}」`}
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
 
       {/* Stats row */}
-      <div className="mt-4 flex items-center gap-4 border-t border-zinc-800 pt-3 text-xs text-zinc-500">
+      <div className="mt-3 flex items-center gap-4 border-t border-zinc-800 pt-3 text-xs text-zinc-500">
         <span>{stats.recordingCount} 条录制</span>
         {stats.lastExecutedAt && (
           <span>最近执行 {stats.lastExecutedAt}</span>
@@ -154,9 +156,16 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
       .finally(() => setLoadingProjects(false));
   }, [reloadKey]);
 
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
+
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`确定要删除项目「${name}」吗？该项目下的所有录制也将被删除。`)) return;
-    await deleteProject(id);
+    setPendingDelete({ id, name });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!pendingDelete) return;
+    await deleteProject(pendingDelete.id);
+    setPendingDelete(null);
     const data = await fetchProjects();
     setProjects(data);
   };
@@ -219,7 +228,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
           <button
             onClick={handleBatchReplaySelected}
             disabled={replaying}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-medium text-white shadow-sm shadow-violet-600/20 transition-all hover:bg-violet-500 hover:shadow-violet-500/30 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-medium text-white shadow-sm shadow-violet-600/20 transition-all hover:bg-violet-500 hover:shadow-violet-500/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Play className="h-3.5 w-3.5" />
             {replaying ? '回放中…' : '批量回放'}
@@ -254,6 +263,16 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
           );
         })}
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="删除项目"
+        description={`确定要删除项目「${pendingDelete?.name}」吗？该项目下的所有录制也将被删除。`}
+        variant="danger"
+        confirmLabel="删除"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

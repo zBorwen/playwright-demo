@@ -82,7 +82,7 @@ export function ExecutionDetail() {
             {execution.status === 'failed' && execution.trace?.includes('trace.zip') && execution.id && (
               <button
                 onClick={() => setShowTrace(true)}
-                className="mt-3 inline-flex items-center gap-1.5 rounded bg-red-500/20 px-3 py-1.5 text-sm font-medium text-red-300 transition-colors hover:bg-red-500/30"
+                className="mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded bg-red-500/20 px-3 py-1.5 text-sm font-medium text-red-300 transition-colors hover:bg-red-500/30"
               >
                 <Eye className="h-4 w-4" />
                 查看 Trace

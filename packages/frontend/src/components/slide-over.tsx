@@ -47,7 +47,7 @@ export function SlideOver({ open, onClose, title, children }: SlideOverProps) {
           <h2 className="text-lg font-semibold">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            className="cursor-pointer rounded-md p-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
             aria-label="关闭"
           >
             <X className="h-5 w-5" />

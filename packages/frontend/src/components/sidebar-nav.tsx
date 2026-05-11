@@ -56,7 +56,7 @@ export function SidebarNav() {
             <Link
               key={item.href}
               to={item.href}
-              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              className={`flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 isActive
                   ? 'bg-violet-500/10 text-violet-400'
                   : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
@@ -72,7 +72,7 @@ export function SidebarNav() {
         <div>
           <button
             onClick={() => setExpanded(!expanded)}
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            className="flex w-full cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
           >
             {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             活跃项目
@@ -87,7 +87,7 @@ export function SidebarNav() {
                   <Link
                     key={p.id}
                     to={`/projects/${p.id}`}
-                    className={`block truncate rounded-md px-3 py-1.5 text-sm transition-colors ${
+                    className={`block cursor-pointer truncate rounded-md px-3 py-1.5 text-sm transition-colors ${
                       location.pathname === `/projects/${p.id}`
                         ? 'bg-violet-500/10 text-violet-400'
                         : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
@@ -103,7 +103,7 @@ export function SidebarNav() {
               {projects.length > 5 && (
                 <Link
                   to="/projects"
-                  className="block truncate rounded-md px-3 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
+                  className="block cursor-pointer truncate rounded-md px-3 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
                 >
                   查看全部 ({projects.length})
                 </Link>
@@ -117,7 +117,7 @@ export function SidebarNav() {
       <div className="border-t border-zinc-800 p-2">
         <Link
           to="/settings"
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+          className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
         >
           <Settings className="h-4 w-4" />
           设置

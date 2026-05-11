@@ -43,7 +43,7 @@ export function RecordingForm({ projectId, onSuccess, onCancel }: RecordingFormP
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={() => !submitting && onCancel()}
       role="dialog"
       aria-modal="true"
@@ -56,53 +56,55 @@ export function RecordingForm({ projectId, onSuccess, onCancel }: RecordingFormP
       >
         <h2 className="mb-4 text-lg font-semibold">新建录制</h2>
 
-        <div className="mb-4">
-          <label className="mb-1 block text-sm text-zinc-400" htmlFor="recording-title">
-            标题 <span className="text-red-400">*</span>
-          </label>
-          <input
-            id="recording-title"
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="录制标题"
-            className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none"
-            required
-          />
-        </div>
+        <div className="space-y-5">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-zinc-300" htmlFor="recording-title">
+              标题 <span className="text-red-400">*</span>
+            </label>
+            <input
+              id="recording-title"
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="录制标题"
+              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+              required
+            />
+          </div>
 
-        <div className="mb-4">
-          <label className="mb-1 block text-sm text-zinc-400" htmlFor="recording-url">
-            目标 URL
-          </label>
-          <input
-            id="recording-url"
-            type="url"
-            value={targetUrl}
-            onChange={(e) => setTargetUrl(e.target.value)}
-            placeholder="https://example.com"
-            className="w-full rounded border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none"
-          />
-        </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-zinc-300" htmlFor="recording-url">
+              目标 URL
+            </label>
+            <input
+              id="recording-url"
+              type="url"
+              value={targetUrl}
+              onChange={(e) => setTargetUrl(e.target.value)}
+              placeholder="https://example.com"
+              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+            />
+          </div>
 
-        {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-400">{error}</p>}
 
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded px-4 py-2 text-sm hover:bg-zinc-800"
-            disabled={submitting}
-          >
-            取消
-          </button>
-          <button
-            type="submit"
-            className="rounded bg-zinc-800 px-4 py-2 text-sm hover:bg-zinc-700 disabled:opacity-50"
-            disabled={submitting || !title.trim()}
-          >
-            {submitting ? '创建中...' : '创建'}
-          </button>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-md px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+              disabled={submitting}
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              className="rounded-md bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={submitting || !title.trim()}
+            >
+              {submitting ? '创建中...' : '创建'}
+            </button>
+          </div>
         </div>
       </form>
     </div>

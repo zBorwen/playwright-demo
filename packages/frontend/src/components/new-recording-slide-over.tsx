@@ -117,7 +117,7 @@ export function NewRecordingSlideOver({ open, onClose }: NewRecordingSlideOverPr
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            className="cursor-pointer rounded-md px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
             disabled={submitting}
           >
             取消

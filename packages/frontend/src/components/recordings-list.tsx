@@ -116,7 +116,7 @@ function RecordingCard({ recording, selected, onToggleSelect, onDelete }: {
       </button>
 
       {/* Icon + Title */}
-      <div className="flex items-start gap-3 pr-8">
+      <div className="flex items-center gap-3 pr-8">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 ring-1 ring-blue-500/20">
           <Globe className="h-4 w-4 text-blue-400" />
         </div>

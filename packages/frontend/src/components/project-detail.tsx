@@ -43,7 +43,7 @@ export function ProjectDetail() {
     <div>
       <div className="mb-6">
         <div className="flex items-center gap-2">
-          <h1 className="text-xl font-semibold">{project.name}</h1>
+          <h1 className="text-xl font-semibold text-zinc-100">{project.name}</h1>
           {hasActiveReplay && (
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
           )}
