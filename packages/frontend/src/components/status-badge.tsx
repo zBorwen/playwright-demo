@@ -5,7 +5,6 @@ export type StatusType = 'passed' | 'failed' | 'running';
 interface StatusBadgeProps {
   status: StatusType;
   label?: string;
-  className?: string;
 }
 
 const STATUS_CONFIG: Record<StatusType, { icon: React.ComponentType<{ className?: string }>; label: string }> = {
@@ -14,7 +13,7 @@ const STATUS_CONFIG: Record<StatusType, { icon: React.ComponentType<{ className?
   running: { icon: Loader2, label: '运行中' },
 };
 
-export function StatusBadge({ status, label, className = '' }: StatusBadgeProps) {
+export function StatusBadge({ status, label }: StatusBadgeProps) {
   const config = STATUS_CONFIG[status];
   const displayLabel = label ?? config.label;
   const Icon = config.icon;
@@ -29,14 +28,14 @@ export function StatusBadge({ status, label, className = '' }: StatusBadgeProps)
     'badge-running';
 
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${badgeClass} ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${badgeClass}`}>
       <Icon className={iconClass} />
       {displayLabel}
     </span>
   );
 }
 
-export function StatusIcon({ status, className = '' }: { status: StatusType; className?: string }) {
+export function StatusIcon({ status }: { status: StatusType }) {
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
 
@@ -45,5 +44,5 @@ export function StatusIcon({ status, className = '' }: { status: StatusType; cla
     status === 'passed' ? 'text-green-400' :
     'text-blue-400 animate-spin';
 
-  return <Icon className={`h-4 w-4 ${iconClass} ${className}`} />;
+  return <Icon className={`h-4 w-4 ${iconClass}`} />;
 }
