@@ -92,30 +92,30 @@ export function RecordingHeader({
           <button
             onClick={onStartRecording}
             disabled={storeStatus === 'running'}
-            className="inline-flex items-center gap-1.5 rounded-md bg-red-900/80 px-3 py-1.5 text-sm font-medium text-red-200 transition-colors hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 rounded-md bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Circle className="h-3.5 w-3.5 fill-current" /> 录制
+            <Circle className="h-4 w-4 fill-current" /> 录制
           </button>
         ) : (
           <button
             onClick={onStopRecording}
-            className="inline-flex items-center gap-1.5 rounded-md bg-zinc-700 px-3 py-1.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-600"
+            className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
           >
-            <Square className="h-3 w-3 fill-current" /> 停止
+            <Square className="h-4 w-4 fill-current" /> 停止
           </button>
         )}
         <button
           onClick={onReplay}
           disabled={isRunning}
-          className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
             replayStatus === 'passed'
-              ? 'bg-green-900/80 text-green-200 hover:bg-green-800'
+              ? 'border border-green-700 text-green-400 hover:bg-green-900/50'
               : replayStatus === 'failed'
-              ? 'bg-red-900/80 text-red-200 hover:bg-red-800'
-              : 'bg-green-900/80 text-green-200 hover:bg-green-800'
+              ? 'border border-red-700 text-red-400 hover:bg-red-900/50'
+              : 'border border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
           }`}
         >
-          <ReplayIcon className={`h-3.5 w-3.5 ${replayConfig.className || ''}`} />
+          <ReplayIcon className={`h-4 w-4 ${replayConfig.className || ''}`} />
           {replayConfig.text}
         </button>
         {/* Mock & Speed controls */}
