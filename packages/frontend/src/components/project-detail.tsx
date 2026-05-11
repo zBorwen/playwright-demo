@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { fetchProjects, type Project } from '@/lib/api';
 import { RecordingsList } from '@/components/recordings-list';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
@@ -42,22 +42,16 @@ export function ProjectDetail() {
   return (
     <div>
       <div className="mb-6">
-        <Link to="/projects" className="text-sm text-zinc-400 hover:text-zinc-200">
-          ← 返回项目列表
-        </Link>
-        <div className="mt-2">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            {project.name}
-            {hasActiveReplay && (
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
-            )}
-          </h1>
-          {project.description && (
-            <p className="mt-1 text-zinc-400">{project.description}</p>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-semibold">{project.name}</h1>
+          {hasActiveReplay && (
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
           )}
         </div>
+        {project.description && (
+          <p className="mt-1 text-sm text-zinc-400">{project.description}</p>
+        )}
       </div>
-
       <RecordingsList projectId={id} />
     </div>
   );

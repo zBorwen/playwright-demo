@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
 import { fetchRecordings, deleteRecording, deleteRecordings, batchReplayRecordings, type Recording } from '@/lib/api';
 import { RecordingForm } from '@/components/recording-form';
+import { StatusBadge, StatusIcon } from '@/components/status-badge';
+import { ListRowSkeleton } from '@/components/skeleton';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 interface RecordingsListProps {
@@ -13,15 +16,15 @@ function ReplayStatusIndicator({ recordingId }: { recordingId: string }) {
   if (!replay || replay.status === 'running') {
     return replay ? (
       <span className="ml-2 inline-flex items-center gap-1.5 text-xs">
-        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
-        <span className="text-green-400">回放中</span>
+        <StatusBadge status="running" />
       </span>
     ) : null;
   }
-  if (replay.status === 'passed') {
-    return <span className="ml-2 text-xs text-green-400">✓</span>;
-  }
-  return <span className="ml-2 text-xs text-red-400">✗</span>;
+  return (
+    <span className="ml-2 inline-flex items-center">
+      <StatusIcon status={replay.status === 'passed' ? 'passed' : 'failed'} />
+    </span>
+  );
 }
 
 function getRecordingMock(recordingId: string): boolean {
@@ -167,7 +170,7 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
     loadData();
   };
 
-  if (loading) return <p className="text-zinc-500">加载中...</p>;
+  if (loading) return <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <ListRowSkeleton key={i} />)}</div>;
 
   return (
     <div>
@@ -246,7 +249,7 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
                 className="ml-1 rounded p-1.5 text-zinc-600 transition hover:text-red-400 hover:bg-red-950 opacity-0 group-hover:opacity-100 disabled:opacity-50"
                 title="删除录制"
               >
-                {deleting && selectedIds.has(r.id) ? '…' : '🗑'}
+                {deleting && selectedIds.has(r.id) ? '…' : <Trash2 className="h-4 w-4" />}
               </button>
             </div>
           ))}

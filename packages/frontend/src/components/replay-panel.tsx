@@ -1,3 +1,6 @@
+import { StatusIcon } from '@/components/status-badge';
+import type { StatusType } from '@/components/status-badge';
+
 export interface ReplayStep {
   index: number;
   actionName: string;
@@ -14,12 +17,12 @@ interface ReplayPanelProps {
   onViewTrace?: (executionId: string) => void;
 }
 
-function statusIcon(step: ReplayStep) {
+function statusType(step: ReplayStep): StatusType {
   switch (step.status) {
-    case 'completed': return '✓';
-    case 'failed': return '✗';
-    case 'skipped': return '–';
-    default: return '○';
+    case 'completed': return 'passed';
+    case 'failed': return 'failed';
+    case 'skipped': return 'pending';
+    default: return 'pending';
   }
 }
 
@@ -66,13 +69,8 @@ export function ReplayPanel({ steps, isRunning, overallStatus, executionId, onVi
             className={`rounded border px-3 py-2 text-sm transition ${statusBorder(step)}`}
           >
             <div className="flex items-center gap-2">
-              <span className={`w-6 text-center text-xs font-mono ${
-                step.status === 'failed' ? 'text-red-400' :
-                step.status === 'completed' ? 'text-green-400' :
-                step.status === 'skipped' ? 'text-zinc-700' :
-                'text-zinc-500'
-              }`}>
-                {statusIcon(step)}
+              <span className="w-6 text-center text-xs">
+                <StatusIcon status={statusType(step)} />
               </span>
               <span className="w-6 text-right text-zinc-500 text-xs">{step.index + 1}</span>
               <span className="font-medium capitalize min-w-[80px]">{step.actionName}</span>

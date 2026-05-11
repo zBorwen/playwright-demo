@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
 import { fetchProjects, deleteProject, batchReplayProjects } from '@/lib/api';
 import { useAppStore } from '@/store/app-store';
+import { StatusBadge } from '@/components/status-badge';
+import { CardSkeleton } from '@/components/skeleton';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
@@ -63,7 +66,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
     setSelectedIds(new Set());
   };
 
-  if (loadingProjects) return <p className="text-zinc-500">加载中...</p>;
+  if (loadingProjects) return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)}</div>;
   if (projectError) return <p className="text-red-400">{projectError}</p>;
   if (!projects.length) return <p className="text-zinc-500">暂无项目</p>;
 
@@ -105,9 +108,8 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
                 <p className="mt-1 text-sm text-zinc-400">{p.description}</p>
               )}
               {isReplaying && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-green-400">
-                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-green-400" />
-                  批量回放中
+                <div className="mt-2">
+                  <StatusBadge status="running" label="批量回放中" />
                 </div>
               )}
             </Link>
@@ -125,7 +127,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
                 className="rounded p-1 text-zinc-600 transition hover:text-red-400 hover:bg-red-950 opacity-0 group-hover:opacity-100 disabled:opacity-50"
                 title="删除项目"
               >
-                {deleting === p.id ? '…' : '🗑'}
+                {deleting === p.id ? '…' : <Trash2 className="h-4 w-4" />}
               </button>
             </div>
           </div>

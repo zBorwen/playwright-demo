@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { Eye } from 'lucide-react';
 import { fetchExecution, fetchExecutionArtifacts, executionTraceUrl } from '@/lib/api';
 import type { Execution, ExecutionArtifact } from '@/lib/api';
 import { TraceViewerModal } from '@/components/trace-viewer-modal';
+import { StatusBadge } from '@/components/status-badge';
 
 export function ExecutionDetail() {
   const { id } = useParams<{ id: string }>();
@@ -26,7 +28,7 @@ export function ExecutionDetail() {
   }, [id]);
 
   if (loading) return <p className="text-zinc-500">加载中...</p>;
-  if (!execution) return <p className="text-zinc-500">执行不存在</p>;
+  if (!execution) return <p className="text-red-400">执行不存在</p>;
 
   const duration = execution.finishedAt
     ? ((new Date(execution.finishedAt).getTime() - new Date(execution.startedAt).getTime()) / 1000).toFixed(1)
@@ -37,10 +39,8 @@ export function ExecutionDetail() {
   return (
     <div>
       <div className="mb-6">
-        <Link to={`/recordings/${execution.recordingId}`} className="text-sm text-zinc-400 hover:text-zinc-200">
-          ← 返回录制
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold">执行详情</h1>
+        <h1 className="text-xl font-semibold">执行详情</h1>
+        <p className="mt-1 text-sm text-zinc-500 font-mono">{execution.id}</p>
       </div>
 
       <div className="max-w-2xl space-y-4">
@@ -48,33 +48,25 @@ export function ExecutionDetail() {
         <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
           <div className="mb-4 flex items-center justify-between">
             <span className="text-sm text-zinc-400">状态</span>
-            <span
-              className={`rounded px-2 py-0.5 text-xs font-medium ${
-                execution.status === 'passed'
-                  ? 'bg-green-900 text-green-300'
-                  : execution.status === 'failed'
-                    ? 'bg-red-900 text-red-300'
-                    : 'bg-yellow-900 text-yellow-300'
-              }`}
-            >
-              {execution.status === 'passed' ? '通过' : execution.status === 'failed' ? '失败' : '运行中'}
-            </span>
+            <StatusBadge
+              status={execution.status === 'passed' ? 'passed' : execution.status === 'failed' ? 'failed' : 'running'}
+            />
           </div>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-zinc-400">开始时间</span>
-              <span>{new Date(execution.startedAt).toLocaleString()}</span>
+              <span className="font-mono">{new Date(execution.startedAt).toLocaleString()}</span>
             </div>
             {execution.finishedAt && (
               <>
                 <div className="flex justify-between">
                   <span className="text-zinc-400">结束时间</span>
-                  <span>{new Date(execution.finishedAt).toLocaleString()}</span>
+                  <span className="font-mono">{new Date(execution.finishedAt).toLocaleString()}</span>
                 </div>
                 {duration && (
                   <div className="flex justify-between">
                     <span className="text-zinc-400">耗时</span>
-                    <span>{duration}s</span>
+                    <span className="font-mono">{duration}s</span>
                   </div>
                 )}
               </>
@@ -84,15 +76,16 @@ export function ExecutionDetail() {
 
         {/* Error */}
         {execution.error && (
-          <div className="rounded-lg border border-red-800 bg-zinc-900 p-4">
+          <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4">
             <span className="block text-sm font-medium text-red-400">错误信息</span>
             <pre className="mt-2 whitespace-pre-wrap text-sm text-red-300">{execution.error}</pre>
             {execution.status === 'failed' && execution.trace?.includes('trace.zip') && execution.id && (
               <button
                 onClick={() => setShowTrace(true)}
-                className="mt-3 inline-block rounded bg-red-900 px-3 py-1.5 text-sm text-red-200 hover:bg-red-800 transition"
+                className="mt-3 inline-flex items-center gap-1.5 rounded bg-red-500/20 px-3 py-1.5 text-sm font-medium text-red-300 transition-colors hover:bg-red-500/30"
               >
-                🔍 查看 Trace
+                <Eye className="h-4 w-4" />
+                查看 Trace
               </button>
             )}
           </div>

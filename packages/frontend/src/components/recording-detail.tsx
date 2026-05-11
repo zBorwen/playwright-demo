@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { Play, Loader2, CheckCircle, XCircle, Circle, Square, AlertCircle } from 'lucide-react';
 import {
   fetchRecording,
   fetchRecordingActions,
@@ -29,11 +30,11 @@ import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 type Tab = 'timeline' | 'codegen' | 'network' | 'json' | 'executions';
 
-const REPLAY_BUTTON_TEXT: Record<string, string> = {
-  running: '⏳ 回放中',
-  passed: '✅ 通过',
-  failed: '❌ 失败',
-  idle: '▶ 回放',
+const REPLAY_BUTTON_CONFIG: Record<string, { icon: React.ComponentType<{ className?: string }>; text: string; className?: string }> = {
+  running: { icon: Loader2, text: '回放中', className: 'animate-spin' },
+  passed: { icon: CheckCircle, text: '通过' },
+  failed: { icon: XCircle, text: '失败' },
+  idle: { icon: Play, text: '回放' },
 };
 
 export function RecordingDetail() {
@@ -313,10 +314,9 @@ export function RecordingDetail() {
     <div>
       {/* Header */}
       <div className="mb-6">
-        <Link to={`/projects/${recording.projectId}`} className="text-sm text-zinc-400 hover:text-zinc-200">← 返回</Link>
-        <div className="mt-2 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{recording.title}</h1>
+            <h1 className="text-xl font-semibold">{recording.title}</h1>
             <p className="text-sm text-zinc-400">{recording.targetUrl}</p>
           </div>
           <div className="flex items-center gap-3">
@@ -334,25 +334,29 @@ export function RecordingDetail() {
               <button
                 onClick={handleStartRecording}
                 disabled={storeStatus === 'running'}
-                className="rounded bg-red-900 px-4 py-2 text-sm hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 rounded bg-red-900 px-4 py-2 text-sm hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                ⏺ 录制
+                <Circle className="h-4 w-4 fill-current" /> 录制
               </button>
             ) : (
               <button
                 onClick={handleStopRecording}
-                className="rounded bg-zinc-700 px-4 py-2 text-sm hover:bg-zinc-600"
+                className="flex items-center gap-1.5 rounded bg-zinc-700 px-4 py-2 text-sm hover:bg-zinc-600"
               >
-                ⏹ 停止
+                <Square className="h-3 w-3 fill-current" /> 停止
               </button>
             )}
             <div className="flex items-center gap-1">
               <button
                 onClick={handleReplay}
                 disabled={replayStatus === 'running' || storeStatus === 'running'}
-                className="rounded bg-green-900 px-4 py-2 text-sm hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 rounded bg-green-900 px-4 py-2 text-sm hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {REPLAY_BUTTON_TEXT[replayStatus] || '▶ 回放'}
+                {(() => {
+                  const config = REPLAY_BUTTON_CONFIG[replayStatus] ?? REPLAY_BUTTON_CONFIG.idle;
+                  const Icon = config.icon;
+                  return <><Icon className={`h-4 w-4 ${config.className || ''}`} />{config.text}</>;
+                })()}
               </button>
               <select
                 value={projectReplaySpeed}
@@ -425,8 +429,9 @@ export function RecordingDetail() {
                   key={i}
                   className="flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm"
                 >
-                  <span className="w-8 text-right text-zinc-500">{i + 1}</span>
-                  <span className="text-lg">{ACTION_ICONS[action.name] || '❓'}</span>
+                  <span className="w-8 text-center text-zinc-400">
+                    {(() => { const Icon = ACTION_ICONS[action.name]; return Icon ? <Icon className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />; })()}
+                  </span>
                   <span className="font-medium capitalize min-w-[80px]">{action.name}</span>
                   <span className="text-zinc-400 truncate flex-1">{detail}</span>
                   <span className="text-zinc-600 text-xs whitespace-nowrap">

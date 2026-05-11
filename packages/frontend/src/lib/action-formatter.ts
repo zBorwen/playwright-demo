@@ -1,19 +1,21 @@
+import type { ComponentType, SVGProps } from 'react';
+import { MousePointer, Type, MoveRight, Hand, Keyboard, List, CheckSquare, Square, Eye, FileText, Upload } from 'lucide-react';
 import type { RecordingAction } from '@playwright-demo/shared';
 
-export const ACTION_ICONS: Record<string, string> = {
-  click: '👆',
-  fill: '⌨️',
-  navigate: '🔗',
-  hover: '👆',
-  press: '⌨️',
-  select: '📋',
-  check: '☑️',
-  uncheck: '☐',
-  assertVisible: '👁️',
-  assertText: '📝',
-  assertChecked: '☑️',
-  assertValue: '📊',
-  setInputFiles: '📁',
+export const ACTION_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
+  click: MousePointer,
+  fill: Type,
+  navigate: MoveRight,
+  hover: Hand,
+  press: Keyboard,
+  select: List,
+  check: CheckSquare,
+  uncheck: Square,
+  assertVisible: Eye,
+  assertText: FileText,
+  assertChecked: CheckSquare,
+  assertValue: FileText,
+  setInputFiles: Upload,
 };
 
 function truncate(s: string, len: number): string {
