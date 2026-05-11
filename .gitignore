@@ -1,3 +1,13 @@
 .agents/
 .claude/
 node_modules/
+
+# Playwright MCP runtime
+.playwright-mcp/
+
+# Test output
+packages/frontend/test-results/
+
+# Runtime storage
+packages/agent/storage/
+packages/server/storage/
