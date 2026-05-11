@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Play, Globe, Calendar } from 'lucide-react';
 import { fetchRecordings, deleteRecording, deleteRecordings, batchReplayRecordings, type Recording } from '@/lib/api';
 import { RecordingForm } from '@/components/recording-form';
 import { StatusBadge, StatusIcon } from '@/components/status-badge';
-import { ListRowSkeleton } from '@/components/skeleton';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 interface RecordingsListProps {
@@ -16,7 +15,7 @@ function ReplayStatusIndicator({ recordingId }: { recordingId: string }) {
   if (!replay || replay.status === 'running') {
     return replay ? (
       <span className="ml-2 inline-flex items-center gap-1.5 text-xs">
-        <StatusBadge status="running" />
+        <StatusBadge status="running" label="回放中" />
       </span>
     ) : null;
   }
@@ -39,7 +38,7 @@ function setRecordingMock(recordingId: string, checked: boolean): void {
   try {
     localStorage.setItem(`replay-use-mock:${recordingId}`, String(checked));
   } catch {
-    // localStorage may be blocked in private mode; non-critical
+    // localStorage may be blocked; non-critical
   }
 }
 
@@ -55,7 +54,7 @@ function MockToggle({ recordingId }: { recordingId: string }) {
   };
 
   return (
-    <label className="flex items-center gap-1 text-xs text-zinc-500" title="Mock 模式" onClick={(e) => e.stopPropagation()}>
+    <label className="flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-1 text-xs text-zinc-400 cursor-pointer hover:text-zinc-300 transition-colors" title="Mock 模式" onClick={(e) => e.stopPropagation()}>
       <input
         type="checkbox"
         checked={checked}
@@ -65,6 +64,80 @@ function MockToggle({ recordingId }: { recordingId: string }) {
       />
       Mock
     </label>
+  );
+}
+
+function RecordingCard({ recording, selected, onToggleSelect, onDelete }: {
+  recording: Recording;
+  selected: boolean;
+  onToggleSelect: () => void;
+  onDelete: () => void;
+}) {
+  const timeAgo = (() => {
+    const diff = Date.now() - new Date(recording.createdAt).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return '刚刚';
+    if (mins < 60) return `${mins} 分钟前`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours} 小时前`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days} 天前`;
+    return new Date(recording.createdAt).toLocaleDateString();
+  })();
+
+  return (
+    <Link
+      to={`/recordings/${recording.id}`}
+      className="group relative flex flex-col rounded-lg border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-600 hover:bg-zinc-800/50"
+    >
+      {/* Top row: icon + title + actions */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
+            <Globe className="h-4 w-4 text-blue-400" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="truncate text-sm font-medium text-zinc-100">
+              {recording.title}
+              <ReplayStatusIndicator recordingId={recording.id} />
+            </h3>
+          </div>
+        </div>
+        {/* Action buttons - shown on hover */}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-auto" onClick={(e) => e.preventDefault()}>
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggleSelect}
+            onClick={(e) => e.stopPropagation()}
+            className="rounded border-zinc-600 bg-zinc-800"
+          />
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
+            className="rounded p-1 text-zinc-500 transition hover:text-red-400 hover:bg-red-950"
+            title="删除录制"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Bottom row: stats */}
+      <div className="mt-3 flex items-center gap-4 border-t border-zinc-800 pt-3 text-xs text-zinc-500">
+        {recording.targetUrl && (
+          <span className="truncate max-w-[200px]" title={recording.targetUrl}>
+            {recording.targetUrl}
+          </span>
+        )}
+        <span className="flex items-center gap-1 whitespace-nowrap">
+          <Calendar className="h-3 w-3" />
+          {timeAgo}
+        </span>
+        <span className="z-10 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+          <MockToggle recordingId={recording.id} />
+        </span>
+      </div>
+    </Link>
   );
 }
 
@@ -128,7 +201,6 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
     if (selectedIds.size === 0) return;
     setReplaying(true);
     try {
-      // Group by mock setting, make separate API calls
       const mockOn: string[] = [];
       const mockOff: string[] = [];
       for (const id of selectedIds) {
@@ -170,88 +242,55 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
     loadData();
   };
 
-  if (loading) return <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <ListRowSkeleton key={i} />)}</div>;
+  if (loading) return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-lg bg-zinc-800" />)}</div>;
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">录制列表</h2>
-        <button
-          className="rounded bg-zinc-800 px-4 py-2 text-sm hover:bg-zinc-700"
-          onClick={() => setShowForm(true)}
-        >
-          + 新建录制
-        </button>
-      </div>
-
-      {error && <p className="mb-4 text-red-400">{error}</p>}
-
       {selectedIds.size > 0 && (
-        <div className="mb-4 flex items-center gap-3 rounded border border-zinc-700 bg-zinc-900 px-4 py-2">
-          <span className="text-sm text-zinc-300">已选择 {selectedIds.size} 条</span>
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5">
+          <span className="text-sm font-medium text-zinc-300">已选择 {selectedIds.size} 条录制</span>
+          <button
+            onClick={handleBatchReplaySelected}
+            disabled={replaying}
+            className="inline-flex items-center gap-1.5 rounded bg-green-900 px-3 py-1.5 text-sm font-medium text-green-200 transition-colors hover:bg-green-800 disabled:opacity-50"
+          >
+            <Play className="h-3.5 w-3.5" />
+            {replaying ? '回放中…' : '批量回放'}
+          </button>
           <button
             onClick={handleDeleteSelected}
             disabled={deleting}
-            className="rounded bg-red-900 px-3 py-1 text-sm text-red-200 hover:bg-red-800 disabled:opacity-50"
+            className="rounded bg-red-900 px-3 py-1.5 text-sm text-red-200 hover:bg-red-800 disabled:opacity-50 transition-colors"
           >
             {deleting ? '删除中…' : '批量删除'}
           </button>
           <button
-            onClick={handleBatchReplaySelected}
-            disabled={replaying}
-            className="rounded bg-green-900 px-3 py-1 text-sm text-green-200 hover:bg-green-800 disabled:opacity-50"
-          >
-            {replaying ? '回放中…' : '批量回放'}
-          </button>
-          <button
             onClick={() => setSelectedIds(new Set())}
-            className="text-sm text-zinc-400 hover:text-zinc-200"
+            className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
           >
             取消选择
           </button>
         </div>
       )}
 
+      {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
+
       {recordings.length === 0 ? (
-        <p className="text-zinc-500">暂无录制</p>
+        <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
+          <Globe className="mb-4 h-12 w-12 text-zinc-700" />
+          <p className="text-sm">暂无录制</p>
+          <p className="mt-1 text-xs text-zinc-600">创建一个录制开始使用</p>
+        </div>
       ) : (
-        <div className="space-y-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {recordings.map((r) => (
-            <div
+            <RecordingCard
               key={r.id}
-              className="group flex items-center gap-3 rounded border border-zinc-800 bg-zinc-900 p-4 transition hover:border-zinc-600"
-            >
-              <input
-                type="checkbox"
-                checked={selectedIds.has(r.id)}
-                onChange={() => toggleSelect(r.id)}
-                onClick={(e) => e.stopPropagation()}
-                className="rounded border-zinc-600 bg-zinc-800"
-              />
-              <Link
-                to={`/recordings/${r.id}`}
-                className="flex flex-1 cursor-pointer items-center justify-between"
-              >
-                <div>
-                  <h3 className="font-medium">{r.title}<ReplayStatusIndicator recordingId={r.id} /></h3>
-                  {r.targetUrl && (
-                    <p className="mt-1 text-sm text-zinc-400">{r.targetUrl}</p>
-                  )}
-                </div>
-                <span className="text-xs text-zinc-500">
-                  {new Date(r.createdAt).toLocaleDateString()}
-                </span>
-              </Link>
-              <MockToggle recordingId={r.id} />
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDeleteSingle(r.id, r.title); }}
-                disabled={deleting}
-                className="ml-1 rounded p-1.5 text-zinc-600 transition hover:text-red-400 hover:bg-red-950 opacity-0 group-hover:opacity-100 disabled:opacity-50"
-                title="删除录制"
-              >
-                {deleting && selectedIds.has(r.id) ? '…' : <Trash2 className="h-4 w-4" />}
-              </button>
-            </div>
+              recording={r}
+              selected={selectedIds.has(r.id)}
+              onToggleSelect={() => toggleSelect(r.id)}
+              onDelete={() => handleDeleteSingle(r.id, r.title)}
+            />
           ))}
         </div>
       )}

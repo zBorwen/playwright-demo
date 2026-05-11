@@ -18,51 +18,110 @@ export const ACTION_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>
   setInputFiles: Upload,
 };
 
+/** 截断过长的字符串 */
 function truncate(s: string, len: number): string {
-  return s.length > len ? s.slice(0, len) + '...' : s;
+  return s.length > len ? s.slice(0, len) + '…' : s;
 }
 
-export function formatActionDetail(action: RecordingAction): string {
-  const parts: string[] = [];
+/** 从 Playwright internal selector 中提取人类可读名称 */
+function extractInternalSelectorName(sel: string): string {
+  // internal:role=button[name="登录"i] → 登录
+  // internal:role=textbox[name="用户名"i] → 用户名
+  const nameMatch = sel.match(/\[name=["']([^"']+)["']/i);
+  if (nameMatch) return nameMatch[1];
+  // internal:text="提交" → 提交
+  const textMatch = sel.match(/:text=["']([^"']+)["']/i);
+  if (textMatch) return textMatch[1];
+  // internal:has-text="xxx" → xxx
+  const hasTextMatch = sel.match(/:has-text=["']([^"']+)["']/i);
+  if (hasTextMatch) return hasTextMatch[1];
+  return '';
+}
 
+/** 提取元素的人类可读名称 */
+function getElementLabel(action: RecordingAction): string {
+  // 优先从 selector 中提取（Playwright internal selector 最可靠）
   if ('selector' in action && action.selector) {
-    parts.push(action.selector);
+    const sel = action.selector as string;
+    const internalName = extractInternalSelectorName(sel);
+    if (internalName) return internalName;
+    // data-testid
+    const testidMatch = sel.match(/\[data-testid=["']([^"']+)["']\]/)
+      || sel.match(/\[data-test=["']([^"']+)["']\]/);
+    if (testidMatch) return testidMatch[1];
   }
+
+  // 再尝试 elementInfo
+  const info = action.elementInfo;
+  if (info) {
+    const name = info.accessibleName || info.placeholder || info.labelText || info.name;
+    if (name && name.trim()) return name.trim();
+  }
+
+  return '';
+}
+
+/** 判断是否是密码输入 */
+const PASSWORD_KEYWORDS = ['password', 'passwd', 'pwd', '密码', '口令'];
+
+function isPasswordField(action: RecordingAction): boolean {
+  const info = action.elementInfo;
+  if (info?.inputType?.toLowerCase() === 'password') return true;
+  if ('selector' in action && action.selector) {
+    const sel = (action.selector as string).toLowerCase();
+    if (PASSWORD_KEYWORDS.some(kw => sel.includes(kw))) return true;
+  }
+  // 检查 label
+  const label = getElementLabel(action).toLowerCase();
+  if (PASSWORD_KEYWORDS.some(kw => label.includes(kw))) return true;
+  return false;
+}
+
+/** 生成步骤的语义化描述 */
+export function formatActionDetail(action: RecordingAction): string {
+  const label = getElementLabel(action);
 
   switch (action.name) {
-    case 'fill':
-      if (action.value) parts.push(`"${truncate(action.value, 30)}"`);
-      break;
-    case 'press':
-      if (action.key) parts.push(`key: ${action.key}`);
-      break;
-    case 'select':
-      if (action.options?.length) parts.push(`options: ${action.options.join(', ')}`);
-      break;
     case 'click':
-      if (action.button && action.button !== 'left') parts.push(`${action.button} click`);
-      if (action.modifiers) parts.push(`modifiers: ${action.modifiers}`);
-      break;
+      return label ? `点击「${label}」` : '点击';
+    case 'fill':
+      if (isPasswordField(action)) {
+        return label ? `在「${label}」输入密码` : '输入密码';
+      }
+      return label
+        ? `在「${label}」输入「${truncate(action.value || '', 20)}」`
+        : `输入「${truncate(action.value || '', 20)}」`;
     case 'navigate':
-      if (action.url) parts.push(action.url);
-      break;
-    case 'assertText':
-      if (action.text) parts.push(`text: "${truncate(action.text, 30)}"`);
-      break;
-    case 'assertChecked':
-      parts.push(`checked: ${action.checked}`);
-      break;
-    case 'assertValue':
-      if (action.value) parts.push(`value: "${truncate(action.value, 30)}"`);
-      break;
+      return `打开 ${truncate(action.url || '', 40)}`;
+    case 'hover':
+      return label ? `悬停「${label}」` : '悬停';
+    case 'press':
+      return `按键 ${action.key || ''}`;
+    case 'select':
+      return label
+        ? `在「${label}」选择「${action.options?.join(', ') || ''}」`
+        : `选择「${action.options?.join(', ') || ''}」`;
+    case 'check':
+      return label ? `勾选「${label}」` : '勾选';
+    case 'uncheck':
+      return label ? `取消勾选「${label}」` : '取消勾选';
     case 'setInputFiles':
-      if (action.files?.length) parts.push(`files: ${action.files.join(', ')}`);
-      break;
+      return label
+        ? `在「${label}」上传文件`
+        : `上传文件 (${action.files?.length || 0} 个)`;
+    case 'assertVisible':
+      return label ? `断言「${label}」可见` : '断言可见';
+    case 'assertText':
+      return `断言文本「${truncate(action.text || '', 20)}」`;
+    case 'assertChecked':
+      return label
+        ? `断言「${label}」${action.checked ? '已勾选' : '未勾选'}`
+        : `断言${action.checked ? '已勾选' : '未勾选'}`;
+    case 'assertValue':
+      return label
+        ? `断言「${label}」值为「${truncate(action.value || '', 20)}」`
+        : `断言值为「${truncate(action.value || '', 20)}」`;
+    default:
+      return (action as { name: string }).name;
   }
-
-  if (action.elementInfo?.role) {
-    parts.unshift(`[${action.elementInfo.role}]`);
-  }
-
-  return parts.join(' ');
 }
