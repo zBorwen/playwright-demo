@@ -22,8 +22,8 @@ function statusType(step: ReplayStep): StatusType {
   switch (step.status) {
     case 'completed': return 'passed';
     case 'failed': return 'failed';
-    case 'skipped': return 'pending';
-    default: return 'pending';
+    case 'skipped':
+    default: return 'running';
   }
 }
 

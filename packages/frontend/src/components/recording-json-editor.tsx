@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { saveRecordingActions, type RecordingAction } from '@/lib/api';
 
 interface RecordingJsonEditorProps {
@@ -33,6 +33,12 @@ export function RecordingJsonEditor({ recordingId, actions, onSave }: RecordingJ
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const rawActionsRef = useRef(actions);
+
+  useEffect(() => {
+    rawActionsRef.current = actions;
+    setJsonText(JSON.stringify(maskPasswordInActions(actions), null, 2));
+    setSaved(false);
+  }, [actions]);
 
   const handleValidate = useCallback(() => {
     try {

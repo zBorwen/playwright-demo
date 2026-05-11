@@ -50,14 +50,6 @@ export async function deleteProject(id: string): Promise<{ ok: boolean }> {
   return request(`${API_BASE}/projects/${id}`, { method: 'DELETE' });
 }
 
-export async function updateProjectSettings(id: string, data: { name?: string; description?: string | null; replaySpeed?: 'fast' | 'normal' | 'slow' }): Promise<Project> {
-  return request(`${API_BASE}/projects/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-}
-
 export async function createRecording(data: { projectId: string; title: string; targetUrl?: string }): Promise<Recording> {
   return request(`${API_BASE}/recordings`, {
     method: 'POST',
