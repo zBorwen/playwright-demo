@@ -25,49 +25,49 @@ function ProjectCard({ project, stats, isReplaying, selected, onToggleSelect, on
   return (
     <Link
       to={`/projects/${project.id}`}
-      className={`group relative flex cursor-pointer flex-col rounded-xl border p-4 transition-all hover:shadow-lg hover:shadow-black/20 ${
+      className={`group relative flex flex-col rounded-xl border p-4 transition-all hover:shadow-lg hover:shadow-black/20 ${
         selected
           ? 'border-violet-400/50'
           : 'border-zinc-800 bg-zinc-900 hover:border-zinc-600 hover:bg-zinc-800/50'
       }`}
     >
-      {/* Selection checkbox — top-right corner, visible on hover or when selected */}
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={selected}
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSelect(); }}
-        className={`absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded transition-all ${
-          selected
-            ? 'bg-violet-500 text-white'
-            : 'opacity-0 group-hover:opacity-100 border border-zinc-600 bg-zinc-800 text-zinc-400 hover:border-zinc-400 hover:text-zinc-200'
-        }`}
-      >
-        {selected && <Check className="h-3 w-3" />}
-      </button>
-
-      {/* Icon + Name + Description */}
-      <div className="flex items-center gap-3 pr-7">
+      {/* Header row: Icon + Name/Desc + Actions */}
+      <div className="flex items-start gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 ring-1 ring-violet-500/20">
           <FolderOpen className="h-4 w-4 text-violet-400" />
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-medium text-zinc-100">{project.name}</h3>
           {project.description && (
-            <p className="mt-0.5 truncate text-xs text-zinc-500">{project.description}</p>
+            <p className="mt-1 truncate text-xs text-zinc-500">{project.description}</p>
           )}
         </div>
+        {/* Actions column */}
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={selected}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSelect(); }}
+            className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded transition-all ${
+              selected
+                ? 'bg-violet-500 text-white'
+                : 'opacity-0 group-hover:opacity-100 border border-zinc-600 bg-zinc-800 text-zinc-400 hover:border-zinc-400 hover:text-zinc-200'
+            }`}
+            aria-label="选择项目"
+          >
+            {selected && <Check className="h-3 w-3" />}
+          </button>
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
+            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-zinc-500 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-950/50 hover:text-red-400"
+            title="删除项目"
+            aria-label={`删除项目「${project.name}」`}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
-
-      {/* Delete button */}
-      <button
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
-        className="absolute bottom-2.5 right-2.5 cursor-pointer rounded-md p-1.5 text-zinc-500 opacity-0 transition-all hover:bg-red-950/50 hover:text-red-400 group-hover:opacity-100"
-        title="删除项目"
-        aria-label={`删除项目「${project.name}」`}
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
 
       {/* Stats row */}
       <div className="mt-3 flex items-center gap-4 border-t border-zinc-800 pt-3 text-xs text-zinc-500">

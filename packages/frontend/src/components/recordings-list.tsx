@@ -100,57 +100,60 @@ function RecordingCard({ recording, selected, onToggleSelect, onDelete }: {
           : 'border-zinc-800 bg-zinc-900 hover:border-zinc-600 hover:bg-zinc-800/50'
       }`}
     >
-      {/* Selection checkbox — top-right corner, visible on hover or when selected */}
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={selected}
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSelect(); }}
-        className={`absolute top-2.5 right-2.5 flex h-5 w-5 items-center justify-center rounded transition-all ${
-          selected
-            ? 'bg-violet-500 text-white'
-            : 'opacity-0 group-hover:opacity-100 border border-zinc-600 bg-zinc-800 text-zinc-400 hover:border-zinc-400 hover:text-zinc-200'
-        }`}
-      >
-        {selected && <Check className="h-3 w-3" />}
-      </button>
-
-      {/* Icon + Title */}
-      <div className="flex items-center gap-3 pr-8">
+      {/* Header row: Icon + Title + Actions */}
+      <div className="flex items-start gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 ring-1 ring-blue-500/20">
           <Globe className="h-4 w-4 text-blue-400" />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-medium text-zinc-100">
-            {recording.title}
+          <div className="flex items-center gap-2">
+            <h3 className="truncate text-sm font-medium text-zinc-100">
+              {recording.title}
+            </h3>
             <ReplayStatusIndicator recordingId={recording.id} />
-          </h3>
+          </div>
+          {recording.targetUrl && (
+            <p className="mt-1 truncate text-xs text-zinc-500" title={recording.targetUrl}>
+              {recording.targetUrl}
+            </p>
+          )}
+        </div>
+        {/* Actions column — always visible, right-aligned */}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {/* Selection checkbox */}
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={selected}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleSelect(); }}
+            className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded transition-all ${
+              selected
+                ? 'bg-violet-500 text-white'
+                : 'opacity-0 group-hover:opacity-100 border border-zinc-600 bg-zinc-800 text-zinc-400 hover:border-zinc-400 hover:text-zinc-200'
+            }`}
+            aria-label="选择录制"
+          >
+            {selected && <Check className="h-3 w-3" />}
+          </button>
+          {/* Delete button */}
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
+            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-zinc-500 opacity-0 transition-all group-hover:opacity-100 hover:bg-red-950/50 hover:text-red-400"
+            title="删除录制"
+            aria-label="删除录制"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
 
-      {/* Delete button */}
-      <button
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }}
-        className="absolute bottom-2.5 right-2.5 rounded p-1.5 text-zinc-600 opacity-0 transition-all hover:text-red-400 hover:bg-red-950/50 group-hover:opacity-100"
-        title="删除录制"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
-
-      {/* Bottom row: URL, time, mock toggle */}
-      <div className="mt-3 flex items-center gap-4 border-t border-zinc-800 pt-3 text-xs text-zinc-500">
-        {recording.targetUrl && (
-          <span className="truncate max-w-[200px]" title={recording.targetUrl}>
-            {recording.targetUrl}
-          </span>
-        )}
+      {/* Bottom row: time + Mock toggle */}
+      <div className="mt-3 flex items-center justify-between border-t border-zinc-800 pt-3 text-xs text-zinc-500">
         <span className="flex items-center gap-1 whitespace-nowrap">
           <Calendar className="h-3 w-3" />
           {timeAgo}
         </span>
-        <span className="ml-auto z-10 pointer-events-auto">
-          <MockToggle recordingId={recording.id} />
-        </span>
+        <MockToggle recordingId={recording.id} />
       </div>
     </Link>
   );
