@@ -77,7 +77,6 @@ export function RecordingDetail() {
     }
   };
   const [projectReplaySpeed, setProjectReplaySpeed] = useState<'fast' | 'normal' | 'slow'>('normal');
-  const [project, setProject] = useState<{ id: string; name: string; replaySpeed: 'fast' | 'normal' | 'slow' } | null>(null);
   const [codegen, setCodegen] = useState<string>('');
 
   const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
@@ -197,7 +196,6 @@ export function RecordingDetail() {
       setLoading(false);
       if (rec.projectId) {
         fetchProject(rec.projectId).then((p) => {
-          setProject(p);
           setProjectReplaySpeed(p.replaySpeed || 'normal');
         }).catch((e) => console.warn('Failed to fetch project settings:', e.message));
       }
@@ -283,9 +281,6 @@ export function RecordingDetail() {
 
   const handleSpeedChange = (newSpeed: 'fast' | 'normal' | 'slow') => {
     setProjectReplaySpeed(newSpeed);
-    if (project) {
-      // updateProjectSettings(project.id, { replaySpeed: newSpeed }).catch((e) => console.warn('Failed to save replay speed:', e.message));
-    }
   };
 
   // Derive last execution info for header
