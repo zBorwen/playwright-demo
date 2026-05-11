@@ -278,7 +278,6 @@ export function RecordingDetail() {
     }
   };
 
-
   const handleSpeedChange = (newSpeed: 'fast' | 'normal' | 'slow') => {
     setProjectReplaySpeed(newSpeed);
   };

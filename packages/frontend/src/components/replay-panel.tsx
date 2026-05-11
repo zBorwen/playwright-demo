@@ -1,3 +1,4 @@
+import { Eye } from 'lucide-react';
 import { StatusIcon } from '@/components/status-badge';
 import type { StatusType } from '@/components/status-badge';
 
@@ -93,9 +94,9 @@ export function ReplayPanel({ steps, isRunning, overallStatus, executionId, onVi
           {executionId && onViewTrace && (
             <button
               onClick={() => onViewTrace(executionId!)}
-              className="inline-block rounded bg-red-900 px-3 py-1.5 text-sm text-red-200 hover:bg-red-800 transition"
+              className="inline-flex items-center gap-1.5 rounded bg-red-900 px-3 py-1.5 text-sm text-red-200 hover:bg-red-800 transition"
             >
-              🔍 查看 Trace
+              <Eye className="h-4 w-4" /> 查看 Trace
             </button>
           )}
         </div>
