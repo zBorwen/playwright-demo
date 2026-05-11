@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useParams } from 'react-router-dom';
+import { FolderPlus } from 'lucide-react';
 import { ProjectList } from '@/components/project-list';
 import { ProjectForm } from '@/components/project-form';
 import { ProjectDetail } from '@/components/project-detail';
@@ -66,12 +67,16 @@ function ProjectsPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">项目列表</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-zinc-100">项目列表</h1>
+          <p className="mt-1 text-sm text-zinc-500">管理你的项目和配置。</p>
+        </div>
         <button
-          className="rounded bg-zinc-800 px-4 py-2 text-sm font-medium transition-colors hover:bg-zinc-700"
           onClick={() => setShowForm(true)}
+          className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400"
         >
-          + 新建项目
+          <FolderPlus className="h-4 w-4" />
+          新建项目
         </button>
       </div>
       <ProjectList reloadKey={reloadKey} />
