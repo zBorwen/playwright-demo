@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Trash2, Play, Globe, Calendar, Check, X } from 'lucide-react';
 import { fetchRecordings, deleteRecording, deleteRecordings, batchReplayRecordings, type Recording } from '@/lib/api';
-import { RecordingForm } from '@/components/recording-form';
 import { StatusBadge, StatusIcon } from '@/components/status-badge';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
@@ -164,7 +163,6 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [replaying, setReplaying] = useState(false);
@@ -186,11 +184,6 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
   useEffect(() => {
     loadData();
   }, [projectId]);
-
-  const handleSuccess = () => {
-    setShowForm(false);
-    loadData();
-  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -328,14 +321,6 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
             />
           ))}
         </div>
-      )}
-
-      {showForm && projectId && (
-        <RecordingForm
-          projectId={projectId}
-          onSuccess={handleSuccess}
-          onCancel={() => setShowForm(false)}
-        />
       )}
     </div>
   );

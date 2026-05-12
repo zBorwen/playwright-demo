@@ -9,7 +9,6 @@ import {
 interface RecordingReplayStore {
   recordingReplays: Record<string, RecordingReplayStatus>;
   setRecordingStatus: (status: Omit<RecordingReplayStatus, 'startedAt' | 'finishedAt'> & { startedAt?: number; finishedAt?: number }) => void;
-  clearRecordingStatus: (recordingId: string) => void;
   hydrate: () => void;
 }
 
@@ -34,13 +33,6 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
           [entry.recordingId]: entry,
         },
       };
-    });
-  },
-
-  clearRecordingStatus(recordingId) {
-    set((s) => {
-      const { [recordingId]: _, ...rest } = s.recordingReplays;
-      return { recordingReplays: rest };
     });
   },
 

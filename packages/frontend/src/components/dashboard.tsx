@@ -26,11 +26,10 @@ export function Dashboard() {
     }).catch(() => setLoading(false));
   }, []);
 
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
   const stats = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const todayExecutions = executions.filter(e => new Date(e.startedAt) >= todayStart);
     const failedExecutions = executions.filter(e => e.status === 'failed').slice(0, 5);
     const passedCount = executions.filter(e => e.status === 'passed').length;
@@ -66,7 +65,7 @@ export function Dashboard() {
         failed: data.failed,
       })),
     };
-  }, [recordings, executions, todayStart, weekAgo, now]);
+  }, [recordings, executions]);
 
   const activeReplays = Object.values(recordingReplays).filter(r => r.status === 'running');
 

@@ -22,9 +22,7 @@ export function connect(): void {
 
   ws = new WebSocket(url);
 
-  ws.onopen = () => {
-    console.log('WebSocket connected');
-  };
+  ws.onopen = () => {};
 
   ws.onmessage = (event) => {
     try {
@@ -52,7 +50,6 @@ export function connect(): void {
   };
 
   ws.onclose = () => {
-    console.log('WebSocket disconnected, reconnecting in 3s...');
     setTimeout(connect, 3000);
   };
 

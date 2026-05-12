@@ -27,12 +27,10 @@ import { formatActionDetail } from '@/lib/action-formatter';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 import { RecordingHeader } from '@/components/recording-header';
 import { CodegenTab } from '@/components/codegen-tab';
-import { TabBar } from '@/components/tab-bar';
+import { TabBar, type TabKey } from '@/components/tab-bar';
 import { StepListPanel } from '@/components/step-list-panel';
 import { Code, Eye } from 'lucide-react';
 import { highlightJSON } from '@/lib/syntax-highlight';
-
-type Tab = 'timeline' | 'codegen' | 'network' | 'json' | 'executions';
 
 export function RecordingDetail() {
   const { id } = useParams<{ id: string }>();
@@ -48,7 +46,7 @@ export function RecordingDetail() {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>('timeline');
+  const [activeTab, setActiveTab] = useState<TabKey>('timeline');
   const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording'>('idle');
   const [replaySteps, setReplaySteps] = useState<ReplayStep[]>([]);
   const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
