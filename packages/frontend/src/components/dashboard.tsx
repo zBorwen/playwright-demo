@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, AlertCircle, Loader2, Download } from 'lucide-react';
+import { Play, AlertCircle, Loader2 } from 'lucide-react';
 import { fetchRecordings, fetchExecutions, fetchProjects } from '@/lib/api';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 import { TrendChart } from '@/components/trend-chart';
@@ -119,20 +119,6 @@ export function Dashboard() {
           >
             <Play className="h-4 w-4" />
             新建录制
-          </button>
-          <button
-            className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
-            title="批量重跑（开发中）"
-          >
-            <Loader2 className="h-4 w-4" />
-            批量重跑
-          </button>
-          <button
-            className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
-            title="导出报告（开发中）"
-          >
-            <Download className="h-4 w-4" />
-            导出报告
           </button>
         </div>
       </div>
