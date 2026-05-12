@@ -1,6 +1,6 @@
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
-export type StatusType = 'passed' | 'failed' | 'running';
+type StatusType = 'passed' | 'failed' | 'running';
 
 interface StatusBadgeProps {
   status: StatusType;
