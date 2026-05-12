@@ -1,17 +1,18 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Play, AlertCircle, Loader2, Download } from 'lucide-react';
-import { fetchRecordings, fetchExecutions } from '@/lib/api';
+import { fetchRecordings, fetchExecutions, fetchProjects } from '@/lib/api';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 import { TrendChart } from '@/components/trend-chart';
 import { StatusBadge } from '@/components/status-badge';
 import { NewRecordingSlideOver } from '@/components/new-recording-slide-over';
-import type { Execution } from '@/lib/api';
+import type { Execution, Recording, Project } from '@/lib/api';
 
 export function Dashboard() {
   const [loading, setLoading] = useState(true);
-  const [recordings, setRecordings] = useState<import('@/lib/api').Recording[]>([]);
+  const [recordings, setRecordings] = useState<Recording[]>([]);
   const [executions, setExecutions] = useState<Execution[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [showNewRecording, setShowNewRecording] = useState(false);
   const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
 
@@ -19,9 +20,11 @@ export function Dashboard() {
     Promise.all([
       fetchRecordings(),
       fetchExecutions(''),
-    ]).then(([recs, execs]) => {
+      fetchProjects(),
+    ]).then(([recs, execs, projs]) => {
       setRecordings(recs);
       setExecutions(execs);
+      setProjects(projs);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -68,6 +71,26 @@ export function Dashboard() {
   }, [recordings, executions]);
 
   const activeReplays = Object.values(recordingReplays).filter(r => r.status === 'running');
+
+  // Build lookup maps
+  const recordingMap = useMemo(() => {
+    const map = new Map<string, Recording>();
+    for (const r of recordings) map.set(r.id, r);
+    return map;
+  }, [recordings]);
+
+  const projectMap = useMemo(() => {
+    const map = new Map<string, Project>();
+    for (const p of projects) map.set(p.id, p);
+    return map;
+  }, [projects]);
+
+  function getRecordingDisplayName(recordingId: string): string {
+    const rec = recordingMap.get(recordingId);
+    if (!rec) return recordingId.slice(0, 8);
+    const project = projectMap.get(rec.projectId);
+    return project ? `${project.name} — ${rec.title}` : rec.title;
+  }
 
   if (loading) {
     return (
@@ -145,7 +168,7 @@ export function Dashboard() {
                 to={`/recordings/${r.recordingId}`}
                 className="flex cursor-pointer items-center justify-between rounded-md bg-zinc-800/50 px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
               >
-                <span>录制 {r.recordingId.slice(0, 8)}...</span>
+                <span>{getRecordingDisplayName(r.recordingId)}</span>
                 <StatusBadge status="running" />
               </Link>
             ))}
@@ -175,7 +198,7 @@ export function Dashboard() {
                   className="block cursor-pointer rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2.5 text-sm transition-colors hover:bg-red-500/10"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-zinc-300">执行 {ex.id.slice(0, 8)}...</span>
+                    <span className="text-zinc-300">{getRecordingDisplayName(ex.recordingId)}</span>
                     <StatusBadge status="failed" />
                   </div>
                   <p className="mt-1 truncate text-xs text-zinc-600">
