@@ -1,11 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { fetchRecordings, fetchExecutions, fetchProjects } from '@/lib/api';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 import { TrendChart } from '@/components/trend-chart';
 import { StatusBadge } from '@/components/status-badge';
-import { NewRecordingSlideOver } from '@/components/new-recording-slide-over';
 import type { Execution, Recording, Project } from '@/lib/api';
 
 export function Dashboard() {
@@ -13,7 +12,6 @@ export function Dashboard() {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [showNewRecording, setShowNewRecording] = useState(false);
   const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
 
   useEffect(() => {
@@ -106,21 +104,10 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome + CTA */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-100">仪表盘</h1>
-          <p className="mt-1 text-sm text-zinc-500">快速了解录制和回放状态。</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowNewRecording(true)}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400"
-          >
-            <Play className="h-4 w-4" />
-            新建录制
-          </button>
-        </div>
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-semibold text-zinc-100">仪表盘</h1>
+        <p className="mt-1 text-sm text-zinc-500">快速了解录制和回放状态。</p>
       </div>
 
       {/* KPI Cards */}
@@ -196,9 +183,6 @@ export function Dashboard() {
           )}
         </div>
       </div>
-
-      {/* New Recording Slide Over */}
-      <NewRecordingSlideOver open={showNewRecording} onClose={() => setShowNewRecording(false)} />
     </div>
   );
 }

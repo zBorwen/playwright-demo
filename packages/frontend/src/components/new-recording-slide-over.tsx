@@ -7,41 +7,49 @@ import { SlideOver } from '@/components/slide-over';
 interface NewRecordingSlideOverProps {
   open: boolean;
   onClose: () => void;
+  projectId?: string;
 }
 
-export function NewRecordingSlideOver({ open, onClose }: NewRecordingSlideOverProps) {
+export function NewRecordingSlideOver({ open, onClose, projectId }: NewRecordingSlideOverProps) {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [projectId, setProjectId] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [title, setTitle] = useState('');
   const [targetUrl, setTargetUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isProjectFixed = !!projectId;
+
   useEffect(() => {
     if (open) {
-      fetchProjects()
-        .then((data) => {
-          setProjects(data);
-          if (data.length > 0 && !projectId) setProjectId(data[0].id);
-        })
-        .catch(() => {});
       setTitle('');
       setTargetUrl('');
       setError(null);
+
+      if (isProjectFixed) {
+        setSelectedProjectId(projectId);
+      } else {
+        fetchProjects()
+          .then((data) => {
+            setProjects(data);
+            if (data.length > 0 && !selectedProjectId) setSelectedProjectId(data[0].id);
+          })
+          .catch(() => {});
+      }
     }
-  }, [open]);
+  }, [open, projectId, isProjectFixed]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !projectId) return;
+    if (!title.trim() || !selectedProjectId) return;
 
     setSubmitting(true);
     setError(null);
 
     try {
       const recording = await createRecording({
-        projectId,
+        projectId: selectedProjectId,
         title: title.trim(),
         targetUrl: targetUrl.trim() || undefined,
       });
@@ -56,26 +64,28 @@ export function NewRecordingSlideOver({ open, onClose }: NewRecordingSlideOverPr
   return (
     <SlideOver open={open} onClose={onClose} title="新建录制">
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Project selection */}
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-zinc-300" htmlFor="nr-project">
-            项目 <span className="text-red-400">*</span>
-          </label>
-          <select
-            id="nr-project"
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-            className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
-            required
-          >
-            <option value="">选择项目</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Project selection (hidden when projectId is fixed) */}
+        {!isProjectFixed && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-zinc-300" htmlFor="nr-project">
+              项目 <span className="text-red-400">*</span>
+            </label>
+            <select
+              id="nr-project"
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+              className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+              required
+            >
+              <option value="">选择项目</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Title */}
         <div>
@@ -125,7 +135,7 @@ export function NewRecordingSlideOver({ open, onClose }: NewRecordingSlideOverPr
           <button
             type="submit"
             className="inline-flex items-center gap-2 rounded-md bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={submitting || !title.trim() || !projectId}
+            disabled={submitting || !title.trim() || !selectedProjectId}
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
             {submitting ? '创建中...' : '创建并开始录制'}
