@@ -8,7 +8,7 @@ import {
 
 interface RecordingReplayStore {
   recordingReplays: Record<string, RecordingReplayStatus>;
-  setRecordingStatus: (status: Omit<RecordingReplayStatus, 'startedAt'> & { startedAt?: number }) => void;
+  setRecordingStatus: (status: Omit<RecordingReplayStatus, 'startedAt' | 'finishedAt'> & { startedAt?: number; finishedAt?: number }) => void;
   clearRecordingStatus: (recordingId: string) => void;
   hydrate: () => void;
 }
@@ -17,16 +17,24 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
   recordingReplays: {},
 
   setRecordingStatus(status) {
-    const entry: RecordingReplayStatus = {
-      ...status,
-      startedAt: status.startedAt ?? Date.now(),
-    };
-    set((s) => ({
-      recordingReplays: {
-        ...s.recordingReplays,
-        [entry.recordingId]: entry,
-      },
-    }));
+    set((s) => {
+      const existing = s.recordingReplays[status.recordingId];
+      const entry: RecordingReplayStatus = {
+        recordingId: status.recordingId,
+        status: status.status,
+        projectId: status.projectId ?? existing?.projectId,
+        error: status.error ?? existing?.error,
+        executionId: status.executionId ?? existing?.executionId,
+        startedAt: status.startedAt ?? existing?.startedAt ?? Date.now(),
+        finishedAt: status.finishedAt ?? (status.status !== 'running' ? Date.now() : existing?.finishedAt),
+      };
+      return {
+        recordingReplays: {
+          ...s.recordingReplays,
+          [entry.recordingId]: entry,
+        },
+      };
+    });
   },
 
   clearRecordingStatus(recordingId) {

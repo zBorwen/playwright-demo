@@ -12,16 +12,17 @@ interface RecordingsListProps {
 
 function ReplayStatusIndicator({ recordingId }: { recordingId: string }) {
   const replay = useRecordingReplayStore(s => s.recordingReplays[recordingId]);
-  if (!replay || replay.status === 'running') {
-    return replay ? (
+  if (!replay) return null;
+  if (replay.status === 'running') {
+    return (
       <span className="ml-2 inline-flex items-center gap-1.5 text-xs">
         <StatusBadge status="running" label="回放中" />
       </span>
-    ) : null;
+    );
   }
   return (
     <span className="ml-2 inline-flex items-center">
-      <StatusIcon status={replay.status === 'passed' ? 'passed' : 'failed'} />
+      <StatusIcon status={replay.status} />
     </span>
   );
 }

@@ -1,5 +1,76 @@
 # Bug 修复记录
 
+## 项目卡片回放状态显示异常（迭代 5 次修复，2026-05-11）
+
+### 问题背景
+
+项目列表页的 ProjectCard 需要显示该项目最新的回放状态（running/passed/failed），数据来源是 Zustand store（`recordingReplays`），按 `projectId` 过滤并聚合。
+
+### 第一轮：双徽章 + 完成后不消失
+
+**现象**：批量回放时项目卡片同时显示"运行中"和"回放中"两个徽章，完成后"回放中"不消失直到刷新。
+
+**根因**：ProjectList 同时从 HTTP execution 表和 Zustand store 读取状态，两套数据源叠加显示。
+
+**修复**：统一为 Zustand store 单一数据源，移除 HTTP execution 状态展示。
+
+### 第二轮：实时状态完全不更新
+
+**现象**：去掉 store 后改用 HTTP 数据，回放中状态完全不更新。
+
+**根因**：HTTP 数据是静态快照，只在组件 mount 时拉取一次。回放过程中 `recordings` 数组不变，`execMap` 不更新。
+
+**修复**：回归 Zustand store 作为实时显示的唯一数据源，HTTP 仅用于页面刷新恢复。
+
+### 第三轮：单条录制卡片丢失回放状态
+
+**现象**：单个录制回放时，卡片上没有"回放中"徽章。
+
+**根因**：`ReplayStatusIndicator` 只读 store，但 `recordings-list.tsx` 的 `handleBatchReplaySelected` 设置了 store，而 `recording-detail.tsx` 的 `handleReplay` 没有设置 store。
+
+**修复**：`handleReplay` 增加 `setReplayStoreStatus` 调用。
+
+### 第四轮：store 字段覆盖导致状态丢失
+
+**现象**：批量回放多条，一条完成后项目卡片回放状态消失。
+
+**根因**：`setRecordingStatus` 使用 `{ ...existing, ...status }` 做对象合并。当 `batch-replay:result` 消息不携带 `projectId`（或 `projectId: undefined`）时，`undefined` 会覆盖掉已有的 `projectId`。后续 `replay:done` 也没有 `projectId`，导致 entry 的 `projectId` 丢失，`getProjectReplayStatus` 按 `projectId` 过滤时找不到该 entry。
+
+**修复**：`setRecordingStatus` 改为逐字段 `??` 合并，确保已有字段不会被 `undefined` 覆盖：
+```typescript
+projectId: status.projectId ?? existing?.projectId,
+error: status.error ?? existing?.error,
+executionId: status.executionId ?? existing?.executionId,
+```
+
+### 第五轮：`running` 状态优先级问题（最终修复）
+
+**现象**：批量回放多条，第一条完成后项目卡片显示"通过"，但另一条还在 running 中。
+
+**根因**：`getProjectReplayStatus` 按 `finishedAt` 降序排序取最新值。当第一条完成时：
+- `passed` 的 entry `finishedAt` 被设为当前时间（最新值）
+- `running` 的 entry `finishedAt` 保留了上轮运行的旧值（较旧）
+
+排序后 `passed` 排在前面，项目卡片显示"通过"，但实际还有另一条在运行中。
+
+**修复**：`getProjectReplayStatus` 改为两步判断：
+1. 先检查是否有任何 `running` 的 entry，有则直接返回 `'running'`
+2. 否则才按 `finishedAt` 降序取最新结果
+
+```typescript
+if (projectReplays.some(r => r.status === 'running')) return 'running';
+projectReplays.sort((a, b) => (b.finishedAt ?? 0) - (a.finishedAt ?? 0));
+return projectReplays[0].status;
+```
+
+### 教训
+- 对象 spread 合并时 `undefined` 值会覆盖已有字段，必须用显式逐字段 `??` 合并
+- 状态聚合函数的排序逻辑要考虑所有状态的语义优先级，不能仅依赖时间戳
+- 调试数据流时加 console.log 比推测更有效：store 写入 → WS 消息 → 组件渲染三层分别打日志
+- 修 bug 不要只改一处，要看完整数据链路：写入端 → 存储层 → 读取端 → 聚合逻辑 → UI 渲染
+
+---
+
 ## 回放状态泄漏到新录制页面（2026-05-07）
 
 ### 现象

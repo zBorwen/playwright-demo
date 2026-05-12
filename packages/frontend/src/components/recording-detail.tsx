@@ -260,7 +260,7 @@ export function RecordingDetail() {
   };
 
   const handleReplay = async () => {
-    setReplayStoreStatus({ recordingId: id!, status: 'running' });
+    setReplayStoreStatus({ recordingId: id!, status: 'running', projectId: recording?.projectId });
     setReplaySteps(actions.map((a, i) => ({
       index: i,
       actionName: a.name,

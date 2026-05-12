@@ -7,6 +7,7 @@ export interface PersistedRecordingReplayState {
   error?: string;
   executionId?: string;
   startedAt: number;
+  finishedAt?: number;
 }
 
 function buildKey(recordingId: string): string {

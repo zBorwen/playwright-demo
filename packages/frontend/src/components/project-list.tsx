@@ -5,19 +5,33 @@ import { fetchProjects, fetchRecordings, fetchExecutions, deleteProject, batchRe
 import { useAppStore } from '@/store/app-store';
 import { StatusBadge } from '@/components/status-badge';
 import { CardSkeleton } from '@/components/skeleton';
-import { useRecordingReplayStore } from '@/store/recording-replay-store';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 interface ProjectStats {
   recordingCount: number;
-  lastStatus: 'passed' | 'failed' | 'running' | null;
   lastExecutedAt: string | null;
 }
 
-function ProjectCard({ project, stats, isReplaying, selected, onToggleSelect, onDelete }: {
+type ProjectReplayStatus = 'running' | 'passed' | 'failed' | null;
+
+function getProjectReplayStatus(
+  projectId: string,
+  recordingReplays: Record<string, { status: 'running' | 'passed' | 'failed'; projectId?: string; finishedAt?: number }>,
+): ProjectReplayStatus {
+  const projectReplays = Object.values(recordingReplays).filter(r => r.projectId === projectId);
+  if (projectReplays.length === 0) return null;
+  // Running takes priority — project is still replaying
+  if (projectReplays.some(r => r.status === 'running')) return 'running';
+  // Otherwise, take the latest completed result
+  projectReplays.sort((a, b) => (b.finishedAt ?? 0) - (a.finishedAt ?? 0));
+  return projectReplays[0].status;
+}
+
+function ProjectCard({ project, stats, replayStatus, selected, onToggleSelect, onDelete }: {
   project: Project;
   stats: ProjectStats;
-  isReplaying: boolean;
+  replayStatus: ProjectReplayStatus;
   selected: boolean;
   onToggleSelect: () => void;
   onDelete: () => void;
@@ -75,11 +89,8 @@ function ProjectCard({ project, stats, isReplaying, selected, onToggleSelect, on
         {stats.lastExecutedAt && (
           <span>最近执行 {stats.lastExecutedAt}</span>
         )}
-        {stats.lastStatus && (
-          <StatusBadge status={stats.lastStatus} />
-        )}
-        {isReplaying && (
-          <StatusBadge status="running" label="回放中" />
+        {replayStatus && (
+          <StatusBadge status={replayStatus} />
         )}
       </div>
     </Link>
@@ -92,7 +103,6 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [replaying, setReplaying] = useState(false);
   const [projectStats, setProjectStats] = useState<Map<string, ProjectStats>>(new Map());
-
   const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
 
   // Load project stats
@@ -102,38 +112,38 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
       for (const project of projects) {
         try {
           const recordings = await fetchRecordings(project.id);
-          const allExecutions: Array<{ status: string; finishedAt?: string }> = [];
+          let lastExecutedAt: string | null = null;
+          let latestTime = 0;
           for (const rec of recordings) {
             try {
               const execs = await fetchExecutions(rec.id);
-              allExecutions.push(...execs);
+              for (const ex of execs) {
+                if (ex.finishedAt) {
+                  const t = new Date(ex.finishedAt).getTime();
+                  if (t > latestTime) {
+                    latestTime = t;
+                    const diff = Date.now() - t;
+                    const mins = Math.floor(diff / 60000);
+                    if (mins < 1) lastExecutedAt = '刚刚';
+                    else if (mins < 60) lastExecutedAt = `${mins} 分钟前`;
+                    else {
+                      const hours = Math.floor(mins / 60);
+                      if (hours < 24) lastExecutedAt = `${hours} 小时前`;
+                      else lastExecutedAt = `${Math.floor(hours / 24)} 天前`;
+                    }
+                  }
+                }
+              }
             } catch {
-              // Skip if can't fetch executions for a recording
+              // Skip if can't fetch executions
             }
           }
-          allExecutions.sort((a, b) => {
-            const ta = a.finishedAt ?? a.status === 'running' ? Date.now() : 0;
-            const tb = b.finishedAt ?? b.status === 'running' ? Date.now() : 0;
-            return new Date(tb).getTime() - new Date(ta).getTime();
-          });
-          const last = allExecutions[0];
           stats.set(project.id, {
             recordingCount: recordings.length,
-            lastStatus: last?.status as ProjectStats['lastStatus'] ?? null,
-            lastExecutedAt: last?.finishedAt
-              ? (() => {
-                  const diff = Date.now() - new Date(last.finishedAt!).getTime();
-                  const mins = Math.floor(diff / 60000);
-                  if (mins < 1) return '刚刚';
-                  if (mins < 60) return `${mins} 分钟前`;
-                  const hours = Math.floor(mins / 60);
-                  if (hours < 24) return `${hours} 小时前`;
-                  return `${Math.floor(hours / 24)} 天前`;
-                })()
-              : null,
+            lastExecutedAt,
           });
         } catch {
-          stats.set(project.id, { recordingCount: 0, lastStatus: null, lastExecutedAt: null });
+          stats.set(project.id, { recordingCount: 0, lastExecutedAt: null });
         }
       }
       setProjectStats(stats);
@@ -246,16 +256,14 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {projects.map((p) => {
-          const stats = projectStats.get(p.id) ?? { recordingCount: 0, lastStatus: null, lastExecutedAt: null };
-          const isReplaying = Object.values(recordingReplays).some(
-            r => r.projectId === p.id && r.status === 'running',
-          );
+          const stats = projectStats.get(p.id) ?? { recordingCount: 0, lastExecutedAt: null };
+          const replayStatus = getProjectReplayStatus(p.id, recordingReplays);
           return (
             <ProjectCard
               key={p.id}
               project={p}
               stats={stats}
-              isReplaying={isReplaying}
+              replayStatus={replayStatus}
               selected={selectedIds.has(p.id)}
               onToggleSelect={() => toggleSelect(p.id)}
               onDelete={() => handleDelete(p.id, p.name)}
