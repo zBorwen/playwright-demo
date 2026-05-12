@@ -63,7 +63,7 @@ export function ProjectDetail() {
         <p className="mb-4 text-sm text-zinc-400">{project.description}</p>
       )}
       <RecordingsList projectId={id} />
-      <NewRecordingSlideOver open={showNewRecording} onClose={() => setShowNewRecording(false)} projectId={id} />
+      <NewRecordingSlideOver open={showNewRecording} onClose={() => setShowNewRecording(false)} projectId={id!} />
     </div>
   );
 }
