@@ -4,6 +4,8 @@ import { Trash2, Globe, Calendar, Check } from 'lucide-react';
 import { fetchRecordings, deleteRecording, deleteRecordings, batchReplayRecordings, type Recording } from '@/lib/api';
 import { StatusBadge, StatusIcon } from '@/components/status-badge';
 import { BatchActionBar } from '@/components/batch-action-bar';
+import { CardSkeleton } from '@/components/skeleton';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { formatRelativeTime } from '@/lib/time-ago';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
@@ -156,7 +158,7 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [deleting, setDeleting] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
   const [replaying, setReplaying] = useState(false);
 
   const loadData = () => {
@@ -186,18 +188,20 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
     });
   };
 
-  const handleDeleteSelected = async () => {
+  const handleDeleteSelected = () => {
     if (selectedIds.size === 0) return;
-    const count = selectedIds.size;
-    if (!confirm(`确定要删除选中的 ${count} 条录制吗？`)) return;
-    setDeleting(true);
-    if (selectedIds.size === 1) {
-      await deleteRecording([...selectedIds][0]);
+    setPendingDelete([...selectedIds]);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!pendingDelete) return;
+    if (pendingDelete.length === 1) {
+      await deleteRecording(pendingDelete[0]);
     } else {
-      await deleteRecordings([...selectedIds]);
+      await deleteRecordings(pendingDelete);
     }
+    setPendingDelete(null);
     setSelectedIds(new Set());
-    setDeleting(false);
     loadData();
   };
 
@@ -237,16 +241,7 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
     setSelectedIds(new Set());
   };
 
-  const handleDeleteSingle = async (recId: string, title: string) => {
-    if (!confirm(`确定要删除录制「${title}」吗？`)) return;
-    setDeleting(true);
-    await deleteRecording(recId);
-    setDeleting(false);
-    setSelectedIds(new Set());
-    loadData();
-  };
-
-  if (loading) return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-lg bg-zinc-800" />)}</div>;
+  if (loading) return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}</div>;
 
   return (
     <div>
@@ -265,7 +260,7 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
           {
             label: '批量删除',
             loadingLabel: '删除中…',
-            loading: deleting,
+            loading: pendingDelete !== null,
             disabled: false,
             variant: 'danger',
             onClick: handleDeleteSelected,
@@ -290,11 +285,25 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
               recording={r}
               selected={selectedIds.has(r.id)}
               onToggleSelect={() => toggleSelect(r.id)}
-              onDelete={() => handleDeleteSingle(r.id, r.title)}
+              onDelete={() => setPendingDelete([r.id])}
             />
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="删除录制"
+        description={
+          pendingDelete && pendingDelete.length === 1
+            ? '确定要删除该录制吗？'
+            : `确定要删除选中的 ${pendingDelete?.length} 条录制吗？`
+        }
+        variant="danger"
+        confirmLabel="删除"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }
