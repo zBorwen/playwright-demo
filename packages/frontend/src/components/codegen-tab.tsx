@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Code, Copy, Check } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
 import { highlightTypeScript } from '@/lib/syntax-highlight';
 import { PASSWORD_KEYWORDS } from '@/lib/action-formatter';
 
@@ -30,13 +31,7 @@ export function CodegenTab({ codegen }: CodegenTabProps) {
   };
 
   if (codegen.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
-        <Code className="mb-3 h-10 w-10 text-zinc-700" />
-        <p className="text-sm">暂无生成代码</p>
-        <p className="mt-1 text-xs text-zinc-600">录制或回放后将自动生成 Playwright 代码</p>
-      </div>
-    );
+    return <EmptyState icon={Code} title="暂无生成代码" subtitle="录制或回放后将自动生成 Playwright 代码" />;
   }
 
   return (

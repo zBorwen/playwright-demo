@@ -30,7 +30,7 @@ import { RecordingHeader } from '@/components/recording-header';
 import { CodegenTab } from '@/components/codegen-tab';
 import { TabBar, type TabKey } from '@/components/tab-bar';
 import { StepListPanel } from '@/components/step-list-panel';
-import { Code, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { highlightJSON } from '@/lib/syntax-highlight';
 
 export function RecordingDetail() {
@@ -415,17 +415,7 @@ export function RecordingDetail() {
             />
           )}
 
-          {activeTab === 'executions' && (
-            executions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
-                <Code className="mb-3 h-10 w-10 text-zinc-700" />
-                <p className="text-sm">暂无执行记录</p>
-                <p className="mt-1 text-xs text-zinc-600">回放后将生成执行记录</p>
-              </div>
-            ) : (
-              <ExecutionList executions={executions} />
-            )
-          )}
+          {activeTab === 'executions' && <ExecutionList executions={executions} />}
         </div>
       </div>
 

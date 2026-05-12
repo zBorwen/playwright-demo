@@ -5,6 +5,7 @@ import { fetchProjects, fetchRecordings, fetchExecutions, deleteProject, batchRe
 import { useAppStore } from '@/store/app-store';
 import { StatusBadge } from '@/components/status-badge';
 import { CardSkeleton } from '@/components/skeleton';
+import { EmptyState } from '@/components/empty-state';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { BatchActionBar } from '@/components/batch-action-bar';
 import { formatRelativeTime } from '@/lib/time-ago';
@@ -204,13 +205,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
 
   if (loadingProjects) return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)}</div>;
   if (projectError) return <p className="text-red-400">{projectError}</p>;
-  if (!projects.length) return (
-    <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
-      <FolderOpen className="mb-4 h-12 w-12 text-zinc-700" />
-      <p className="text-sm">暂无项目</p>
-      <p className="mt-1 text-xs text-zinc-600">创建一个项目开始使用</p>
-    </div>
-  );
+  if (!projects.length) return <EmptyState icon={FolderOpen} title="暂无项目" subtitle="创建一个项目开始使用" />;
 
   return (
     <div>

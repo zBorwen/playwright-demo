@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Trash2, Globe, Calendar, Check } from 'lucide-react';
 import { fetchRecordings, deleteRecording, deleteRecordings, batchReplayRecordings, type Recording } from '@/lib/api';
 import { StatusBadge, StatusIcon } from '@/components/status-badge';
+import { EmptyState } from '@/components/empty-state';
 import { BatchActionBar } from '@/components/batch-action-bar';
 import { CardSkeleton } from '@/components/skeleton';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -272,11 +273,7 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
       {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 
       {recordings.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
-          <Globe className="mb-4 h-12 w-12 text-zinc-700" />
-          <p className="text-sm">暂无录制</p>
-          <p className="mt-1 text-xs text-zinc-600">创建一个录制开始使用</p>
-        </div>
+        <EmptyState icon={Globe} title="暂无录制" subtitle="创建一个录制开始使用" />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {recordings.map((r) => (

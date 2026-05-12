@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
+import { Code } from 'lucide-react';
 import type { Execution } from '@/lib/api';
+import { EmptyState } from '@/components/empty-state';
 
 interface ExecutionListProps {
   executions: Execution[];
@@ -7,7 +9,7 @@ interface ExecutionListProps {
 
 export function ExecutionList({ executions }: ExecutionListProps) {
   if (executions.length === 0) {
-    return <p className="text-zinc-500">暂无执行记录</p>;
+    return <EmptyState icon={Code} title="暂无执行记录" subtitle="回放后将生成执行记录" />;
   }
 
   return (
