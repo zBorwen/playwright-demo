@@ -23,7 +23,7 @@ import { type ReplayStep } from '@/components/replay-panel';
 import { ExecutionList } from '@/components/execution-list';
 import { TraceViewerModal } from '@/components/trace-viewer-modal';
 import { detectRunningExecution } from '@/lib/replay-state';
-import { formatActionDetail } from '@/lib/action-formatter';
+import { formatActionDetail, isPasswordField } from '@/lib/action-formatter';
 import { formatRelativeTime } from '@/lib/time-ago';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 import { RecordingHeader } from '@/components/recording-header';
@@ -356,8 +356,8 @@ export function RecordingDetail() {
                   const action = actions[selectedStep];
                   if (!action) return null;
                   const step = replaySteps.find(s => s.index === selectedStep);
-                  const maskedAction = action.name === 'fill' && ('selector' in action)
-                    ? { ...action, value: /password|passwd|pwd|密码|口令/i.test(action.selector) ? '***' : action.value }
+                  const maskedAction = action.name === 'fill' && isPasswordField(action)
+                    ? { ...action, value: '***' }
                     : action;
                   return (
                     <div className="space-y-3">

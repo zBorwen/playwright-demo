@@ -1,12 +1,11 @@
 import { useState, useMemo } from 'react';
 import { Code, Copy, Check } from 'lucide-react';
 import { highlightTypeScript } from '@/lib/syntax-highlight';
+import { PASSWORD_KEYWORDS } from '@/lib/action-formatter';
 
 interface CodegenTabProps {
   codegen: string;
 }
-
-const PASSWORD_KEYWORDS = ['password', 'passwd', 'pwd', '密码', '口令'];
 
 /** 在展示时脱敏密码：检测密码行并替换值为 '***' */
 function maskPasswordDisplay(codegen: string): string {

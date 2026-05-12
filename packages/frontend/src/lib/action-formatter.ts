@@ -62,9 +62,9 @@ function getElementLabel(action: RecordingAction): string {
 }
 
 /** 判断是否是密码输入 */
-const PASSWORD_KEYWORDS = ['password', 'passwd', 'pwd', '密码', '口令'];
+export const PASSWORD_KEYWORDS = ['password', 'passwd', 'pwd', '密码', '口令'];
 
-function isPasswordField(action: RecordingAction): boolean {
+export function isPasswordField(action: RecordingAction): boolean {
   const info = action.elementInfo;
   if (info?.inputType?.toLowerCase() === 'password') return true;
   if ('selector' in action && action.selector) {

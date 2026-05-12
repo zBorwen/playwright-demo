@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { saveRecordingActions, type RecordingAction } from '@/lib/api';
 import { highlightJSON } from '@/lib/syntax-highlight';
+import { isPasswordField } from '@/lib/action-formatter';
 
 interface RecordingJsonEditorProps {
   recordingId: string;
@@ -8,22 +9,10 @@ interface RecordingJsonEditorProps {
   onSave?: () => void;
 }
 
-const PASSWORD_KEYWORDS = ['password', 'passwd', 'pwd', '密码', '口令'];
-
-/** 判断 action 是否是密码输入 */
-function isPasswordAction(action: RecordingAction): boolean {
-  if (action.name !== 'fill') return false;
-  const selector = ('selector' in action ? (action as Record<string, unknown>).selector : '') as string;
-  const selLower = selector.toLowerCase();
-  const elementInfo = (action as Record<string, unknown>).elementInfo as Record<string, unknown> | undefined;
-  const inputType = (elementInfo?.inputType as string || '').toLowerCase();
-  return inputType === 'password' || PASSWORD_KEYWORDS.some(kw => selLower.includes(kw));
-}
-
 /** 脱敏 actions 中的密码值 */
 function maskPasswordInActions(actions: RecordingAction[]): RecordingAction[] {
   return actions.map(action => {
-    if (!isPasswordAction(action)) return action;
+    if (action.name !== 'fill' || !isPasswordField(action)) return action;
     return { ...action, value: '***' };
   });
 }
@@ -73,7 +62,7 @@ export function RecordingJsonEditor({ recordingId, actions, onSave }: RecordingJ
       // 保存时用原始数据，确保密码值不被脱敏版本覆盖
       const merged = parsed.map((editAction, i) => {
         const raw = rawActionsRef.current[i];
-        if (isPasswordAction(editAction) && (editAction as Record<string, unknown>).value === '***' && raw && 'value' in raw) {
+        if (isPasswordField(editAction) && (editAction as Record<string, unknown>).value === '***' && raw && 'value' in raw) {
           return { ...editAction, value: (raw as Record<string, unknown>).value };
         }
         return editAction;
