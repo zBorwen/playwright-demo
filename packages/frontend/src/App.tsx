@@ -80,7 +80,7 @@ function ProjectsPage() {
         </button>
       </div>
       <ProjectList reloadKey={reloadKey} />
-      {showForm && <ProjectForm onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />}
+      {showForm && <ProjectForm open={showForm} onSuccess={handleSuccess} onCancel={() => setShowForm(false)} />}
     </div>
   );
 }

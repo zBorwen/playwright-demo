@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FolderOpen, Trash2, Play, Check, X } from 'lucide-react';
+import { FolderOpen, Trash2, Check } from 'lucide-react';
 import { fetchProjects, fetchRecordings, fetchExecutions, deleteProject, batchReplayProjects, type Project } from '@/lib/api';
 import { useAppStore } from '@/store/app-store';
 import { StatusBadge } from '@/components/status-badge';
 import { CardSkeleton } from '@/components/skeleton';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { BatchActionBar } from '@/components/batch-action-bar';
+import { formatRelativeTime } from '@/lib/time-ago';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 interface ProjectStats {
@@ -122,15 +124,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
                   const t = new Date(ex.finishedAt).getTime();
                   if (t > latestTime) {
                     latestTime = t;
-                    const diff = Date.now() - t;
-                    const mins = Math.floor(diff / 60000);
-                    if (mins < 1) lastExecutedAt = '刚刚';
-                    else if (mins < 60) lastExecutedAt = `${mins} 分钟前`;
-                    else {
-                      const hours = Math.floor(mins / 60);
-                      if (hours < 24) lastExecutedAt = `${hours} 小时前`;
-                      else lastExecutedAt = `${Math.floor(hours / 24)} 天前`;
-                    }
+                    lastExecutedAt = formatRelativeTime(ex.finishedAt);
                   }
                 }
               }
@@ -220,39 +214,21 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
 
   return (
     <div>
-      {/* Batch action bar */}
-      <div
-        className={`mb-4 flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/80 px-4 py-2.5 transition-all duration-200 ease-out ${
-          selectedIds.size > 0
-            ? 'opacity-100 visible'
-            : 'opacity-0 invisible h-0 py-0 border-0 overflow-hidden'
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          {/* Selection count pill */}
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-400">
-            <Check className="h-3 w-3" />
-            {selectedIds.size} 个项目
-          </span>
-          {/* Primary action */}
-          <button
-            onClick={handleBatchReplaySelected}
-            disabled={replaying}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-medium text-white shadow-sm shadow-violet-600/20 transition-all hover:bg-violet-500 hover:shadow-violet-500/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Play className="h-3.5 w-3.5" />
-            {replaying ? '回放中…' : '批量回放'}
-          </button>
-        </div>
-        {/* Cancel */}
-        <button
-          onClick={() => setSelectedIds(new Set())}
-          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
-        >
-          <X className="h-3.5 w-3.5" />
-          取消
-        </button>
-      </div>
+      <BatchActionBar
+        count={selectedIds.size}
+        countLabel="个项目"
+        actions={[
+          {
+            label: '批量回放',
+            loadingLabel: '回放中…',
+            loading: replaying,
+            disabled: false,
+            variant: 'primary',
+            onClick: handleBatchReplaySelected,
+          },
+        ]}
+        onCancel={() => setSelectedIds(new Set())}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {projects.map((p) => {

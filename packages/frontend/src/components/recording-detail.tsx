@@ -24,6 +24,7 @@ import { ExecutionList } from '@/components/execution-list';
 import { TraceViewerModal } from '@/components/trace-viewer-modal';
 import { detectRunningExecution } from '@/lib/replay-state';
 import { formatActionDetail } from '@/lib/action-formatter';
+import { formatRelativeTime } from '@/lib/time-ago';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 import { RecordingHeader } from '@/components/recording-header';
 import { CodegenTab } from '@/components/codegen-tab';
@@ -284,15 +285,7 @@ export function RecordingDetail() {
   // Derive last execution info for header
   const lastExecution = executions.length > 0 ? executions[0] : null;
   const lastExecutedAt = lastExecution?.finishedAt
-    ? (() => {
-        const diff = Date.now() - new Date(lastExecution.finishedAt!).getTime();
-        const mins = Math.floor(diff / 60000);
-        if (mins < 1) return '刚刚';
-        if (mins < 60) return `${mins} 分钟前`;
-        const hours = Math.floor(mins / 60);
-        if (hours < 24) return `${hours} 小时前`;
-        return `${Math.floor(hours / 24)} 天前`;
-      })()
+    ? formatRelativeTime(lastExecution.finishedAt)
     : undefined;
 
   const [selectedStep, setSelectedStep] = useState<number | null>(null);

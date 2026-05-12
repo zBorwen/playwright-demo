@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, Play, Globe, Calendar, Check, X } from 'lucide-react';
+import { Trash2, Globe, Calendar, Check } from 'lucide-react';
 import { fetchRecordings, deleteRecording, deleteRecordings, batchReplayRecordings, type Recording } from '@/lib/api';
 import { StatusBadge, StatusIcon } from '@/components/status-badge';
+import { BatchActionBar } from '@/components/batch-action-bar';
+import { formatRelativeTime } from '@/lib/time-ago';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 interface RecordingsListProps {
@@ -79,17 +81,7 @@ function RecordingCard({ recording, selected, onToggleSelect, onDelete }: {
   onToggleSelect: () => void;
   onDelete: () => void;
 }) {
-  const timeAgo = (() => {
-    const diff = Date.now() - new Date(recording.createdAt).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return '刚刚';
-    if (mins < 60) return `${mins} 分钟前`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours} 小时前`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days} 天前`;
-    return new Date(recording.createdAt).toLocaleDateString();
-  })();
+  const timeAgo = formatRelativeTime(recording.createdAt);
 
   return (
     <Link
@@ -258,48 +250,29 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
 
   return (
     <div>
-      {/* Batch action bar */}
-      <div
-        className={`mb-4 flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/80 px-4 py-2.5 transition-all duration-200 ease-out ${
-          selectedIds.size > 0
-            ? 'opacity-100 visible'
-            : 'opacity-0 invisible h-0 py-0 border-0 overflow-hidden'
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          {/* Selection count pill */}
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-400">
-            <Check className="h-3 w-3" />
-            {selectedIds.size} 条录制
-          </span>
-          {/* Primary action */}
-          <button
-            onClick={handleBatchReplaySelected}
-            disabled={replaying}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3.5 py-2 text-xs font-medium text-white shadow-sm shadow-violet-600/20 transition-all hover:bg-violet-500 hover:shadow-violet-500/30 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Play className="h-3.5 w-3.5" />
-            {replaying ? '回放中…' : '批量回放'}
-          </button>
-          {/* Danger action */}
-          <button
-            onClick={handleDeleteSelected}
-            disabled={deleting}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3.5 py-2 text-xs font-medium text-red-400 transition-all hover:bg-red-500/20 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            {deleting ? '删除中…' : '批量删除'}
-          </button>
-        </div>
-        {/* Cancel */}
-        <button
-          onClick={() => setSelectedIds(new Set())}
-          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
-        >
-          <X className="h-3.5 w-3.5" />
-          取消
-        </button>
-      </div>
+      <BatchActionBar
+        count={selectedIds.size}
+        countLabel="条录制"
+        actions={[
+          {
+            label: '批量回放',
+            loadingLabel: '回放中…',
+            loading: replaying,
+            disabled: false,
+            variant: 'primary',
+            onClick: handleBatchReplaySelected,
+          },
+          {
+            label: '批量删除',
+            loadingLabel: '删除中…',
+            loading: deleting,
+            disabled: false,
+            variant: 'danger',
+            onClick: handleDeleteSelected,
+          },
+        ]}
+        onCancel={() => setSelectedIds(new Set())}
+      />
 
       {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 

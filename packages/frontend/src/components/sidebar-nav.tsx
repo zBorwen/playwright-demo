@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   FolderOpen,
   Video,
-  Settings,
   ChevronDown,
   ChevronRight,
   PlayCircle,
@@ -111,17 +110,6 @@ export function SidebarNav() {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Bottom */}
-      <div className="border-t border-zinc-800 p-2">
-        <Link
-          to="/settings"
-          className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
-        >
-          <Settings className="h-4 w-4" />
-          设置
-        </Link>
       </div>
     </nav>
   );
