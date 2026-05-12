@@ -37,11 +37,11 @@ export function SlideOver({ open, onClose, title, children }: SlideOverProps) {
       {/* Backdrop */}
       <div
         ref={overlayRef}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
       {/* Panel */}
-      <div className="relative w-full max-w-md bg-zinc-900 border-l border-zinc-800 flex flex-col">
+      <div className="relative w-full max-w-md bg-zinc-900 border-l border-zinc-800 flex flex-col animate-slide-in-right">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
           <h2 className="text-lg font-semibold">{title}</h2>
