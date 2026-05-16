@@ -16,6 +16,7 @@ import {
 } from '@/lib/api';
 import { useRecordingWebSocket } from '@/hooks/use-recording-websocket';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
+import { useLocalStorage } from '@/hooks/use-local-storage';
 import { RecordingJsonEditor } from '@/components/recording-json-editor';
 import { NetworkTab } from '@/components/network-tab';
 import { ExecutionList } from '@/components/execution-list';
@@ -49,51 +50,9 @@ export function RecordingDetail() {
   const [recordingStatus, setRecordingStatusLocal] = useState<'idle' | 'recording'>('idle');
 
   const [showTrace, setShowTrace] = useState(false);
-  const [useMock, setUseMock] = useState(() => {
-    try {
-      return localStorage.getItem(`replay-use-mock:${id}`) === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  const handleUseMockChange = (checked: boolean) => {
-    setUseMock(checked);
-    try {
-      if (id) localStorage.setItem(`replay-use-mock:${id}`, String(checked));
-    } catch {}
-  };
-  const [headless, setHeadless] = useState(() => {
-    try {
-      const saved = localStorage.getItem(`replay-headless:${id}`);
-      return saved !== null ? saved === 'true' : true;
-    } catch {
-      return true;
-    }
-  });
-
-  const handleHeadlessChange = (value: boolean) => {
-    setHeadless(value);
-    try {
-      if (id) localStorage.setItem(`replay-headless:${id}`, String(value));
-    } catch {}
-  };
-
-  const [browserType, setBrowserType] = useState<BrowserType>(() => {
-    try {
-      const saved = localStorage.getItem(`replay-browser-type:${id}`);
-      return (saved as BrowserType) || 'chromium';
-    } catch {
-      return 'chromium';
-    }
-  });
-
-  const handleBrowserTypeChange = (value: BrowserType) => {
-    setBrowserType(value);
-    try {
-      if (id) localStorage.setItem(`replay-browser-type:${id}`, value);
-    } catch {}
-  };
+  const [useMock, setUseMock] = useLocalStorage(`replay-use-mock:${id}`, false);
+  const [headless, setHeadless] = useLocalStorage(`replay-headless:${id}`, true);
+  const [browserType, setBrowserType] = useLocalStorage<BrowserType>(`replay-browser-type:${id}`, 'chromium');
   const [projectReplaySpeed, setProjectReplaySpeed] = useState<'fast' | 'normal' | 'slow'>('normal');
 
   const onRecordingComplete = useCallback(() => {
@@ -201,10 +160,10 @@ export function RecordingDetail() {
         onStartRecording={handleStartRecording}
         onStopRecording={handleStopRecording}
         onReplay={handleReplay}
-        onUseMockChange={handleUseMockChange}
+        onUseMockChange={setUseMock}
         onSpeedChange={handleSpeedChange}
-        onHeadlessChange={handleHeadlessChange}
-        onBrowserTypeChange={handleBrowserTypeChange}
+        onHeadlessChange={setHeadless}
+        onBrowserTypeChange={setBrowserType}
       />
 
       <TabBar
