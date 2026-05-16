@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FINGERPRINT_JS } from '../fingerprint';
+import { FINGERPRINT_JS } from '../core/recorder/fingerprint';
 
 describe('Fingerprint script', () => {
   it('has valid JavaScript', () => {

@@ -1,43 +1,6 @@
-import { ReplayEngine } from './replay-engine.js';
-import { RecorderManager } from './recorder-manager.js';
-import type { BrowserType, MockRule, RecordingAction } from '@playwright-demo/shared';
-
-interface TaskReplay {
-  type: 'task:replay';
-  id: string;
-  payload: {
-    executionId: string;
-    recordingId: string;
-    actions: RecordingAction[];
-    harPath?: string;
-    mockRules: MockRule[];
-    headless: boolean;
-    browserType: BrowserType;
-    stepDelay: number;
-    useMock: boolean;
-  };
-}
-
-interface TaskRecordStart {
-  type: 'task:record:start';
-  id: string;
-  payload: {
-    recordingId: string;
-    targetUrl: string;
-    headless: boolean;
-    browserType: BrowserType;
-  };
-}
-
-interface TaskRecordStop {
-  type: 'task:record:stop';
-  id: string;
-  payload: {
-    recordingId: string;
-  };
-}
-
-type TaskMessage = TaskReplay | TaskRecordStart | TaskRecordStop;
+import { ReplayEngine } from './core/replay/engine.js';
+import { RecorderManager } from './core/recorder/manager.js';
+import type { TaskMessage } from './types/tasks';
 
 let activeRecorder: RecorderManager | null = null;
 let recordTaskId: string | null = null;
@@ -60,7 +23,7 @@ process.on('message', async (msg: TaskMessage) => {
           process.send!({
             type: 'replay:step:failed',
             taskId: msg.id,
-            payload: { executionId, recordingId, index, error },
+            payload: { executionId, recordingId, index, status: 'failed', error },
           });
         });
 
@@ -104,11 +67,15 @@ process.on('message', async (msg: TaskMessage) => {
         activeRecorder = new RecorderManager();
         recordTaskId = msg.id;
         activeRecorder.onAction((action, code) => {
-          const selector = 'selector' in action ? action.selector : undefined;
           process.send!({
             type: 'record:action',
             taskId: msg.id,
-            payload: { action, code, selector, elementInfo: action.elementInfo, timestamp: Date.now() },
+            payload: { 
+              action, code, 
+              selector: 'selector' in action ? action.selector : undefined,
+              elementInfo: action.elementInfo, 
+              timestamp: Date.now() 
+            },
           });
         });
 
@@ -122,7 +89,6 @@ process.on('message', async (msg: TaskMessage) => {
           });
           process.exit(1);
         }
-        // Keep process alive for record:stop
         break;
       }
 
@@ -134,6 +100,11 @@ process.on('message', async (msg: TaskMessage) => {
             payload: { recordingId: msg.payload.recordingId, message: 'No active recording' },
           });
           process.exit(0);
+          break;
+        }
+
+        if (recordTaskId !== msg.id) {
+          console.warn(`[worker] Received stop for ${msg.id} but current task is ${recordTaskId}. Ignoring.`);
           break;
         }
 

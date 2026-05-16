@@ -1,12 +1,11 @@
-import { WsClient } from './ws-client';
-import { WorkerPool } from './worker-pool';
-import type { AgentMessage, ServerMessage, BrowserType, MockRule, RecordingAction, ElementInfo } from '@playwright-demo/shared';
+import { WsClient } from './comms/ws-client';
+import { WorkerPool } from './pool/worker-pool';
+import type { AgentMessage, BrowserType, RecordingAction } from '@playwright-demo/shared';
+import type { TaskReplayPayload } from './types/tasks';
 
 const SERVER_URL = process.env.SERVER_URL || 'ws://localhost:3000/ws';
 const AGENT_ID = process.env.AGENT_ID || 'default';
 const TOKEN = process.env.AGENT_TOKEN;
-
-type ReplayStartPayload = Extract<ServerMessage, { type: 'replay:start' }>['payload'];
 
 async function main() {
   const url = new URL(SERVER_URL);
@@ -20,6 +19,9 @@ async function main() {
       case 'replay:step':
       case 'replay:step:failed': {
         const stepP = msg.payload as { executionId: string; recordingId: string; index: number; status: 'completed' | 'failed'; error?: string };
+        if (msg.type === 'replay:step:failed') {
+          stepP.status = 'failed';
+        }
         ws.send({ type: 'replay:step', payload: stepP });
         break;
       }
@@ -40,14 +42,14 @@ async function main() {
         break;
       }
       case 'record:action': {
-        const recP = msg.payload as { action: RecordingAction; code: string; selector: string; elementInfo: ElementInfo; timestamp: number };
+        const recP = msg.payload as { action: RecordingAction; code: string; selector: string; timestamp: number };
         const agentMsg: AgentMessage = {
           type: 'record:action',
           payload: {
             action: recP.action,
             code: recP.code,
             selector: recP.selector,
-            elementInfo: recP.elementInfo,
+            elementInfo: recP.action.elementInfo,
             timestamp: recP.timestamp,
           },
         };
@@ -90,22 +92,20 @@ async function main() {
         break;
       }
       case 'replay:start': {
-        const payload = msg.payload as ReplayStartPayload;
-        const stepDelay = payload.replaySpeed === 'fast' ? 0 : payload.replaySpeed === 'slow' ? 1000 : 300;
+        const payload = msg.payload as TaskReplayPayload;
+        // Re-type replaySpeed for comparison
+        const speed = (payload as any).replaySpeed;
+        const stepDelay = speed === 'fast' ? 0 : speed === 'slow' ? 1000 : 300;
 
         console.log(`[manager] Submitting replay: ${payload.recordingId} (pool busy: ${pool.activeCount}, queued: ${pool.queueLength})`);
         pool.submit({
           type: 'task:replay',
           id: payload.executionId,
           payload: {
-            executionId: payload.executionId,
-            recordingId: payload.recordingId,
-            actions: payload.actions as RecordingAction[],
+            ...payload,
             harPath: payload.harRef ? `${process.env.STORAGE_PATH || './storage'}/recordings/${payload.recordingId}/${payload.harRef}` : undefined,
-            mockRules: payload.mockRules as MockRule[] || [],
             useMock: !!payload.harRef || (payload.mockRules && payload.mockRules.length > 0),
-            headless: payload.headless,
-            browserType: payload.browserType as BrowserType | undefined,
+            browserType: payload.browserType as BrowserType,
             stepDelay,
           },
         });

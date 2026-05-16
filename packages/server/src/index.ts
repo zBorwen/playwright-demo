@@ -55,20 +55,20 @@ wss.on('connection', (ws, req) => {
     }
   }, 30_000);
 
-  ws.on('error', (err) => {
+  ws.on('error', async (err) => {
     console.error('WebSocket error:', err.message);
     if (agentId) {
-      wsHandlers.unregisterAgent(ws);
+      await wsHandlers.unregisterAgent(ws);
     } else {
       wsHandlers.unregisterClient(ws);
     }
     clearInterval(interval);
   });
 
-  ws.on('close', () => {
+  ws.on('close', async () => {
     clearInterval(interval);
     if (agentId) {
-      wsHandlers.unregisterAgent(ws);
+      await wsHandlers.unregisterAgent(ws);
     } else {
       wsHandlers.unregisterClient(ws);
     }
