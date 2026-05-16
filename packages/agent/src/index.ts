@@ -1,8 +1,6 @@
-import path from 'node:path';
 import { WsClient } from './ws-client';
-import { RecorderManager } from './recorder-manager';
-import { ReplayEngine } from './replay-engine';
-import type { AgentMessage, ServerMessage } from '@playwright-demo/shared';
+import { WorkerPool } from './worker-pool';
+import type { AgentMessage, ServerMessage, BrowserType, MockRule, RecordingAction, ElementInfo } from '@playwright-demo/shared';
 
 const SERVER_URL = process.env.SERVER_URL || 'ws://localhost:3000/ws';
 const AGENT_ID = process.env.AGENT_ID || 'default';
@@ -14,109 +12,125 @@ async function main() {
   const url = new URL(SERVER_URL);
   url.searchParams.set('agentId', AGENT_ID);
   const ws = new WsClient(url.toString(), TOKEN);
-  const recorder = new RecorderManager();
+  const pool = new WorkerPool();
 
-  // Replay queue — agent can only run one replay at a time
-  let replayBusy = false;
-  const replayQueue: ReplayStartPayload[] = [];
-
-  async function processNextReplay() {
-    if (replayBusy || replayQueue.length === 0) return;
-    replayBusy = true;
-    const payload = replayQueue.shift()!;
-
-    console.log(`Starting replay: ${payload.recordingId}`);
-    const { actions, harRef, mockRules, executionId, replaySpeed } = payload;
-
-    const stepDelay = replaySpeed === 'fast' ? 0 : replaySpeed === 'slow' ? 1000 : 300;
-
-    const engine = new ReplayEngine();
-    engine.onStep((index, status) => {
-      ws.send({ type: 'replay:step', payload: { recordingId: payload.recordingId, executionId, index, status } });
-    });
-    engine.onStepFailed((index, error) => {
-      ws.send({ type: 'replay:step', payload: { recordingId: payload.recordingId, executionId, index, status: 'failed', error } });
-    });
-
-    const result = await engine.replay(actions as Parameters<typeof engine.replay>[0], {
-      headless: payload.headless,
-      browserType: payload.browserType,
-      recordingId: payload.recordingId,
-      harPath: harRef ? path.resolve(process.env.STORAGE_PATH || './storage', harRef) : undefined,
-      mockRules: mockRules || [],
-      useMock: !!harRef || (mockRules && mockRules.length > 0),
-      stepDelay,
-    });
-    ws.send({
-      type: 'replay:done',
-      payload: {
-        executionId,
-        recordingId: payload.recordingId,
-        status: result.status,
-        error: result.error ?? '',
-        trace: result.trace ?? '',
-        tracePath: result.tracePath,
-        screenshot: result.screenshots.length > 0
-          ? result.screenshots[result.screenshots.length - 1].path
-          : undefined,
-      },
-    });
-
-    replayBusy = false;
-    // Process next queued replay
-    processNextReplay();
-  }
-
-  ws.onMessage(async (msg) => {
-    switch (msg.type) {
-      case 'record:start': {
-        console.log(`Starting recording: ${msg.payload.recordingId}`);
-        recorder.onAction((action, code) => {
-          const agentMsg: AgentMessage = {
-            type: 'record:action',
-            payload: {
-              action,
-              code,
-              selector: 'selector' in action ? (action as { selector: string }).selector : '',
-              elementInfo: action.elementInfo,
-              timestamp: action.timestamp,
-            },
-          };
-          ws.send(agentMsg);
-        });
-        await recorder.startRecording(msg.payload.targetUrl, msg.payload.recordingId, {
-          headless: msg.payload.headless,
-          browserType: msg.payload.browserType,
-        });
+  // Forward worker IPC messages to server via WebSocket
+  pool.setOnMessage((msg) => {
+    switch (msg.type as string) {
+      case 'replay:step':
+      case 'replay:step:failed': {
+        const stepP = msg.payload as { executionId: string; recordingId: string; index: number; status: 'completed' | 'failed'; error?: string };
+        ws.send({ type: 'replay:step', payload: stepP });
         break;
       }
-      case 'record:stop': {
-        console.log(`Stopping recording: ${msg.payload.recordingId}`);
-        const { actions, harPath, codegen } = await recorder.stopRecording();
+      case 'replay:done': {
+        const doneP = msg.payload as { executionId: string; recordingId: string; status: 'passed' | 'failed'; error?: string; trace?: string; tracePath?: string; screenshot?: string };
         ws.send({
-          type: 'record:complete',
+          type: 'replay:done',
           payload: {
-            recordingId: msg.payload.recordingId,
-            actions,
-            harPath,
-            codegen,
+            executionId: doneP.executionId,
+            recordingId: doneP.recordingId,
+            status: doneP.status,
+            error: doneP.error ?? '',
+            trace: doneP.trace ?? '',
+            tracePath: doneP.tracePath,
+            screenshot: doneP.screenshot,
           },
         });
         break;
       }
-      case 'replay:start': {
-        if (replayBusy) {
-          console.log(`Replay busy, queuing: ${msg.payload.recordingId}`);
-        }
-        replayQueue.push(msg.payload);
-        processNextReplay();
+      case 'record:action': {
+        const recP = msg.payload as { action: RecordingAction; code: string; selector: string; elementInfo: ElementInfo; timestamp: number };
+        const agentMsg: AgentMessage = {
+          type: 'record:action',
+          payload: {
+            action: recP.action,
+            code: recP.code,
+            selector: recP.selector,
+            elementInfo: recP.elementInfo,
+            timestamp: recP.timestamp,
+          },
+        };
+        ws.send(agentMsg);
+        break;
+      }
+      case 'record:complete': {
+        const compP = msg.payload as { recordingId: string; actions: RecordingAction[]; harPath: string; codegen: string };
+        ws.send({ type: 'record:complete', payload: compP });
+        break;
+      }
+      case 'error': {
+        console.error(`Worker error: ${JSON.stringify(msg.payload)}`);
         break;
       }
     }
   });
 
+  ws.onMessage(async (msg) => {
+    switch (msg.type) {
+      case 'record:start': {
+        console.log(`[manager] Starting recording: ${msg.payload.recordingId}`);
+        pool.submit({
+          type: 'task:record:start',
+          id: msg.payload.recordingId,
+          payload: {
+            recordingId: msg.payload.recordingId,
+            targetUrl: msg.payload.targetUrl,
+            headless: msg.payload.headless,
+            browserType: msg.payload.browserType,
+          },
+        });
+        break;
+      }
+      case 'record:stop': {
+        console.log(`[manager] Stopping recording: ${msg.payload.recordingId}`);
+        pool.sendToRecording('task:record:stop', {
+          recordingId: msg.payload.recordingId,
+        });
+        break;
+      }
+      case 'replay:start': {
+        const payload = msg.payload as ReplayStartPayload;
+        const stepDelay = payload.replaySpeed === 'fast' ? 0 : payload.replaySpeed === 'slow' ? 1000 : 300;
+
+        console.log(`[manager] Submitting replay: ${payload.recordingId} (pool busy: ${pool.activeCount}, queued: ${pool.queueLength})`);
+        pool.submit({
+          type: 'task:replay',
+          id: payload.executionId,
+          payload: {
+            executionId: payload.executionId,
+            recordingId: payload.recordingId,
+            actions: payload.actions as RecordingAction[],
+            harPath: payload.harRef ? `${process.env.STORAGE_PATH || './storage'}/recordings/${payload.recordingId}/${payload.harRef}` : undefined,
+            mockRules: payload.mockRules as MockRule[] || [],
+            useMock: !!payload.harRef || (payload.mockRules && payload.mockRules.length > 0),
+            headless: payload.headless,
+            browserType: payload.browserType as BrowserType | undefined,
+            stepDelay,
+          },
+        });
+        break;
+      }
+    }
+  });
+
+  // Graceful shutdown
+  process.on('SIGINT', () => {
+    console.log('[manager] Shutting down...');
+    pool.shutdown();
+    ws.close();
+    process.exit(0);
+  });
+
+  process.on('SIGTERM', () => {
+    console.log('[manager] Shutting down...');
+    pool.shutdown();
+    ws.close();
+    process.exit(0);
+  });
+
   await ws.connect();
-  console.log('Agent started, waiting for commands...');
+  console.log(`[manager] Agent started, waiting for commands...`);
 }
 
 main().catch(console.error);
