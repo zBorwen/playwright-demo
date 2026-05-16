@@ -17,16 +17,16 @@ import {
 import { useRecordingWebSocket } from '@/hooks/use-recording-websocket';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 import { useLocalStorage } from '@/hooks/use-local-storage';
-import { RecordingJsonEditor } from '@/components/recording-json-editor';
-import { NetworkTab } from '@/components/network-tab';
-import { ExecutionList } from '@/components/execution-list';
-import { TraceViewerModal } from '@/components/trace-viewer-modal';
+import { RecordingJsonEditor } from '@/components/recording/recording-json-editor';
+import { NetworkTab } from '@/components/recording/network-tab';
+import { ExecutionList } from '@/components/execution/execution-list';
+import { TraceViewerModal } from '@/components/ui/trace-viewer-modal';
 import { isPasswordField } from '@/lib/action-formatter';
 import { formatRelativeTime } from '@/lib/time-ago';
-import { RecordingHeader } from '@/components/recording-header';
-import { CodegenTab } from '@/components/codegen-tab';
-import { TabBar, type TabKey } from '@/components/tab-bar';
-import { StepListPanel } from '@/components/step-list-panel';
+import { RecordingHeader } from '@/components/recording/recording-header';
+import { CodegenTab } from '@/components/recording/codegen-tab';
+import { TabBar, type TabKey } from '@/components/ui/tab-bar';
+import { StepListPanel } from '@/components/recording/step-list-panel';
 import { Eye } from 'lucide-react';
 import { highlightJSON } from '@/lib/syntax-highlight';
 

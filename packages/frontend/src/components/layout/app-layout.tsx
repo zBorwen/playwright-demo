@@ -1,5 +1,5 @@
-import { SidebarNav } from '@/components/sidebar-nav';
-import { Breadcrumb, useBreadcrumb } from '@/components/breadcrumb';
+import { SidebarNav } from '@/components/layout/sidebar-nav';
+import { Breadcrumb, useBreadcrumb } from '@/components/layout/breadcrumb';
 
 interface AppLayoutProps {
   children: React.ReactNode;

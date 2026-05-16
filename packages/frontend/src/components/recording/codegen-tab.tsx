@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Code, Copy, Check } from 'lucide-react';
-import { EmptyState } from '@/components/empty-state';
+import { EmptyState } from '@/components/ui/empty-state';
 import { highlightTypeScript } from '@/lib/syntax-highlight';
 import { PASSWORD_KEYWORDS } from '@/lib/action-formatter';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';

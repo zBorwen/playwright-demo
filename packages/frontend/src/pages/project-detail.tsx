@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Play } from 'lucide-react';
 import { fetchProjects, type Project } from '@/lib/api';
-import { RecordingsList } from '@/components/recordings-list';
-import { NewRecordingSlideOver } from '@/components/new-recording-slide-over';
+import { RecordingsList } from '@/pages/recordings-list';
+import { NewRecordingSlideOver } from '@/components/recording/new-recording-slide-over';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 export function ProjectDetail() {

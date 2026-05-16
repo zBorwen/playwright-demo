@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Trash2, Globe, Calendar, Check } from 'lucide-react';
 import { fetchRecordings, deleteRecording, deleteRecordings, batchReplayRecordings, type Recording } from '@/lib/api';
-import { StatusBadge, StatusIcon } from '@/components/status-badge';
-import { EmptyState } from '@/components/empty-state';
-import { BatchActionBar } from '@/components/batch-action-bar';
-import { CardSkeleton } from '@/components/skeleton';
-import { ConfirmDialog } from '@/components/confirm-dialog';
+import { StatusBadge, StatusIcon } from '@/components/ui/status-badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { BatchActionBar } from '@/components/ui/batch-action-bar';
+import { CardSkeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatRelativeTime } from '@/lib/time-ago';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 

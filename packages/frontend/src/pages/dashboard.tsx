@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { fetchRecordings, fetchExecutionsSummary, fetchProjects, type ExecutionSummary } from '@/lib/api';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
-import { TrendChart } from '@/components/trend-chart';
-import { StatusBadge } from '@/components/status-badge';
+import { TrendChart } from '@/components/ui/trend-chart';
+import { StatusBadge } from '@/components/ui/status-badge';
 import type { Recording, Project } from '@/lib/api';
 
 export function Dashboard() {

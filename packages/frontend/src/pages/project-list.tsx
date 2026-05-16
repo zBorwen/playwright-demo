@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import { FolderOpen, Trash2, Check } from 'lucide-react';
 import { fetchProjects, deleteProject, batchReplayProjects, type Project } from '@/lib/api';
 import { useAppStore } from '@/store/app-store';
-import { StatusBadge } from '@/components/status-badge';
-import { CardSkeleton } from '@/components/skeleton';
-import { EmptyState } from '@/components/empty-state';
-import { ConfirmDialog } from '@/components/confirm-dialog';
-import { BatchActionBar } from '@/components/batch-action-bar';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { CardSkeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { BatchActionBar } from '@/components/ui/batch-action-bar';
 import { formatRelativeTime } from '@/lib/time-ago';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 

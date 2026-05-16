@@ -1,6 +1,6 @@
 import { Play, Loader2, CheckCircle, XCircle, Circle, Square } from 'lucide-react';
-import { ControlBar } from '@/components/control-bar';
-import { StatusBadge } from '@/components/status-badge';
+import { ControlBar } from '@/components/ui/control-bar';
+import { StatusBadge } from '@/components/ui/status-badge';
 import type { Recording } from '@/lib/api';
 import type { BrowserType } from '@playwright-demo/shared';
 

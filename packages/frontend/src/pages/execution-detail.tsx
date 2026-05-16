@@ -3,8 +3,8 @@ import { useParams } from 'react-router-dom';
 import { Eye } from 'lucide-react';
 import { fetchExecution, fetchExecutionArtifacts, executionTraceUrl } from '@/lib/api';
 import type { Execution, ExecutionArtifact } from '@/lib/api';
-import { TraceViewerModal } from '@/components/trace-viewer-modal';
-import { StatusBadge } from '@/components/status-badge';
+import { TraceViewerModal } from '@/components/ui/trace-viewer-modal';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 export function ExecutionDetail() {
   const { id } = useParams<{ id: string }>();
