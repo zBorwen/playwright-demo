@@ -1,5 +1,5 @@
 import { useState, memo } from 'react';
-import { CheckCircle, XCircle, Circle, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
+import { CheckCircle, XCircle, Circle, Loader2, ChevronDown, ChevronRight, Camera } from 'lucide-react';
 import { ACTION_ICONS, formatActionDetail } from '@/lib/action-formatter';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 import { useShallow } from 'zustand/react/shallow';
@@ -76,9 +76,12 @@ const StepItem = memo(({ recordingId, index, isSelected, onSelect, expandedStep,
           <span className="text-[10px] font-medium text-zinc-500 capitalize shrink-0">
             {action.name}
           </span>
-          <span className="truncate text-[11px] text-zinc-300">
+          <span className="truncate text-[11px] text-zinc-300 flex-1">
             {detail}
           </span>
+          {step?.screenshot && (
+            <Camera className="h-3 w-3 text-violet-400 shrink-0 opacity-80" />
+          )}
         </div>
       </div>
       {isFailed && (

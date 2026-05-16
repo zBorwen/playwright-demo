@@ -25,6 +25,11 @@ async function main() {
         ws.send({ type: 'replay:step', payload: stepP });
         break;
       }
+      case 'replay:artifact': {
+        const artP = msg.payload as { executionId: string; recordingId: string; index: number; type: 'screenshot' | 'har' | 'trace'; path: string };
+        ws.send({ type: 'replay:artifact', payload: artP });
+        break;
+      }
       case 'replay:done': {
         const doneP = msg.payload as { executionId: string; recordingId: string; status: 'passed' | 'failed'; error?: string; trace?: string; tracePath?: string; screenshot?: string };
         ws.send({

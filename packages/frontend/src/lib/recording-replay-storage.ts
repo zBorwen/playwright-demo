@@ -1,4 +1,4 @@
-import type { ReplayStep } from '@/store/types';
+import type { ReplayStep } from '@playwright-demo/shared';
 
 const STORAGE_KEY_PREFIX = 'recording-replay-state';
 

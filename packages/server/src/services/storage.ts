@@ -27,11 +27,19 @@ export class StorageService {
   }
 
   async saveTrace(executionId: string, buffer: Buffer): Promise<string> {
-    const dir = `${this.base}/executions/${executionId}`;
-    await mkdir(dir, { recursive: true });
+    const dir = await this.getExecutionDir(executionId);
     const tracePath = `${dir}/trace.zip`;
     await writeFile(tracePath, buffer);
     return tracePath;
+  }
+
+  async saveExecutionScreenshot(executionId: string, stepIndex: number, buffer: Buffer): Promise<string> {
+    const dir = await this.getExecutionDir(executionId);
+    const screenshotDir = `${dir}/screenshots`;
+    await mkdir(screenshotDir, { recursive: true });
+    const screenshotPath = `${screenshotDir}/step-${stepIndex}.jpg`;
+    await writeFile(screenshotPath, buffer);
+    return `executions/${executionId}/screenshots/step-${stepIndex}.jpg`;
   }
 
   async loadTrace(executionId: string): Promise<Buffer | null> {
@@ -41,5 +49,11 @@ export class StorageService {
     } catch {
       return null;
     }
+  }
+
+  private async getExecutionDir(executionId: string): Promise<string> {
+    const dir = `${this.base}/executions/${executionId}`;
+    await mkdir(dir, { recursive: true });
+    return dir;
   }
 }

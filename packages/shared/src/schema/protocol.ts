@@ -84,6 +84,16 @@ export const AgentMessageSchema = z.discriminatedUnion('type', [
     }),
   }),
   z.object({
+    type: z.literal('replay:artifact'),
+    payload: z.object({
+      executionId: z.string().uuid(),
+      recordingId: z.string().uuid(),
+      index: z.number(), // step index
+      type: z.enum(['screenshot', 'har', 'trace']),
+      path: z.string(), // server relative path or agent local path depending on context
+    }),
+  }),
+  z.object({
     type: z.literal('replay:done'),
     payload: z.object({
       executionId: z.string().uuid(),

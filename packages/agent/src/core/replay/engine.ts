@@ -17,8 +17,10 @@ interface ReplayResult {
   error?: string;
   trace?: string;
   tracePath?: string;
-  screenshots: { stepIndex: number; path: string }[];
+  artifacts: { index: number; type: 'screenshot'; path: string }[];
 }
+
+const SCREENSHOT_ACTIONS = ['navigate', 'click', 'fill', 'select', 'check', 'uncheck', 'setInputFiles'];
 
 /**
  * Skip redundant enter-press that is immediately followed by a click.
@@ -51,9 +53,12 @@ function deduplicateActions(actions: RecordingAction[]): RecordingAction[] {
 export class ReplayEngine {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
-  private screenshots: { stepIndex: number; path: string }[] = [];
+  private artifacts: { index: number; type: 'screenshot'; path: string }[] = [];
   private onStepCallback: ((index: number, status: 'completed') => void) | null = null;
   private onStepFailedCallback: ((index: number, error: string) => void) | null = null;
+  private onArtifactCallback: ((index: number, type: 'screenshot', path: string) => void) | null = null;
+
+  private screenshotPromise = Promise.resolve();
 
   onStep(callback: (index: number, status: 'completed') => void): void {
     this.onStepCallback = callback;
@@ -63,23 +68,33 @@ export class ReplayEngine {
     this.onStepFailedCallback = callback;
   }
 
+  onArtifact(callback: (index: number, type: 'screenshot', path: string) => void): void {
+    this.onArtifactCallback = callback;
+  }
+
   async replay(actions: RecordingAction[], options: {
     harPath?: string;
     headless?: boolean;
     recordingId?: string;
+    executionId?: string;
     mockRules?: MockRule[];
     useMock?: boolean;
     stepDelay?: number;
     browserType?: BrowserType;
   } = {}): Promise<ReplayResult> {
+    this.artifacts = [];
+    this.screenshotPromise = Promise.resolve();
+
     const {
-      headless = true, recordingId = 'unknown', harPath,
+      headless = true, recordingId = 'unknown', executionId = `exec-${Date.now()}`, harPath,
       mockRules = [], useMock = false, stepDelay = 300, browserType = 'chromium',
     } = options;
 
-    const storageBase = path.resolve(process.env.STORAGE_PATH || './storage', 'recordings', recordingId);
+    const storageBase = path.resolve(process.env.STORAGE_PATH || './storage', 'executions', executionId);
     const screenshotDir = path.join(storageBase, 'screenshots');
     const traceDir = path.join(storageBase, 'traces');
+
+    mkdirSync(screenshotDir, { recursive: true });
 
     const deduplicated = deduplicateActions(actions);
     const launcher = browserLaunchers[browserType];
@@ -101,34 +116,61 @@ export class ReplayEngine {
         try {
           console.log(`[replay] executing step ${i}/${deduplicated.length}: ${action.name}`);
           await this.executeActionAndWait(page, action);
+
+          // 1. Immediate status update
+          if (this.onStepCallback) this.onStepCallback(i, 'completed');
+
+          // 2. Async screenshot evidence (non-blocking)
+          if (SCREENSHOT_ACTIONS.includes(action.name) || action.name.startsWith('assert')) {
+            const scPath = path.join(screenshotDir, `step-${i}.jpg`);
+            this.screenshotPromise = this.screenshotPromise.then(async () => {
+              try {
+                // Wait for stability if it's a navigation or mutation
+                await page.waitForLoadState('domcontentloaded', { timeout: 1000 }).catch(() => {});
+                await page.screenshot({ path: scPath, type: 'jpeg', quality: 80 });
+                this.artifacts.push({ index: i, type: 'screenshot', path: scPath });
+                if (this.onArtifactCallback) this.onArtifactCallback(i, 'screenshot', scPath);
+              } catch (e) {
+                console.warn(`[replay] failed to capture async screenshot for step ${i}:`, e);
+              }
+            });
+          }
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
-          mkdirSync(screenshotDir, { recursive: true });
-          const failPath = path.join(screenshotDir, `failure-step-${i}.png`);
-          await page.screenshot({ path: failPath, fullPage: true });
+          const failPath = path.join(screenshotDir, `failure-step-${i}.jpg`);
+          
+          // For failure, we MUST wait for the screenshot to ensure we have the evidence
+          await page.screenshot({ path: failPath, type: 'jpeg', quality: 90, fullPage: true }).catch(() => {});
+          this.artifacts.push({ index: i, type: 'screenshot', path: failPath });
           
           if (this.onStepFailedCallback) this.onStepFailedCallback(i, errorMsg);
+          if (this.onArtifactCallback) this.onArtifactCallback(i, 'screenshot', failPath);
 
           mkdirSync(traceDir, { recursive: true });
           const tracePath = path.join(traceDir, `trace-${Date.now()}.zip`);
           await this.context.tracing.stop({ path: tracePath });
           
+          // Wait for pending screenshots before returning
+          await this.screenshotPromise.catch(() => {});
+
           return {
             status: 'failed', stepIndex: i, totalSteps: deduplicated.length,
-            error: errorMsg, tracePath, screenshots: this.screenshots,
+            error: errorMsg, tracePath, artifacts: this.artifacts,
           };
         }
 
-        if (this.onStepCallback) this.onStepCallback(i, 'completed');
         if (stepDelay > 0 && i < deduplicated.length - 1) {
           await new Promise((r) => setTimeout(r, stepDelay));
         }
       }
 
+      // Wait for all async evidence to finish before closing browser
+      await this.screenshotPromise.catch(() => {});
+      
       await this.context.tracing.stop().catch(() => {});
       return {
         status: 'passed', stepIndex: deduplicated.length, totalSteps: deduplicated.length,
-        screenshots: this.screenshots,
+        artifacts: this.artifacts,
       };
     } finally {
       await this.context?.close();

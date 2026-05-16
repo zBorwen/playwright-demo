@@ -26,6 +26,13 @@ process.on('message', async (msg: TaskMessage) => {
             payload: { executionId, recordingId, index, status: 'failed', error },
           });
         });
+        engine.onArtifact((index, type, path) => {
+          process.send!({
+            type: 'replay:artifact',
+            taskId: msg.id,
+            payload: { executionId, recordingId, index, type, path },
+          });
+        });
 
         try {
           const result = await engine.replay(actions, {

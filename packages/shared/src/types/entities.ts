@@ -24,4 +24,5 @@ export interface ReplayStep {
   detail: string;
   status: 'pending' | 'completed' | 'failed' | 'skipped';
   error?: string;
+  screenshot?: string;
 }
