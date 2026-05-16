@@ -11,9 +11,9 @@ import {
 
 interface RecordingReplayStore {
   recordingReplays: Record<string, RecordingReplayStatus>;
-  /** Tracks completed step indices before initSteps is called (batch replay mid-flight). */
+  /** Tracks completed step indices before startReplay is called (batch replay mid-flight). */
   stepStatuses: Record<string, Record<number, 'completed' | 'failed' | 'skipped'>>;
-  /** Pending replay:done payload, applied when initSteps is called. */
+  /** Pending replay:done payload, applied when startReplay is called. */
   pendingDones: Record<string, { status: 'passed' | 'failed'; error?: string; executionId?: string }>;
   setRecordingStatus: (status: Omit<RecordingReplayStatus, 'startedAt' | 'finishedAt'> & { startedAt?: number; finishedAt?: number }) => void;
   /** Start a new replay. Atomically resets state and rebuilds steps from actions. */
@@ -202,7 +202,7 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
           return step;
         });
       } else {
-        // No steps yet — store as pending done for initSteps to apply
+        // No steps yet — store as pending done for startReplay to apply
         const newPendingDones = { ...s.pendingDones };
         newPendingDones[payload.recordingId] = {
           status: payload.status,
