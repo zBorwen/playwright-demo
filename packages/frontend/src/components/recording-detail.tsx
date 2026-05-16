@@ -63,15 +63,22 @@ export function RecordingDetail() {
   }, [replayExecutionId]);
 
   // Rebuild steps whenever a new execution starts (e.g. second batch replay
-  // from another page). useEffect runs after the render completes, so we're
-  // guaranteed to see the latest state — no stale ref/closure issues.
+  // from another page). A Set tracks which steps are completed, so the
+  // rebuild doesn't lose handler updates that arrived before the effect ran.
+  const completedStepsRef = useRef<Set<number>>(new Set());
+  const rebuiltForExecutionRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!replayExecutionId || actions.length === 0) return;
+    // Skip if already rebuilt for this execution
+    if (rebuiltForExecutionRef.current === replayExecutionId) return;
+    rebuiltForExecutionRef.current = replayExecutionId;
+    const completed = completedStepsRef.current;
     setReplaySteps(actions.map((a, i) => ({
       index: i,
       actionName: a.name,
       detail: formatActionDetail(a),
-      status: 'pending' as const,
+      status: completed.has(i) ? 'completed' as const : 'pending' as const,
     })));
   }, [replayExecutionId, actions.length]);
 
@@ -182,15 +189,23 @@ export function RecordingDetail() {
       case 'replay:step': {
         const stepPayload = msg.payload as { index: number; executionId: string; recordingId: string; status: 'completed' | 'failed'; error?: string };
         if (stepPayload.recordingId && id && stepPayload.recordingId !== id) return;
-        if (stepPayload.executionId) setReplayExecutionId(stepPayload.executionId);
+        // Detect new execution and reset tracking
+        if (prevExecutionIdRef.current && stepPayload.executionId !== prevExecutionIdRef.current) {
+          prevExecutionIdRef.current = stepPayload.executionId;
+          completedStepsRef.current = new Set();
+          rebuiltForExecutionRef.current = null;
+        } else if (!prevExecutionIdRef.current && stepPayload.executionId) {
+          prevExecutionIdRef.current = stepPayload.executionId;
+        }
         setReplayStoreStatus({
           recordingId: id!,
           status: stepPayload.status === 'failed' ? 'failed' : 'running',
           executionId: stepPayload.executionId,
           error: stepPayload.error,
         });
-        // Update the step's status. The step array is rebuilt by a useEffect
-        // when replayExecutionId changes, so we only need to update the index here.
+        setReplayExecutionId(stepPayload.executionId);
+        // Track completed steps in ref so the effect can preserve them when rebuilding
+        completedStepsRef.current.add(stepPayload.index);
         setReplaySteps((prev) =>
           prev.length > 0
             ? prev.map((s) =>
@@ -268,6 +283,7 @@ export function RecordingDetail() {
         );
         setReplayExecutionId(restored.executionId);
         prevExecutionIdRef.current = restored.executionId;
+        rebuiltForExecutionRef.current = restored.executionId;
         setReplaySteps(steps);
       }
     }).catch((e) => {
@@ -324,6 +340,9 @@ export function RecordingDetail() {
     // Must update the ref directly — setState is async and won't take effect
     // until the next render, but WS messages can arrive immediately.
     replayExecutionIdRef.current = null;
+    prevExecutionIdRef.current = null;
+    completedStepsRef.current = new Set();
+    rebuiltForExecutionRef.current = null;
     setReplayExecutionId(null);
     setReplaySteps([]);
     setReplayStoreStatus({ recordingId: id!, status: 'passed' });
@@ -337,6 +356,7 @@ export function RecordingDetail() {
     // replay:step messages immediately after the API call returns.
     replayExecutionIdRef.current = executionId;
     prevExecutionIdRef.current = executionId;
+    rebuiltForExecutionRef.current = executionId;
     setReplayExecutionId(executionId);
 
     setReplayStoreStatus({ recordingId: id!, status: 'running', projectId: recording?.projectId, executionId });
