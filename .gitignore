@@ -1,6 +1,7 @@
 .agents/
 .claude/
 node_modules/
+*.tsbuildinfo
 
 # Playwright MCP runtime
 .playwright-mcp/
