@@ -84,3 +84,13 @@ export function subscribeToMessages(onMessage: (msg: WsMessage) => void): () => 
 export function getSingleReplayProgress(executionId: string): number {
   return singleReplayProgress.get(executionId) ?? -1;
 }
+
+/** Clear progress for a specific execution (call when starting a new replay). */
+export function clearSingleReplayProgress(executionId: string): void {
+  singleReplayProgress.delete(executionId);
+}
+
+/** Clear all single-replay progress (call when navigating away or resetting). */
+export function clearAllSingleReplayProgress(): void {
+  singleReplayProgress.clear();
+}

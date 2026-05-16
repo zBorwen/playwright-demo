@@ -17,7 +17,7 @@ import {
   type RecordingAction,
   type BrowserType,
 } from '@/lib/api';
-import { useWebSocket, getSingleReplayProgress } from '@/hooks/use-websocket';
+import { useWebSocket, getSingleReplayProgress, clearAllSingleReplayProgress } from '@/hooks/use-websocket';
 import { RecordingJsonEditor } from '@/components/recording-json-editor';
 import { NetworkTab } from '@/components/network-tab';
 import { type ReplayStep } from '@/components/replay-panel';
@@ -291,14 +291,33 @@ export function RecordingDetail() {
   };
 
   const handleReplay = async () => {
-    setReplayStoreStatus({ recordingId: id!, status: 'running', projectId: recording?.projectId });
+    // Synchronously clear all replay state to prevent stale messages from
+    // the previous run leaking into the new one.
+    // Must update the ref directly — setState is async and won't take effect
+    // until the next render, but WS messages can arrive immediately.
+    replayExecutionIdRef.current = null;
+    setReplayExecutionId(null);
+    setReplaySteps([]);
+    setReplayStoreStatus({ recordingId: id!, status: 'passed' });
+    clearAllSingleReplayProgress();
+
+    // Get the new executionId from the server BEFORE the agent starts executing,
+    // so we can set the ref and filter out stale messages from the old run.
+    const { executionId } = await replayRecording(id!, { useMock, replaySpeed: projectReplaySpeed, headless, browserType });
+
+    // Capture the new executionId synchronously — the agent may start sending
+    // replay:step messages immediately after the API call returns.
+    replayExecutionIdRef.current = executionId;
+    setReplayExecutionId(executionId);
+
+    setReplayStoreStatus({ recordingId: id!, status: 'running', projectId: recording?.projectId, executionId });
     setReplaySteps(actions.map((a, i) => ({
       index: i,
       actionName: a.name,
       detail: formatActionDetail(a),
       status: 'pending' as const,
     })));
-    await replayRecording(id!, { useMock, replaySpeed: projectReplaySpeed, headless, browserType });
+
     const execs = await fetchExecutions(id!);
     setExecutions(execs);
   };

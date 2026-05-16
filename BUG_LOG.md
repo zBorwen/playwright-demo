@@ -1,5 +1,57 @@
 # Bug 修复记录
 
+## 连续回放状态泄漏（2026-05-16）
+
+### 现象
+连续点击同一个录制的回放按钮：
+1. 第一次执行正常显示步骤进度和状态变化（运行中 → 通过/失败）
+2. 第二次开始步骤直接显示已完成，但 agent 实际还没执行完
+3. 第三次开始回放按钮一直显示"运行中"，状态不再更新
+
+### 根因
+三个问题叠加：
+
+1. **`replayExecutionIdRef` 异步更新延迟**：`handleReplay` 中 `setReplayExecutionId(null)` 是异步的，`replayExecutionIdRef.current` 依赖 `useEffect` 在下次渲染时才更新。第二次 replay 启动时 ref 中仍残留第一次的 executionId。
+
+2. **旧消息过滤条件误杀新消息**：当新 replay 的 `replay:step` 消息到达时，handler 检查 `stepPayload.executionId !== replayExecutionIdRef.current`。由于 ref 中还是旧 ID，所有新步骤消息都被 `return` 丢弃了。
+
+3. **`singleReplayProgress` Map 未清理**：旧 replay 的进度数据残留在全局 Map 中，`detectRunningExecution` 恢复步骤时会把旧进度应用到新步骤上。
+
+### 修复方案
+`handleReplay` 中同步清空 ref 和所有相关状态，不依赖异步 setState：
+
+```typescript
+// 同步更新 ref（setState 是 async 的，WS 消息可能立即到达）
+replayExecutionIdRef.current = null;
+setReplayExecutionId(null);
+setReplaySteps([]);
+setReplayStoreStatus({ recordingId: id!, status: 'passed' });
+clearAllSingleReplayProgress();
+
+// 先拿新 executionId，再同步设置到 ref
+const { executionId } = await replayRecording(id!, options);
+replayExecutionIdRef.current = executionId;
+setReplayExecutionId(executionId);
+
+// 初始化新步骤
+setReplayStoreStatus({ recordingId: id!, status: 'running', projectId: recording?.projectId, executionId });
+setReplaySteps(actions.map(...));
+```
+
+同时新增 `use-websocket.ts` 工具函数：
+- `clearSingleReplayProgress(executionId)` — 清除单个执行的进度
+- `clearAllSingleReplayProgress()` — 清空全部进度
+
+### 修改文件
+- `packages/frontend/src/components/recording-detail.tsx` — 重写 `handleReplay` 状态重置顺序
+- `packages/frontend/src/hooks/use-websocket.ts` — 新增 `clearSingleReplayProgress` / `clearAllSingleReplayProgress`
+
+### 教训
+- React setState 是异步的，`useEffect` 更新 ref 有延迟。当 ref 用于消息过滤时，必须在事件触发前同步更新
+- 全局状态 Map 在操作重复执行时必须清理，否则会泄漏到新操作
+
+---
+
 ## 项目卡片回放状态显示异常（迭代 5 次修复，2026-05-11）
 
 ### 问题背景
