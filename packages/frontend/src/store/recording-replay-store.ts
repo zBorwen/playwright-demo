@@ -160,6 +160,8 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
   handleReplayStep(payload) {
     set((s) => {
       const existing = s.recordingReplays[payload.recordingId];
+      // Detect new execution (e.g. second batch replay) — reset all steps to pending.
+      const isNewExecution = existing && existing.executionId && existing.executionId !== payload.executionId;
       const stepStatuses = s.stepStatuses[payload.recordingId] ?? {};
       stepStatuses[payload.index] = payload.status === 'failed' ? 'failed' : 'completed';
 
@@ -175,6 +177,10 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
       entry.executionId = payload.executionId;
       entry.status = 'running';
       entry.error = payload.error;
+
+      if (isNewExecution && entry.replaySteps) {
+        entry.replaySteps = entry.replaySteps.map(s => ({ ...s, status: 'pending' as const }));
+      }
 
       if (entry.replaySteps) {
         const steps = [...entry.replaySteps];
