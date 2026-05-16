@@ -1,7 +1,13 @@
 import path from 'node:path';
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
-import type { Recording, RecordingAction, ElementInfo } from '@playwright-demo/shared';
+import { chromium, firefox, webkit, type Browser, type BrowserContext, type Page } from 'playwright-core';
+import type { BrowserType, Recording, RecordingAction, ElementInfo } from '@playwright-demo/shared';
 import { captureFingerprint } from './fingerprint';
+
+const browserLaunchers: Record<BrowserType, typeof chromium> = {
+  chromium,
+  firefox,
+  webkit,
+};
 
 interface RecorderActionData {
   action: {
@@ -32,9 +38,18 @@ export class RecorderManager {
 
   private recordingId: string = '';
 
-  async startRecording(targetUrl: string, recordingId: string): Promise<void> {
+  async startRecording(targetUrl: string, recordingId: string, options: {
+    headless?: boolean;
+    browserType?: BrowserType;
+  } = {}): Promise<void> {
     this.recordingId = recordingId;
-    this.browser = await chromium.launch({ headless: false });
+    const browserType = options.browserType ?? 'chromium';
+    const headless = options.headless ?? false;
+
+    const launcher = browserLaunchers[browserType];
+    if (!launcher) throw new Error(`Unsupported browser: ${browserType}`);
+
+    this.browser = await launcher.launch({ headless });
     this.context = await this.browser.newContext({
       recordHar: { path: this.getHarPath() },
     });
@@ -131,7 +146,7 @@ export class RecorderManager {
         mode: 'recording',
         recorderMode: 'api',
         language: 'playwright-test',
-        launchOptions: { headless: false },
+        launchOptions: { headless },
         contextOptions: {},
         handleSIGINT: false,
         hideToolbar: true,

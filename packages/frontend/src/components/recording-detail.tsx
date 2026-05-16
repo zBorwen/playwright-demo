@@ -15,8 +15,9 @@ import {
   type Recording,
   type Execution,
   type RecordingAction,
+  type BrowserType,
 } from '@/lib/api';
-import { useWebSocket, getSingleReplayProgress } from '@/hooks/use-websocket';
+import { useWebSocket, getSingleReplayProgress, clearAllSingleReplayProgress } from '@/hooks/use-websocket';
 import { RecordingJsonEditor } from '@/components/recording-json-editor';
 import { NetworkTab } from '@/components/network-tab';
 import { type ReplayStep } from '@/components/replay-panel';
@@ -76,6 +77,37 @@ export function RecordingDetail() {
       // localStorage may be blocked; non-critical
     }
   };
+  const [headless, setHeadless] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`replay-headless:${id}`);
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const handleHeadlessChange = (value: boolean) => {
+    setHeadless(value);
+    try {
+      if (id) localStorage.setItem(`replay-headless:${id}`, String(value));
+    } catch {}
+  };
+
+  const [browserType, setBrowserType] = useState<BrowserType>(() => {
+    try {
+      const saved = localStorage.getItem(`replay-browser-type:${id}`);
+      return (saved as BrowserType) || 'chromium';
+    } catch {
+      return 'chromium';
+    }
+  });
+
+  const handleBrowserTypeChange = (value: BrowserType) => {
+    setBrowserType(value);
+    try {
+      if (id) localStorage.setItem(`replay-browser-type:${id}`, value);
+    } catch {}
+  };
   const [projectReplaySpeed, setProjectReplaySpeed] = useState<'fast' | 'normal' | 'slow'>('normal');
   const [codegen, setCodegen] = useState<string>('');
 
@@ -124,7 +156,7 @@ export function RecordingDetail() {
           }
         }
         if (id) {
-          fetchRecordingCodegen(id).then((r) => setCodegen(r.codegen || '')).catch((e) => {
+          fetchRecordingCodegen(id, browserType).then((r) => setCodegen(r.codegen || '')).catch((e) => {
             console.warn('Failed to fetch codegen:', e.message);
           });
         }
@@ -243,7 +275,7 @@ export function RecordingDetail() {
     setActions([]);
     actionsRef.current = [];
     setCodegen('');
-    await startRecording(id!);
+    await startRecording(id!, { browserType });
     setRecordingStatus('recording');
   };
 
@@ -259,14 +291,33 @@ export function RecordingDetail() {
   };
 
   const handleReplay = async () => {
-    setReplayStoreStatus({ recordingId: id!, status: 'running', projectId: recording?.projectId });
+    // Synchronously clear all replay state to prevent stale messages from
+    // the previous run leaking into the new one.
+    // Must update the ref directly — setState is async and won't take effect
+    // until the next render, but WS messages can arrive immediately.
+    replayExecutionIdRef.current = null;
+    setReplayExecutionId(null);
+    setReplaySteps([]);
+    setReplayStoreStatus({ recordingId: id!, status: 'passed' });
+    clearAllSingleReplayProgress();
+
+    // Get the new executionId from the server BEFORE the agent starts executing,
+    // so we can set the ref and filter out stale messages from the old run.
+    const { executionId } = await replayRecording(id!, { useMock, replaySpeed: projectReplaySpeed, headless, browserType });
+
+    // Capture the new executionId synchronously — the agent may start sending
+    // replay:step messages immediately after the API call returns.
+    replayExecutionIdRef.current = executionId;
+    setReplayExecutionId(executionId);
+
+    setReplayStoreStatus({ recordingId: id!, status: 'running', projectId: recording?.projectId, executionId });
     setReplaySteps(actions.map((a, i) => ({
       index: i,
       actionName: a.name,
       detail: formatActionDetail(a),
       status: 'pending' as const,
     })));
-    await replayRecording(id!, { useMock, replaySpeed: projectReplaySpeed });
+
     const execs = await fetchExecutions(id!);
     setExecutions(execs);
   };
@@ -309,11 +360,15 @@ export function RecordingDetail() {
         actionsCount={actions.length}
         lastExecutionStatus={lastExecution?.status}
         lastExecutedAt={lastExecutedAt}
+        headless={recordingStatus === 'recording' ? false : headless}
+        browserType={browserType}
         onStartRecording={handleStartRecording}
         onStopRecording={handleStopRecording}
         onReplay={handleReplay}
         onUseMockChange={handleUseMockChange}
         onSpeedChange={handleSpeedChange}
+        onHeadlessChange={handleHeadlessChange}
+        onBrowserTypeChange={handleBrowserTypeChange}
       />
 
       {/* Tab bar */}

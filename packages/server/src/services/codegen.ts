@@ -61,7 +61,9 @@ function toActionInContext(action: Record<string, unknown>): ActionInContext | n
   };
 }
 
-export function generateCodegen(actions: Record<string, unknown>[]): string {
+export function generateCodegen(actions: Record<string, unknown>[], options: {
+  browserName?: 'chromium' | 'firefox' | 'webkit';
+} = {}): string {
   const generator = new JavaScriptLanguageGenerator(true); // playwright-test mode
   const converted = actions
     .map(toActionInContext)
@@ -70,7 +72,7 @@ export function generateCodegen(actions: Record<string, unknown>[]): string {
   if (converted.length === 0) return '';
 
   const { text } = generateCode(converted, generator, {
-    browserName: 'chromium',
+    browserName: options.browserName ?? 'chromium',
     launchOptions: { headless: false },
     contextOptions: {},
     saveStorage: undefined,

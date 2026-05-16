@@ -39,7 +39,8 @@ async function main() {
     });
 
     const result = await engine.replay(actions as Parameters<typeof engine.replay>[0], {
-      headless: false,
+      headless: payload.headless,
+      browserType: payload.browserType,
       recordingId: payload.recordingId,
       harPath: harRef ? path.resolve(process.env.STORAGE_PATH || './storage', harRef) : undefined,
       mockRules: mockRules || [],
@@ -83,7 +84,10 @@ async function main() {
           };
           ws.send(agentMsg);
         });
-        await recorder.startRecording(msg.payload.targetUrl, msg.payload.recordingId);
+        await recorder.startRecording(msg.payload.targetUrl, msg.payload.recordingId, {
+          headless: msg.payload.headless,
+          browserType: msg.payload.browserType,
+        });
         break;
       }
       case 'record:stop': {

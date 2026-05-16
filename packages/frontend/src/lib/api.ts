@@ -1,5 +1,5 @@
-import type { RecordingAction, NetworkEntry, MockRule } from '@playwright-demo/shared';
-export type { RecordingAction };
+import type { RecordingAction, NetworkEntry, MockRule, BrowserType } from '@playwright-demo/shared';
+export type { RecordingAction, BrowserType };
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -73,8 +73,9 @@ export async function fetchRecordingActions(id: string): Promise<{ actions: Reco
   return request(`${API_BASE}/recordings/${id}/actions`);
 }
 
-export async function fetchRecordingCodegen(id: string): Promise<{ codegen: string }> {
-  return request(`${API_BASE}/recordings/${id}/codegen`);
+export async function fetchRecordingCodegen(id: string, browserType?: BrowserType): Promise<{ codegen: string }> {
+  const qs = browserType ? `?browserType=${browserType}` : '';
+  return request(`${API_BASE}/recordings/${id}/codegen${qs}`);
 }
 
 export async function saveRecordingActions(id: string, actions: RecordingAction[]): Promise<{ ok: boolean }> {
@@ -97,34 +98,39 @@ export async function deleteRecordings(ids: string[]): Promise<{ ok: boolean; de
   });
 }
 
-export async function batchReplayRecordings(recordingIds: string[], options?: { useMock?: boolean }): Promise<{ batchId: string; total: number; results: Array<{ recordingId: string; executionId: string; projectId?: string }> }> {
+export async function batchReplayRecordings(recordingIds: string[], options?: { useMock?: boolean; headless?: boolean; browserType?: BrowserType }): Promise<{ batchId: string; total: number; results: Array<{ recordingId: string; executionId: string; projectId?: string }> }> {
   return request(`${API_BASE}/recordings/batch-replay`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ recordingIds, useMock: options?.useMock ?? false }),
+    body: JSON.stringify({ recordingIds, useMock: options?.useMock ?? false, headless: options?.headless, browserType: options?.browserType }),
   });
 }
 
-export async function batchReplayProjects(projectIds: string[], options?: { useMock?: boolean }): Promise<{ batchId: string; total: number; results: Array<{ recordingId: string; executionId: string; projectId?: string }> }> {
+export async function batchReplayProjects(projectIds: string[], options?: { useMock?: boolean; headless?: boolean; browserType?: BrowserType }): Promise<{ batchId: string; total: number; results: Array<{ recordingId: string; executionId: string; projectId?: string }> }> {
   return request(`${API_BASE}/recordings/batch-replay/projects`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectIds, useMock: options?.useMock ?? false }),
+    body: JSON.stringify({ projectIds, useMock: options?.useMock ?? false, headless: options?.headless, browserType: options?.browserType }),
   });
 }
 
-export async function startRecording(id: string): Promise<{ ok: boolean }> {
-  return request(`${API_BASE}/recordings/${id}/start`, { method: 'POST' });
+export async function startRecording(id: string, options?: { browserType?: BrowserType }): Promise<{ ok: boolean }> {
+  const params = new URLSearchParams();
+  if (options?.browserType) params.set('browserType', options.browserType);
+  const qs = params.toString();
+  return request(`${API_BASE}/recordings/${id}/start${qs ? `?${qs}` : ''}`, { method: 'POST' });
 }
 
 export async function stopRecording(id: string): Promise<{ ok: boolean }> {
   return request(`${API_BASE}/recordings/${id}/stop`, { method: 'POST' });
 }
 
-export async function replayRecording(id: string, options?: { useMock?: boolean; replaySpeed?: 'fast' | 'normal' | 'slow' }): Promise<{ ok: boolean; executionId: string }> {
+export async function replayRecording(id: string, options?: { useMock?: boolean; replaySpeed?: 'fast' | 'normal' | 'slow'; headless?: boolean; browserType?: BrowserType }): Promise<{ ok: boolean; executionId: string }> {
   const params = new URLSearchParams();
   if (options?.useMock) params.set('mock', 'true');
   if (options?.replaySpeed && options.replaySpeed !== 'normal') params.set('replaySpeed', options.replaySpeed);
+  if (options?.headless !== undefined) params.set('headless', String(options.headless));
+  if (options?.browserType) params.set('browserType', options.browserType);
   const qs = params.toString();
   return request(`${API_BASE}/recordings/${id}/replay${qs ? `?${qs}` : ''}`, { method: 'POST' });
 }
