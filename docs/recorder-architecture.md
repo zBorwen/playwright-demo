@@ -31,8 +31,8 @@
 | `packages/agent/src/fingerprint.ts` | 元素指纹采集（data-testid, role, text, boundingBox 等） |
 | `packages/agent/src/index.ts` | Agent 入口，WS 消息处理 |
 | `packages/server/src/routes/recordings.ts` | REST API：创建/查询/保存录制 |
-| `packages/frontend/src/components/recording-detail.tsx` | 录制详情页：Timeline / Codegen / JSON / 执行历史 |
-| `packages/frontend/src/components/recording-json-editor.tsx` | JSON 编辑器 |
+| `packages/frontend/src/pages/recording-detail.tsx` | 录制详情页：Timeline / Codegen / JSON / 执行历史 |
+| `packages/frontend/src/components/recording/recording-json-editor.tsx` | JSON 编辑器 |
 
 ## 事件流（完整链路）
 

@@ -30,7 +30,7 @@
 
 **文件**：
 - `packages/agent/src/recorder-manager.ts`
-- `packages/frontend/src/components/recording-detail.tsx`
+- `packages/frontend/src/pages/recording-detail.tsx`
 
 ---
 
@@ -43,7 +43,7 @@
 
 **文件**：
 - `packages/agent/src/recorder-manager.ts`
-- `packages/frontend/src/components/recording-detail.tsx`
+- `packages/frontend/src/pages/recording-detail.tsx`
 
 ---
 
