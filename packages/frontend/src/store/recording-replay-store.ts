@@ -16,7 +16,9 @@ interface RecordingReplayStore {
   /** Pending replay:done payload, applied when startReplay is called. */
   pendingDones: Record<string, { status: 'passed' | 'failed'; error?: string; executionId?: string }>;
   setRecordingStatus: (status: Omit<RecordingReplayStatus, 'startedAt' | 'finishedAt'> & { startedAt?: number; finishedAt?: number }) => void;
-  /** Start a new replay. Atomically resets state and rebuilds steps from actions. */
+  /** Build step skeleton from actions. Called when component mounts. Merges with WS state from batch replay. */
+  initSteps: (recordingId: string, actions: RecordingAction[]) => void;
+  /** Start a new replay from detail page. Atomically resets state and rebuilds steps from actions. */
   startReplay: (recordingId: string, executionId: string, actions: RecordingAction[], projectId?: string) => void;
   /** Handle a replay:step WS message. */
   handleReplayStep: (payload: { recordingId: string; executionId: string; index: number; status: 'completed' | 'failed'; error?: string }) => void;
@@ -61,6 +63,73 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
           ...s.recordingReplays,
           [entry.recordingId]: entry,
         },
+      };
+    });
+  },
+
+  initSteps(recordingId, actions) {
+    set((s) => {
+      const existing = s.recordingReplays[recordingId];
+      const savedStatuses = s.stepStatuses[recordingId] ?? {};
+      const pendingDone = s.pendingDones[recordingId];
+
+      // Build steps from actions
+      const steps = buildSteps(actions);
+
+      // Apply saved step statuses (WS messages arrived before component mount, e.g. batch replay mid-flight)
+      if (Object.keys(savedStatuses).length > 0) {
+        for (const [idxStr, st] of Object.entries(savedStatuses)) {
+          const idx = Number(idxStr);
+          if (steps[idx]) steps[idx].status = st;
+        }
+      }
+
+      // Apply pending done (replay:done arrived before component mount)
+      if (pendingDone) {
+        if (pendingDone.status === 'failed') {
+          for (const step of steps) {
+            if (step.status === 'pending') step.status = 'skipped';
+          }
+        } else {
+          for (const step of steps) {
+            if (step.status === 'pending') step.status = 'completed';
+          }
+        }
+      }
+
+      // If entry exists with a terminal status, apply it
+      if (existing && existing.status !== 'running' && existing.status !== 'idle') {
+        for (const step of steps) {
+          if (step.status === 'pending') {
+            step.status = existing.status === 'passed' ? 'completed' : 'skipped';
+          }
+        }
+      }
+
+      const updatedEntry: RecordingReplayStatus = {
+        recordingId,
+        status: existing?.status ?? 'idle',
+        projectId: existing?.projectId,
+        error: existing?.error,
+        executionId: existing?.executionId,
+        startedAt: existing?.startedAt ?? Date.now(),
+        finishedAt: existing?.finishedAt,
+        replaySteps: steps,
+      };
+
+      // Clean up tracking maps
+      const newStepStatuses = { ...s.stepStatuses };
+      delete newStepStatuses[recordingId];
+      const newPendingDones = { ...s.pendingDones };
+      delete newPendingDones[recordingId];
+
+      return {
+        recordingReplays: {
+          ...s.recordingReplays,
+          [recordingId]: updatedEntry,
+        },
+        stepStatuses: newStepStatuses,
+        pendingDones: newPendingDones,
       };
     });
   },

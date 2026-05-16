@@ -37,6 +37,7 @@ export function RecordingDetail() {
   const replaySteps = useRecordingReplayStore(s => id ? s.recordingReplays[id]?.replaySteps : undefined);
   const replayExecutionId = useRecordingReplayStore(s => id ? s.recordingReplays[id]?.executionId : undefined);
   const startReplay = useRecordingReplayStore(s => s.startReplay);
+  const initSteps = useRecordingReplayStore(s => s.initSteps);
 
   const [recording, setRecording] = useState<Recording | null>(null);
   const [actions, setActions] = useState<RecordingAction[]>([]);
@@ -176,6 +177,7 @@ export function RecordingDetail() {
           setProjectReplaySpeed(p.replaySpeed || 'normal');
         }).catch((e) => console.warn('Failed to fetch project settings:', e.message));
       }
+      initSteps(id, acts.actions || []);
     }).catch((e) => {
       setLoadError(e.message);
       setLoading(false);
