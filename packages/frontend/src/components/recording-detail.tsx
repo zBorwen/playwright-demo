@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   fetchRecording,
@@ -9,14 +9,12 @@ import {
   startRecording,
   stopRecording,
   replayRecording,
-  saveRecordingActions,
   executionTraceUrl,
   type Recording,
   type Execution,
-  type RecordingAction,
   type BrowserType,
 } from '@/lib/api';
-import { useWebSocket } from '@/hooks/use-websocket';
+import { useRecordingWebSocket } from '@/hooks/use-recording-websocket';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 import { RecordingJsonEditor } from '@/components/recording-json-editor';
 import { NetworkTab } from '@/components/network-tab';
@@ -34,18 +32,16 @@ import { highlightJSON } from '@/lib/syntax-highlight';
 export function RecordingDetail() {
   const { id } = useParams<{ id: string }>();
   const replayStatus = useRecordingReplayStore(s => id ? s.recordingReplays[id]?.status : undefined);
-  const replaySteps = useRecordingReplayStore(s => id ? s.recordingReplays[id]?.replaySteps : undefined);
   const replayExecutionId = useRecordingReplayStore(s => id ? s.recordingReplays[id]?.executionId : undefined);
   const startReplay = useRecordingReplayStore(s => s.startReplay);
   const initSteps = useRecordingReplayStore(s => s.initSteps);
+  const actionsCount = useRecordingReplayStore(s => id ? (s.activeRecordingActions[id]?.length || 0) : 0);
+  
+  // Also we need `activeRecordingActions` just for the single selected step details
+  const activeActions = useRecordingReplayStore(s => id ? s.activeRecordingActions[id] : undefined);
+  const replaySteps = useRecordingReplayStore(s => id ? s.recordingReplays[id]?.replaySteps : undefined);
 
   const [recording, setRecording] = useState<Recording | null>(null);
-  const [actions, setActions] = useState<RecordingAction[]>([]);
-  const actionsRef = useRef<RecordingAction[]>([]);
-
-  useEffect(() => {
-    actionsRef.current = actions;
-  }, [actions]);
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -65,9 +61,7 @@ export function RecordingDetail() {
     setUseMock(checked);
     try {
       if (id) localStorage.setItem(`replay-use-mock:${id}`, String(checked));
-    } catch {
-      // localStorage may be blocked; non-critical
-    }
+    } catch {}
   };
   const [headless, setHeadless] = useState(() => {
     try {
@@ -101,66 +95,16 @@ export function RecordingDetail() {
     } catch {}
   };
   const [projectReplaySpeed, setProjectReplaySpeed] = useState<'fast' | 'normal' | 'slow'>('normal');
-  const [codegen, setCodegen] = useState<string>('');
 
-  const handleWsMessage = useCallback((msg: { type: string; payload: unknown }) => {
-    switch (msg.type) {
-      case 'record:action': {
-        const payload = msg.payload as { action: RecordingAction; code?: string };
-        const action = payload.action;
-        const currentActions = actionsRef.current;
+  const onRecordingComplete = useCallback(() => {
+    setRecordingStatusLocal('idle');
+  }, []);
 
-        if (action.name === 'fill' && 'selector' in action && action.selector) {
-          const selector = action.selector;
-          const lastAction = currentActions.length > 0 ? currentActions[currentActions.length - 1] : null;
-          const shouldUpdate = lastAction?.name === 'fill' && 'selector' in lastAction && lastAction.selector === selector;
-
-          if (shouldUpdate) {
-            const updated = [...currentActions];
-            updated[updated.length - 1] = action;
-            actionsRef.current = updated;
-            setActions(updated);
-          } else {
-            const newActions = [...currentActions, action];
-            actionsRef.current = newActions;
-            setActions(newActions);
-          }
-        } else {
-          const newActions = [...currentActions, action];
-          actionsRef.current = newActions;
-          setActions(newActions);
-        }
-
-        if (payload.code) {
-          setCodegen((prev) => prev ? prev + '\n' + payload.code! : payload.code!);
-        }
-        break;
-      }
-      case 'record:complete': {
-        setRecordingStatusLocal('idle');
-        const payload = msg.payload as { actions?: RecordingAction[]; codegen?: string };
-        if (payload.actions) {
-          setActions(payload.actions);
-          if (id && payload.actions.length > 0) {
-            saveRecordingActions(id, payload.actions).catch((e) => {
-              console.error('Failed to auto-save recording actions:', e);
-            });
-          }
-        }
-        if (id) {
-          fetchRecordingCodegen(id, browserType).then((r) => setCodegen(r.codegen || '')).catch((e) => {
-            console.warn('Failed to fetch codegen:', e.message);
-          });
-        }
-        break;
-      }
-    }
-  }, [id]);
-
-  useWebSocket(handleWsMessage);
+  useRecordingWebSocket(id, browserType, onRecordingComplete);
 
   useEffect(() => {
     if (!id) return;
+    const store = useRecordingReplayStore.getState();
     Promise.all([
       fetchRecording(id),
       fetchRecordingActions(id).catch(() => ({ actions: [] })),
@@ -168,9 +112,11 @@ export function RecordingDetail() {
       fetchRecordingCodegen(id).catch(() => ({ codegen: '' })),
     ]).then(([rec, acts, execs, codegenResp]) => {
       setRecording(rec);
-      setActions(acts.actions || []);
       setExecutions(execs);
-      setCodegen(codegenResp.codegen || '');
+      
+      store.setActions(id, acts.actions || []);
+      store.setCodegen(id, codegenResp.codegen || '');
+      
       setLoading(false);
       if (rec.projectId) {
         fetchProject(rec.projectId).then((p) => {
@@ -182,12 +128,12 @@ export function RecordingDetail() {
       setLoadError(e.message);
       setLoading(false);
     });
-  }, [id]);
+  }, [id, initSteps]);
 
   const handleStartRecording = async () => {
-    setActions([]);
-    actionsRef.current = [];
-    setCodegen('');
+    const store = useRecordingReplayStore.getState();
+    store.setActions(id!, []);
+    store.setCodegen(id!, '');
     await startRecording(id!, { browserType });
     setRecordingStatusLocal('recording');
   };
@@ -196,17 +142,20 @@ export function RecordingDetail() {
     await stopRecording(id!);
     setRecordingStatusLocal('idle');
     setTimeout(async () => {
-      if (actions.length === 0 && id) {
+      const store = useRecordingReplayStore.getState();
+      const currentActions = store.activeRecordingActions[id!] || [];
+      if (currentActions.length === 0 && id) {
         const acts = await fetchRecordingActions(id).catch(() => ({ actions: [] }));
-        setActions(acts.actions || []);
+        store.setActions(id, acts.actions || []);
       }
     }, 1000);
   };
 
   const handleReplay = async () => {
     const { executionId } = await replayRecording(id!, { useMock, replaySpeed: projectReplaySpeed, headless, browserType });
-
-    startReplay(id!, executionId, actionsRef.current, recording?.projectId);
+    const store = useRecordingReplayStore.getState();
+    const currentActions = store.activeRecordingActions[id!] || [];
+    startReplay(id!, executionId, currentActions, recording?.projectId);
 
     const execs = await fetchExecutions(id!);
     setExecutions(execs);
@@ -215,7 +164,7 @@ export function RecordingDetail() {
   const handleJsonSave = async () => {
     if (id) {
       const acts = await fetchRecordingActions(id);
-      setActions(acts.actions || []);
+      useRecordingReplayStore.getState().setActions(id, acts.actions || []);
     }
   };
 
@@ -223,7 +172,6 @@ export function RecordingDetail() {
     setProjectReplaySpeed(newSpeed);
   };
 
-  // Derive last execution info for header
   const lastExecution = executions.length > 0 ? executions[0] : null;
   const lastExecutedAt = lastExecution?.finishedAt
     ? formatRelativeTime(lastExecution.finishedAt)
@@ -239,14 +187,13 @@ export function RecordingDetail() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <RecordingHeader
         recording={recording}
         recordingStatus={recordingStatus}
         replayStatus={replayStatus ?? 'idle'}
         useMock={useMock}
         projectReplaySpeed={projectReplaySpeed}
-        actionsCount={actions.length}
+        actionsCount={actionsCount}
         lastExecutionStatus={lastExecution?.status}
         lastExecutedAt={lastExecutedAt}
         headless={recordingStatus === 'recording' ? false : headless}
@@ -260,34 +207,29 @@ export function RecordingDetail() {
         onBrowserTypeChange={handleBrowserTypeChange}
       />
 
-      {/* Tab bar */}
       <TabBar
         activeTab={activeTab}
         onChange={setActiveTab}
-        counts={{ timeline: actions.length, executions: executions.length }}
+        counts={{ timeline: actionsCount, executions: executions.length }}
       />
 
-      {/* Content area */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Step list panel (only in timeline tab) */}
         {isTimeline && (
           <StepListPanel
-            actions={actions}
-            steps={replaySteps ?? []}
+            recordingId={id!}
             isRunning={replayStatus === 'running'}
             selectedStep={selectedStep}
             onSelectStep={(i) => setSelectedStep(selectedStep === i ? null : i)}
           />
         )}
 
-        {/* Main content */}
         <div className="flex-1 overflow-y-auto px-4 py-2">
           {activeTab === 'timeline' && (
             selectedStep !== null ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-zinc-200">
-                    步骤 {selectedStep + 1}: {actions[selectedStep]?.name}
+                    步骤 {selectedStep + 1}: {activeActions?.[selectedStep]?.name}
                   </h3>
                   <button
                     onClick={() => setSelectedStep(null)}
@@ -297,7 +239,7 @@ export function RecordingDetail() {
                   </button>
                 </div>
                 {(() => {
-                  const action = actions[selectedStep];
+                  const action = activeActions?.[selectedStep];
                   if (!action) return null;
                   const step = replaySteps?.find(s => s.index === selectedStep);
                   const maskedAction = action.name === 'fill' && isPasswordField(action)
@@ -305,7 +247,6 @@ export function RecordingDetail() {
                     : action;
                   return (
                     <div className="space-y-3">
-                      {/* Error message for failed steps */}
                       {step?.status === 'failed' && step?.error && (
                         <div className="rounded-lg border border-red-800 bg-red-950/50 p-4 space-y-3">
                           <div>
@@ -324,7 +265,6 @@ export function RecordingDetail() {
                           )}
                         </div>
                       )}
-                      {/* Action parameters */}
                       <div className="rounded-lg border border-zinc-800 bg-zinc-900/50">
                         <div className="flex items-center gap-1.5 border-b border-zinc-800 px-4 py-2.5">
                           <span className="text-xs font-medium text-zinc-400">操作参数</span>
@@ -341,12 +281,12 @@ export function RecordingDetail() {
                 })()}
               </div>
             ) : (
-              <CodegenTab codegen={codegen} />
+              <CodegenTab recordingId={id} />
             )
           )}
 
           {activeTab === 'codegen' && (
-            <CodegenTab codegen={codegen} />
+            <CodegenTab recordingId={id} />
           )}
 
           {activeTab === 'network' && id && <NetworkTab recordingId={id} />}
@@ -354,7 +294,7 @@ export function RecordingDetail() {
           {activeTab === 'json' && (
             <RecordingJsonEditor
               recordingId={id!}
-              actions={actions}
+              actions={activeActions || []}
               onSave={handleJsonSave}
             />
           )}
@@ -363,7 +303,6 @@ export function RecordingDetail() {
         </div>
       </div>
 
-      {/* Trace Viewer Modal */}
       {showTrace && replayExecutionId && (
         <TraceViewerModal
           traceUrl={executionTraceUrl(replayExecutionId)}

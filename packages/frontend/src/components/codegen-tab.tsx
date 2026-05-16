@@ -3,9 +3,11 @@ import { Code, Copy, Check } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { highlightTypeScript } from '@/lib/syntax-highlight';
 import { PASSWORD_KEYWORDS } from '@/lib/action-formatter';
+import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
 interface CodegenTabProps {
-  codegen: string;
+  recordingId?: string;
+  codegen?: string;
 }
 
 /** 在展示时脱敏密码：检测密码行并替换值为 '***' */
@@ -20,7 +22,10 @@ function maskPasswordDisplay(codegen: string): string {
   }).join('\n');
 }
 
-export function CodegenTab({ codegen }: CodegenTabProps) {
+export function CodegenTab({ recordingId, codegen: propCodegen }: CodegenTabProps) {
+  const storeCodegen = useRecordingReplayStore(s => recordingId ? s.activeCodegens[recordingId] : undefined);
+  const codegen = storeCodegen ?? propCodegen ?? '';
+
   const [copied, setCopied] = useState(false);
   const displayCodegen = useMemo(() => maskPasswordDisplay(codegen), [codegen]);
 

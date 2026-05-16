@@ -1,5 +1,28 @@
 # Bug 修复记录
 
+## 批量回放状态丢失与二次回放状态未重置（2026-05-17）
+
+### 现象
+1. **状态丢失**：在一个 Project 下点击批量回放。回放中途，点击进入某个正在回放的 Recording 详情页，发现该页面的步骤列表（StepListPanel）中，前面已经执行完的步骤卡在 Pending 状态，只有后续新推送的步骤才会更新为 Completed。此外，刷新页面也会导致已完成步骤的状态丢失。
+2. **状态未重置**：当某个 Recording 的批量回放结束后（全部 Completed），如果在此 Project 下再次触发该录制的批量回放，详情页中的步骤状态会直接显示为全 Completed，没有重置为 Pending 重新开始。
+
+### 根因
+1. **状态丢失原因 (Bug 1)**：
+   - 过滤条件过严：前端 `useRecordingReplayStore.ts` 的 `handleReplayStep` 中存在防御性代码。如果新 WebSocket 消息的 `executionId` 与 Store 中暂存的 `executionId` 不一致，它会将其视为旧消息直接丢弃。导致批量回放产生新 ExecutionId 时，前端在进入详情页更新 ID 之前的所有进度消息都被丢弃。
+   - 缓存被覆盖：页面刷新时，Zustand 的 `hydrate` 正确从 SessionStorage 恢复了 `replaySteps` 的状态。但组件挂载调用的 `initSteps` 没有继承这些已恢复的状态，而是粗暴地根据 `actions` 生成了一个全为 pending 的新步骤数组直接覆盖。
+2. **状态未重置原因 (Bug 2)**：
+   - 更新时序漏洞：批量执行开始时，Server 推送了 `batch-replay:result` (running) 消息，前端调用 `setRecordingStatus` 提前更新了 `executionId`。当后续真实的 `replay:step` 消息到来时，由于 ID 已经一致，`handleReplayStep` 内部原本用于识别“新执行任务并重置步骤”的逻辑被绕过了，导致旧的 `completed` 状态一直残留。
+
+### 修复方案
+1. 修复状态丢失：
+   - 在 `initSteps` 中，生成初始步骤数组后，检查是否存在由 `hydrate` 恢复的 `existing.replaySteps`，如果存在且状态不为 pending，则将 status 和 error 继承过来。
+   - 在 `handleReplayStep` 中，如果发现 `executionId` 不一致，不再丢弃消息，而是视其为后台触发了新执行。主动将当前状态标记为 running，更新 executionId，**并将现有的 replaySteps 状态重置为 pending**。
+2. 修复二次回放状态未重置：
+   - 增强 `setRecordingStatus` 逻辑。当其接收到新的状态并发现 `executionId` 与现有记录不同时（表明新的批量回放开始了），不仅更新基本信息，还强制遍历并重置所有已有的 `replaySteps` 状态为 pending，并清空相关的步骤状态缓存 (`stepStatuses` 和 `pendingDones`)。
+
+### 修改文件
+- `packages/frontend/src/store/recording-replay-store.ts` — 修改 `initSteps`、`handleReplayStep` 和 `setRecordingStatus` 函数。
+
 ## 连续回放状态泄漏（2026-05-16）
 
 ### 现象
