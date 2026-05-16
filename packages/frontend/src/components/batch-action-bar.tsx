@@ -1,4 +1,4 @@
-import { Check, X, Monitor, Terminal, Zap } from 'lucide-react';
+import { Check, X, Monitor, Terminal } from 'lucide-react';
 import type { BrowserType } from '@playwright-demo/shared';
 
 interface BatchAction {

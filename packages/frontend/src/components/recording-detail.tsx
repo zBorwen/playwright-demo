@@ -167,19 +167,31 @@ export function RecordingDetail() {
         if (stepPayload.recordingId && id && stepPayload.recordingId !== id) return;
         if (stepPayload.executionId && replayExecutionIdRef.current && stepPayload.executionId !== replayExecutionIdRef.current) return;
         if (stepPayload.executionId) setReplayExecutionId(stepPayload.executionId);
+        // If steps haven't been initialized (e.g. batch replay from another page),
+        // build them from the loaded actions.
+        setReplaySteps((prev) => {
+          let steps = prev;
+          if (steps.length === 0 && actionsRef.current.length > 0) {
+            steps = actionsRef.current.map((a, i) => ({
+              index: i,
+              actionName: a.name,
+              detail: formatActionDetail(a),
+              status: 'pending' as const,
+            }));
+          }
+          if (steps.length === 0) return prev;
+          return steps.map((s) =>
+            s.index === stepPayload.index
+              ? { ...s, status: stepPayload.status === 'failed' ? 'failed' : 'completed', error: stepPayload.error ?? s.error }
+              : s
+          );
+        });
         setReplayStoreStatus({
           recordingId: id!,
           status: stepPayload.status === 'failed' ? 'failed' : 'running',
           executionId: stepPayload.executionId,
           error: stepPayload.error,
         });
-        setReplaySteps((prev) =>
-          prev.map((s) =>
-            s.index === stepPayload.index
-              ? { ...s, status: stepPayload.status, error: stepPayload.error ?? s.error }
-              : s
-          )
-        );
         break;
       }
       case 'replay:done': {
@@ -192,19 +204,26 @@ export function RecordingDetail() {
           executionId: payload.executionId,
           error: payload.error,
         });
-        if (payload.status === 'failed') {
-          setReplaySteps((prev) =>
-            prev.map((s) =>
+        setReplaySteps((prev) => {
+          let steps = prev;
+          if (steps.length === 0 && actionsRef.current.length > 0) {
+            steps = actionsRef.current.map((a, i) => ({
+              index: i,
+              actionName: a.name,
+              detail: formatActionDetail(a),
+              status: 'pending' as const,
+            }));
+          }
+          if (steps.length === 0) return prev;
+          if (payload.status === 'failed') {
+            return steps.map((s) =>
               s.status === 'pending' ? { ...s, status: 'skipped' as const } : s
-            )
+            );
+          }
+          return steps.map((s) =>
+            s.status === 'pending' ? { ...s, status: 'completed' as const } : s
           );
-        } else {
-          setReplaySteps((prev) =>
-            prev.map((s) =>
-              s.status === 'pending' ? { ...s, status: 'completed' as const } : s
-            )
-          );
-        }
+        });
         if (id) fetchExecutions(id).then((e) => setExecutions(e));
         break;
       }
