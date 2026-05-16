@@ -16,10 +16,8 @@ interface RecordingReplayStore {
   /** Pending replay:done payload, applied when initSteps is called. */
   pendingDones: Record<string, { status: 'passed' | 'failed'; error?: string; executionId?: string }>;
   setRecordingStatus: (status: Omit<RecordingReplayStatus, 'startedAt' | 'finishedAt'> & { startedAt?: number; finishedAt?: number }) => void;
-  /** Initialize steps for a recording. Called when component loads actions. */
-  initSteps: (recordingId: string, actions: RecordingAction[]) => void;
-  /** Start a new replay. Resets steps to pending, sets executionId. */
-  startReplay: (recordingId: string, executionId: string, projectId?: string) => void;
+  /** Start a new replay. Atomically resets state and rebuilds steps from actions. */
+  startReplay: (recordingId: string, executionId: string, actions: RecordingAction[], projectId?: string) => void;
   /** Handle a replay:step WS message. */
   handleReplayStep: (payload: { recordingId: string; executionId: string; index: number; status: 'completed' | 'failed'; error?: string }) => void;
   /** Handle a replay:done WS message. */
@@ -46,15 +44,17 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
   setRecordingStatus(status) {
     set((s) => {
       const existing = s.recordingReplays[status.recordingId];
+      // Detect new execution — clear old replaySteps and tracking state.
+      const isNewExecution = existing?.executionId && status.executionId && existing.executionId !== status.executionId;
       const entry: RecordingReplayStatus = {
         recordingId: status.recordingId,
         status: status.status,
         projectId: status.projectId ?? existing?.projectId,
-        error: status.error ?? existing?.error,
+        error: isNewExecution ? undefined : (status.error ?? existing?.error),
         executionId: status.executionId ?? existing?.executionId,
-        startedAt: status.startedAt ?? existing?.startedAt ?? Date.now(),
-        finishedAt: status.finishedAt ?? (status.status !== 'running' ? Date.now() : existing?.finishedAt),
-        replaySteps: existing?.replaySteps,
+        startedAt: status.startedAt ?? (isNewExecution ? Date.now() : existing?.startedAt ?? Date.now()),
+        finishedAt: status.finishedAt ?? (status.status !== 'running' ? Date.now() : (isNewExecution ? undefined : existing?.finishedAt)),
+        replaySteps: isNewExecution ? undefined : existing?.replaySteps,
       };
       return {
         recordingReplays: {
@@ -65,14 +65,16 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
     });
   },
 
-  initSteps(recordingId, actions) {
+  startReplay(recordingId, executionId, actions, projectId) {
     set((s) => {
       const existing = s.recordingReplays[recordingId];
       const savedStatuses = s.stepStatuses[recordingId] ?? {};
       const pendingDone = s.pendingDones[recordingId];
+
+      // Build fresh steps from actions
       const steps = buildSteps(actions);
 
-      // Apply saved step statuses (from WS messages that arrived before initSteps)
+      // Apply saved step statuses (WS messages arrived before startReplay, e.g. batch replay mid-flight)
       if (Object.keys(savedStatuses).length > 0) {
         for (const [idxStr, st] of Object.entries(savedStatuses)) {
           const idx = Number(idxStr);
@@ -80,7 +82,7 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
         }
       }
 
-      // Apply pending done (replay:done arrived before initSteps)
+      // Apply pending done (replay:done arrived before startReplay)
       if (pendingDone) {
         if (pendingDone.status === 'failed') {
           for (const step of steps) {
@@ -93,23 +95,14 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
         }
       }
 
-      // Apply existing entry status if set (late init after replay completed)
-      if (existing && existing.status !== 'running' && existing.status !== 'idle') {
-        for (const step of steps) {
-          if (step.status === 'pending') {
-            step.status = existing.status === 'passed' ? 'completed' : 'skipped';
-          }
-        }
-      }
-
-      const updatedEntry: RecordingReplayStatus = {
+      const entry: RecordingReplayStatus = {
         recordingId,
-        status: existing?.status ?? 'idle',
-        projectId: existing?.projectId,
-        error: existing?.error,
-        executionId: existing?.executionId,
-        startedAt: existing?.startedAt ?? Date.now(),
-        finishedAt: existing?.finishedAt,
+        status: 'running',
+        projectId: projectId ?? existing?.projectId,
+        error: undefined,
+        executionId,
+        startedAt: Date.now(),
+        finishedAt: undefined,
         replaySteps: steps,
       };
 
@@ -122,37 +115,10 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
       return {
         recordingReplays: {
           ...s.recordingReplays,
-          [recordingId]: updatedEntry,
+          [recordingId]: entry,
         },
         stepStatuses: newStepStatuses,
         pendingDones: newPendingDones,
-      };
-    });
-  },
-
-  startReplay(recordingId, executionId, projectId) {
-    set((s) => {
-      const existing = s.recordingReplays[recordingId];
-      const steps = (existing?.replaySteps ?? []).map(s => ({ ...s, status: 'pending' as const }));
-      const entry: RecordingReplayStatus = {
-        recordingId,
-        status: 'running',
-        projectId: projectId ?? existing?.projectId,
-        error: undefined,
-        executionId,
-        startedAt: Date.now(),
-        finishedAt: undefined,
-        replaySteps: steps.length > 0 ? steps : undefined,
-      };
-      return {
-        recordingReplays: {
-          ...s.recordingReplays,
-          [recordingId]: entry,
-        },
-        stepStatuses: {
-          ...s.stepStatuses,
-          [recordingId]: {},
-        },
       };
     });
   },
