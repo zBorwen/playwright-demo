@@ -210,24 +210,18 @@ export function RecordingDetail() {
           executionId: payload.executionId,
           error: payload.error,
         });
+        // Only finalize existing steps — don't rebuild here. Steps are initialized
+        // by replay:step messages; rebuilding in done causes all steps to show as
+        // completed when done arrives before all step messages have been processed.
+        if (payload.executionId) prevExecutionIdRef.current = payload.executionId;
         setReplaySteps((prev) => {
-          let steps = prev;
-          const isNewExecution = steps.length > 0 && payload.executionId && payload.executionId !== prevExecutionIdRef.current;
-          if (isNewExecution || (steps.length === 0 && actionsRef.current.length > 0)) {
-            steps = actionsRef.current.map((a, i) => ({
-              index: i,
-              actionName: a.name,
-              detail: formatActionDetail(a),
-              status: 'pending' as const,
-            }));
-          }
-          if (steps.length === 0) return prev;
+          if (prev.length === 0) return prev;
           if (payload.status === 'failed') {
-            return steps.map((s) =>
+            return prev.map((s) =>
               s.status === 'pending' ? { ...s, status: 'skipped' as const } : s
             );
           }
-          return steps.map((s) =>
+          return prev.map((s) =>
             s.status === 'pending' ? { ...s, status: 'completed' as const } : s
           );
         });
