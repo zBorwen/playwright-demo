@@ -1,14 +1,9 @@
 import { fork, type ChildProcess } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { PendingTask } from '../types/tasks';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-interface PendingTask {
-  type: 'task:replay' | 'task:record:start';
-  id: string;
-  payload: Record<string, unknown>;
-}
 
 interface WorkerInfo {
   child: ChildProcess;
@@ -30,7 +25,8 @@ export class WorkerPool {
   constructor(options?: { maxWorkers?: number; timeout?: number }) {
     this.maxWorkers = options?.maxWorkers ?? (Number(process.env.MAX_WORKERS) || 3);
     this.timeout = options?.timeout ?? (Number(process.env.WORKER_TIMEOUT) || 300_000);
-    this.workerPath = path.join(__dirname, 'worker.js');
+    // worker.js is now in src/ (parent of pool/)
+    this.workerPath = path.join(__dirname, '..', 'worker.js');
   }
 
   setOnMessage(handler: (msg: Record<string, unknown>) => void): void {
@@ -124,7 +120,7 @@ export class WorkerPool {
     }, this.timeout);
 
     // Initial dispatch
-    child.send({ type: task.type, id: taskId, payload: task.payload });
+    child.send({ type: task.type, id: task.id, payload: task.payload });
   }
 
   private handleExit(taskId: string, code: number | null, signal: string | null): void {

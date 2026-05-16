@@ -2,6 +2,8 @@ import path from 'node:path';
 import { chromium, firefox, webkit, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import type { BrowserType, Recording, RecordingAction, ElementInfo } from '@playwright-demo/shared';
 import { captureFingerprint } from './fingerprint';
+import { transformRecorderAction } from './transformer';
+import type { RecorderActionData, RecorderEventSink } from '../../types/playwright-internal';
 
 const browserLaunchers: Record<BrowserType, typeof chromium> = {
   chromium,
@@ -9,34 +11,18 @@ const browserLaunchers: Record<BrowserType, typeof chromium> = {
   webkit,
 };
 
-interface RecorderActionData {
-  action: {
-    name: string;
-    selector?: string;
-    url?: string;
-    value?: string;
-    text?: string;
-    key?: string;
-    options?: string[];
-    checked?: boolean;
-    signals?: unknown[];
-  };
-  frame: { pageGuid: string };
-}
-
 export class RecorderManager {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
   private actions: RecordingAction[] = [];
   private onActionCallback: ((action: RecordingAction, code: string) => void) | null = null;
   private codegenLines: string[] = [];
+  private recordingId: string = '';
 
-  /** Register a callback that fires for every recorded action in real time. The callback receives the action and its generated code. */
+  /** Register a callback that fires for every recorded action in real time. */
   onAction(callback: (action: RecordingAction, code: string) => void): void {
     this.onActionCallback = callback;
   }
-
-  private recordingId: string = '';
 
   async startRecording(targetUrl: string, recordingId: string, options: {
     headless?: boolean;
@@ -57,8 +43,8 @@ export class RecorderManager {
       this.actions = [];
       this.codegenLines = [];
 
-      const eventSink = {
-        actionAdded: async (page: Page, data: RecorderActionData, code: string) => {
+      const eventSink: RecorderEventSink = {
+        actionAdded: async (page, data, code) => {
           const action = data.action;
 
           // For fill: always push a new action (actionUpdated will merge subsequent keystrokes)
@@ -72,10 +58,10 @@ export class RecorderManager {
             const last = this.actions[this.actions.length - 1];
             if (last.name === 'press') {
               // Merge into existing press
-              this.actions[this.actions.length - 1] = { ...last, key: action.key ?? 'Enter' };
-              if (this.onActionCallback) {
-                this.onActionCallback(this.actions[this.actions.length - 1], code);
-              }
+              const updated = { ...last, key: action.key ?? 'Enter' };
+              this.actions[this.actions.length - 1] = updated;
+              if (this.onActionCallback) this.onActionCallback(updated, code);
+              
               if (code && this.codegenLines.length > 0) {
                 this.codegenLines[this.codegenLines.length - 1] = code;
               } else if (code) {
@@ -87,10 +73,9 @@ export class RecorderManager {
 
           await this.handleRecorderAction(page, data, code);
         },
-        actionUpdated: async (page: Page, data: RecorderActionData, code: string) => {
+        actionUpdated: async (page, data, code) => {
           const action = data.action;
 
-          // Fill: update the last action if it's a fill with same selector
           if (action.name === 'fill') {
             const selector = action.selector || '';
             const lastAction = this.actions.length > 0 ? this.actions[this.actions.length - 1] : null;
@@ -99,13 +84,12 @@ export class RecorderManager {
             if (shouldUpdate) {
               const updated = { ...lastAction, value: action.text ?? action.value ?? '' };
               this.actions[this.actions.length - 1] = updated;
-              if (this.onActionCallback) {
-                this.onActionCallback(updated, code);
-              }
+              if (this.onActionCallback) this.onActionCallback(updated, code);
             } else {
-              // New typing session — handleRecorderAction will push a new fill
+              // New typing session
               await this.handleRecorderAction(page, data, code);
             }
+            
             // Update codegen
             if (code && this.codegenLines.length > 0) {
               this.codegenLines[this.codegenLines.length - 1] = code;
@@ -115,15 +99,14 @@ export class RecorderManager {
             return;
           }
 
-          // Non-fill mergeable actions — update last
+          // Non-fill mergeable actions
           if (this.actions.length > 0) {
             const lastIdx = this.actions.length - 1;
             const last = this.actions[lastIdx];
             if (last.name === 'press' && action.key) {
-              this.actions[lastIdx] = { ...last, key: action.key as string };
-              if (this.onActionCallback) {
-                this.onActionCallback(this.actions[lastIdx], code);
-              }
+              const updated = { ...last, key: action.key as string };
+              this.actions[lastIdx] = updated;
+              if (this.onActionCallback) this.onActionCallback(updated, code);
             }
           }
           if (code) {
@@ -134,15 +117,15 @@ export class RecorderManager {
             }
           }
         },
-        signalAdded: (page: Page, data: unknown) => {
-          const signal = data as Record<string, unknown>;
+        signalAdded: async (_page, data) => {
+          const signal = data as Record<string, any>;
           if (signal?.name === 'navigation' && signal.url) {
             this.codegenLines.push(`await page.goto('${signal.url}');`);
           }
         },
       };
 
-      await (this.context as any)._enableRecorder(
+      await this.context._enableRecorder(
         {
           mode: 'recording',
           recorderMode: 'api',
@@ -155,7 +138,7 @@ export class RecorderManager {
         eventSink,
       );
 
-      const page = await this.context!.newPage();
+      const page = await this.context.newPage();
       await page
         .goto(targetUrl, { timeout: 30000, waitUntil: 'domcontentloaded' })
         .catch(() => {
@@ -172,21 +155,18 @@ export class RecorderManager {
     }
   }
 
-  /** Process a single Recorder event: convert to RecordingAction, enrich with fingerprint, store + notify. */
   private async handleRecorderAction(
     page: Page,
     data: RecorderActionData,
     code: string,
   ): Promise<void> {
     const action = data.action;
-    const actionName = action.name;
 
     // Collect codegen
     if (code) {
       this.codegenLines.push(code);
     }
 
-    const url = page.url();
     const title = await page.title().catch(() => '');
     const ts = Date.now();
 
@@ -196,153 +176,27 @@ export class RecorderManager {
       elementInfo = await captureFingerprint(page, action.selector);
     }
     if (!elementInfo) {
-      elementInfo = this.defaultElementInfo(actionName);
+      elementInfo = this.defaultElementInfo(action.name);
     }
 
-    const baseFields = {
-      signals: action.signals ?? [],
-      elementInfo,
-      pageContext: { url, title },
-      timestamp: ts,
-    };
-
-    let recordingAction: Record<string, unknown> | null = null;
-
-    switch (actionName) {
-      case 'click':
-        recordingAction = {
-          name: 'click',
-          selector: action.selector || '',
-          button: 'left',
-          modifiers: 0,
-          clickCount: 1,
-          ...baseFields,
-        };
-        break;
-
-      case 'fill':
-        recordingAction = {
-          name: 'fill',
-          selector: action.selector || '',
-          value: action.value ?? action.text ?? '',
-          ...baseFields,
-        };
-        break;
-
-      case 'press':
-        recordingAction = {
-          name: 'press',
-          selector: action.selector || '',
-          key: action.key ?? 'Enter',
-          modifiers: 0,
-          ...baseFields,
-        };
-        break;
-
-      case 'select':
-        recordingAction = {
-          name: 'select',
-          selector: action.selector || '',
-          options: action.options ?? [],
-          ...baseFields,
-        };
-        break;
-
-      case 'check':
-        recordingAction = {
-          name: 'check',
-          selector: action.selector || '',
-          ...baseFields,
-        };
-        break;
-
-      case 'uncheck':
-        recordingAction = {
-          name: 'uncheck',
-          selector: action.selector || '',
-          ...baseFields,
-        };
-        break;
-
-      case 'navigate':
-        recordingAction = {
-          name: 'navigate',
-          url: action.url || url,
-          ...baseFields,
-        };
-        break;
-
-      case 'assertText':
-        recordingAction = {
-          name: 'assertText',
-          selector: action.selector || '',
-          text: action.text ?? '',
-          ...baseFields,
-        };
-        break;
-
-      case 'assertVisible':
-        recordingAction = {
-          name: 'assertVisible',
-          selector: action.selector || '',
-          ...baseFields,
-        };
-        break;
-
-      case 'assertChecked':
-        recordingAction = {
-          name: 'assertChecked',
-          selector: action.selector || '',
-          checked: action.checked === true,
-          ...baseFields,
-        };
-        break;
-
-      case 'assertValue':
-        recordingAction = {
-          name: 'assertValue',
-          selector: action.selector || '',
-          value: action.value ?? '',
-          ...baseFields,
-        };
-        break;
-
-      case 'setInputFiles':
-        recordingAction = {
-          name: 'setInputFiles',
-          selector: action.selector || '',
-          files: (action.options as string[]) ?? [],
-          ...baseFields,
-        };
-        break;
-    }
-
+    const recordingAction = transformRecorderAction(action, page, elementInfo, ts);
     if (!recordingAction) return;
+    
+    // Patch title since it's hard to get inside transformer
+    recordingAction.pageContext.title = title;
 
-    this.actions.push(recordingAction as RecordingAction);
+    this.actions.push(recordingAction);
     if (this.onActionCallback) {
-      this.onActionCallback(recordingAction as RecordingAction, code);
+      this.onActionCallback(recordingAction, code);
     }
   }
 
   private defaultElementInfo(_actionName: string): ElementInfo {
     return {
-      dataTestId: null,
-      dataTest: null,
-      role: null,
-      accessibleName: null,
-      textContent: null,
-      placeholder: null,
-      id: null,
-      tagName: 'html',
-      labelText: null,
-      name: null,
-      inputType: null,
-      classes: [],
-      parentPath: ['html'],
-      nearbyText: [],
-      boundingBox: null,
-      isVisible: true,
+      dataTestId: null, dataTest: null, role: null, accessibleName: null,
+      textContent: null, placeholder: null, id: null, tagName: 'html',
+      labelText: null, name: null, inputType: null, classes: [],
+      parentPath: ['html'], nearbyText: [], boundingBox: null, isVisible: true,
     };
   }
 
