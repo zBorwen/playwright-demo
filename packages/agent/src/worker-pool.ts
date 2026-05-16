@@ -14,6 +14,7 @@ interface WorkerInfo {
   child: ChildProcess;
   id: string;
   taskType: 'replay' | 'recording' | null;
+  currentTask: PendingTask | null;
   timer: NodeJS.Timeout | null;
 }
 
@@ -113,7 +114,7 @@ export class WorkerPool {
       env: { ...process.env, IS_WORKER: 'true' },
     });
 
-    const info: WorkerInfo = { child, id, taskType: null, timer: null };
+    const info: WorkerInfo = { child, id, taskType: null, currentTask: null, timer: null };
     this.active.set(id, info);
 
     // Forward stderr with prefix
@@ -138,6 +139,7 @@ export class WorkerPool {
 
   private dispatch(worker: WorkerInfo, task: PendingTask): void {
     worker.taskType = task.type === 'task:replay' ? 'replay' : 'recording';
+    worker.currentTask = task;
 
     // Set timeout timer
     worker.timer = setTimeout(() => {
@@ -193,11 +195,31 @@ export class WorkerPool {
 
     const wasRecording = info.taskType === 'recording';
     const wasReplay = info.taskType === 'replay';
+    const task = info.currentTask;
 
     // If worker exited abnormally, send failure
-    if (code !== 0 && code !== null && this.onMessage) {
+    if (code !== 0 && code !== null && this.onMessage && task) {
+      const errorMsg = signal ? `Worker killed by signal ${signal}` : `Worker exited with code ${code}`;
+      console.error(`[${workerId}] Abnormal exit: ${errorMsg}`);
+
       if (wasReplay) {
-        // We don't have executionId here, but the worker should have sent error before exit
+        this.onMessage({
+          type: 'replay:done',
+          payload: {
+            executionId: task.id,
+            recordingId: (task.payload as any).recordingId,
+            status: 'failed',
+            error: errorMsg,
+          },
+        });
+      } else if (wasRecording) {
+        this.onMessage({
+          type: 'record:complete',
+          payload: {
+            recordingId: task.id,
+            error: errorMsg,
+          },
+        });
       }
     }
 

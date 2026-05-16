@@ -49,32 +49,64 @@ export class RecorderManager {
     const launcher = browserLaunchers[browserType];
     if (!launcher) throw new Error(`Unsupported browser: ${browserType}`);
 
-    this.browser = await launcher.launch({ headless });
-    this.context = await this.browser.newContext({
-      recordHar: { path: this.getHarPath() },
-    });
-    this.actions = [];
-    this.codegenLines = [];
+    try {
+      this.browser = await launcher.launch({ headless });
+      this.context = await this.browser.newContext({
+        recordHar: { path: this.getHarPath() },
+      });
+      this.actions = [];
+      this.codegenLines = [];
 
-    const eventSink = {
-      actionAdded: async (page: Page, data: RecorderActionData, code: string) => {
-        const action = data.action;
+      const eventSink = {
+        actionAdded: async (page: Page, data: RecorderActionData, code: string) => {
+          const action = data.action;
 
-        // For fill: always push a new action (actionUpdated will merge subsequent keystrokes)
-        if (action.name === 'fill') {
-          await this.handleRecorderAction(page, data, code);
-          return;
-        }
+          // For fill: always push a new action (actionUpdated will merge subsequent keystrokes)
+          if (action.name === 'fill') {
+            await this.handleRecorderAction(page, data, code);
+            return;
+          }
 
-        // For non-fill: check if last action should be merged (press accumulation)
-        if (action.name === 'press' && this.actions.length > 0) {
-          const last = this.actions[this.actions.length - 1];
-          if (last.name === 'press') {
-            // Merge into existing press
-            this.actions[this.actions.length - 1] = { ...last, key: action.key ?? 'Enter' };
-            if (this.onActionCallback) {
-              this.onActionCallback(this.actions[this.actions.length - 1], code);
+          // For non-fill: check if last action should be merged (press accumulation)
+          if (action.name === 'press' && this.actions.length > 0) {
+            const last = this.actions[this.actions.length - 1];
+            if (last.name === 'press') {
+              // Merge into existing press
+              this.actions[this.actions.length - 1] = { ...last, key: action.key ?? 'Enter' };
+              if (this.onActionCallback) {
+                this.onActionCallback(this.actions[this.actions.length - 1], code);
+              }
+              if (code && this.codegenLines.length > 0) {
+                this.codegenLines[this.codegenLines.length - 1] = code;
+              } else if (code) {
+                this.codegenLines.push(code);
+              }
+              return;
             }
+          }
+
+          await this.handleRecorderAction(page, data, code);
+        },
+        actionUpdated: async (page: Page, data: RecorderActionData, code: string) => {
+          const action = data.action;
+
+          // Fill: update the last action if it's a fill with same selector
+          if (action.name === 'fill') {
+            const selector = action.selector || '';
+            const lastAction = this.actions.length > 0 ? this.actions[this.actions.length - 1] : null;
+            const shouldUpdate = lastAction?.name === 'fill' && lastAction.selector === selector;
+
+            if (shouldUpdate) {
+              const updated = { ...lastAction, value: action.text ?? action.value ?? '' };
+              this.actions[this.actions.length - 1] = updated;
+              if (this.onActionCallback) {
+                this.onActionCallback(updated, code);
+              }
+            } else {
+              // New typing session — handleRecorderAction will push a new fill
+              await this.handleRecorderAction(page, data, code);
+            }
+            // Update codegen
             if (code && this.codegenLines.length > 0) {
               this.codegenLines[this.codegenLines.length - 1] = code;
             } else if (code) {
@@ -82,86 +114,62 @@ export class RecorderManager {
             }
             return;
           }
-        }
 
-        await this.handleRecorderAction(page, data, code);
-      },
-      actionUpdated: async (page: Page, data: RecorderActionData, code: string) => {
-        const action = data.action;
-
-        // Fill: update the last action if it's a fill with same selector
-        if (action.name === 'fill') {
-          const selector = action.selector || '';
-          const lastAction = this.actions.length > 0 ? this.actions[this.actions.length - 1] : null;
-          const shouldUpdate = lastAction?.name === 'fill' && lastAction.selector === selector;
-
-          if (shouldUpdate) {
-            const updated = { ...lastAction, value: action.text ?? action.value ?? '' };
-            this.actions[this.actions.length - 1] = updated;
-            if (this.onActionCallback) {
-              this.onActionCallback(updated, code);
-            }
-          } else {
-            // New typing session — handleRecorderAction will push a new fill
-            await this.handleRecorderAction(page, data, code);
-          }
-          // Update codegen
-          if (code && this.codegenLines.length > 0) {
-            this.codegenLines[this.codegenLines.length - 1] = code;
-          } else if (code) {
-            this.codegenLines.push(code);
-          }
-          return;
-        }
-
-        // Non-fill mergeable actions — update last
-        if (this.actions.length > 0) {
-          const lastIdx = this.actions.length - 1;
-          const last = this.actions[lastIdx];
-          if (last.name === 'press' && action.key) {
-            this.actions[lastIdx] = { ...last, key: action.key as string };
-            if (this.onActionCallback) {
-              this.onActionCallback(this.actions[lastIdx], code);
+          // Non-fill mergeable actions — update last
+          if (this.actions.length > 0) {
+            const lastIdx = this.actions.length - 1;
+            const last = this.actions[lastIdx];
+            if (last.name === 'press' && action.key) {
+              this.actions[lastIdx] = { ...last, key: action.key as string };
+              if (this.onActionCallback) {
+                this.onActionCallback(this.actions[lastIdx], code);
+              }
             }
           }
-        }
-        if (code) {
-          if (this.codegenLines.length > 0) {
-            this.codegenLines[this.codegenLines.length - 1] = code;
-          } else {
-            this.codegenLines.push(code);
+          if (code) {
+            if (this.codegenLines.length > 0) {
+              this.codegenLines[this.codegenLines.length - 1] = code;
+            } else {
+              this.codegenLines.push(code);
+            }
           }
-        }
-      },
-      signalAdded: (page: Page, data: unknown) => {
-        const signal = data as Record<string, unknown>;
-        if (signal?.name === 'navigation' && signal.url) {
-          this.codegenLines.push(`await page.goto('${signal.url}');`);
-        }
-      },
-    };
+        },
+        signalAdded: (page: Page, data: unknown) => {
+          const signal = data as Record<string, unknown>;
+          if (signal?.name === 'navigation' && signal.url) {
+            this.codegenLines.push(`await page.goto('${signal.url}');`);
+          }
+        },
+      };
 
-    await (this.context as any)._enableRecorder(
-      {
-        mode: 'recording',
-        recorderMode: 'api',
-        language: 'playwright-test',
-        launchOptions: { headless },
-        contextOptions: {},
-        handleSIGINT: false,
-        hideToolbar: true,
-      },
-      eventSink,
-    );
+      await (this.context as any)._enableRecorder(
+        {
+          mode: 'recording',
+          recorderMode: 'api',
+          language: 'playwright-test',
+          launchOptions: { headless },
+          contextOptions: {},
+          handleSIGINT: false,
+          hideToolbar: true,
+        },
+        eventSink,
+      );
 
-    const page = await this.context!.newPage();
-    await page
-      .goto(targetUrl, { timeout: 30000, waitUntil: 'domcontentloaded' })
-      .catch(() => {
-        console.warn('Initial navigation may have partially failed, continuing anyway');
-      });
+      const page = await this.context!.newPage();
+      await page
+        .goto(targetUrl, { timeout: 30000, waitUntil: 'domcontentloaded' })
+        .catch(() => {
+          console.warn('Initial navigation may have partially failed, continuing anyway');
+        });
 
-    console.log(`Recording started on: ${page.url()}`);
+      console.log(`Recording started on: ${page.url()}`);
+    } catch (err) {
+      await this.context?.close().catch(() => {});
+      await this.browser?.close().catch(() => {});
+      this.browser = null;
+      this.context = null;
+      throw err;
+    }
   }
 
   /** Process a single Recorder event: convert to RecordingAction, enrich with fingerprint, store + notify. */

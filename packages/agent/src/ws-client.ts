@@ -7,6 +7,7 @@ export class WsClient {
   private messageHandlers: ((msg: ServerMessage) => void)[] = [];
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private token?: string;
+  private messageBuffer: string[] = [];
 
   constructor(url: string, token?: string) {
     this.url = url;
@@ -29,6 +30,7 @@ export class WsClient {
         this.connecting = false;
         console.log('Connected to server');
         this.reconnectTimer = null;
+        this.flushBuffer();
         resolve();
       });
 
@@ -68,8 +70,22 @@ export class WsClient {
   }
 
   send(msg: AgentMessage): void {
+    const data = JSON.stringify(msg);
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(msg));
+      this.ws.send(data);
+    } else {
+      this.messageBuffer.push(data);
+    }
+  }
+
+  private flushBuffer(): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (this.messageBuffer.length > 0) {
+      console.log(`Flushing ${this.messageBuffer.length} buffered messages...`);
+    }
+    while (this.messageBuffer.length > 0) {
+      const data = this.messageBuffer.shift();
+      if (data) this.ws.send(data);
     }
   }
 

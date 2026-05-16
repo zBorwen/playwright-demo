@@ -20,6 +20,9 @@ async function main() {
       case 'replay:step':
       case 'replay:step:failed': {
         const stepP = msg.payload as { executionId: string; recordingId: string; index: number; status: 'completed' | 'failed'; error?: string };
+        if (msg.type === 'replay:step:failed') {
+          stepP.status = 'failed';
+        }
         ws.send({ type: 'replay:step', payload: stepP });
         break;
       }

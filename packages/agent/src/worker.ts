@@ -60,7 +60,7 @@ process.on('message', async (msg: TaskMessage) => {
           process.send!({
             type: 'replay:step:failed',
             taskId: msg.id,
-            payload: { executionId, recordingId, index, error },
+            payload: { executionId, recordingId, index, status: 'failed', error },
           });
         });
 
