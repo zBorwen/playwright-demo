@@ -53,6 +53,10 @@ export function RecordingDetail() {
   const [replaySteps, setReplaySteps] = useState<ReplayStep[]>([]);
   const [replayExecutionId, setReplayExecutionId] = useState<string | null>(null);
   const replayExecutionIdRef = useRef<string | null>(null);
+  // Tracks the executionId that the current replaySteps belong to.
+  // Used to detect a new replay (e.g. second batch replay from another page)
+  // and reset steps before processing step messages.
+  const prevExecutionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     replayExecutionIdRef.current = replayExecutionId;
@@ -165,13 +169,19 @@ export function RecordingDetail() {
       case 'replay:step': {
         const stepPayload = msg.payload as { index: number; executionId: string; recordingId: string; status: 'completed' | 'failed'; error?: string };
         if (stepPayload.recordingId && id && stepPayload.recordingId !== id) return;
-        if (stepPayload.executionId && replayExecutionIdRef.current && stepPayload.executionId !== replayExecutionIdRef.current) return;
         if (stepPayload.executionId) setReplayExecutionId(stepPayload.executionId);
-        // If steps haven't been initialized (e.g. batch replay from another page),
-        // build them from the loaded actions.
+        setReplayStoreStatus({
+          recordingId: id!,
+          status: stepPayload.status === 'failed' ? 'failed' : 'running',
+          executionId: stepPayload.executionId,
+          error: stepPayload.error,
+        });
+        // If steps haven't been initialized or a new execution started
+        // (e.g. batch replay from another page), rebuild from loaded actions.
         setReplaySteps((prev) => {
           let steps = prev;
-          if (steps.length === 0 && actionsRef.current.length > 0) {
+          const isNewExecution = prev.length > 0 && stepPayload.executionId !== prevExecutionIdRef.current;
+          if (isNewExecution || (steps.length === 0 && actionsRef.current.length > 0)) {
             steps = actionsRef.current.map((a, i) => ({
               index: i,
               actionName: a.name,
@@ -180,24 +190,20 @@ export function RecordingDetail() {
             }));
           }
           if (steps.length === 0) return prev;
-          return steps.map((s) =>
+          const updated = steps.map((s) =>
             s.index === stepPayload.index
-              ? { ...s, status: stepPayload.status === 'failed' ? 'failed' : 'completed', error: stepPayload.error ?? s.error }
+              ? { ...s, status: stepPayload.status === 'failed' ? 'failed' as const : 'completed' as const, error: stepPayload.error ?? s.error }
               : s
           );
-        });
-        setReplayStoreStatus({
-          recordingId: id!,
-          status: stepPayload.status === 'failed' ? 'failed' : 'running',
-          executionId: stepPayload.executionId,
-          error: stepPayload.error,
+          // After first update, capture the executionId so we can detect the next one.
+          if (isNewExecution) prevExecutionIdRef.current = stepPayload.executionId;
+          return updated;
         });
         break;
       }
       case 'replay:done': {
         const payload = msg.payload as { status: 'passed' | 'failed'; error?: string; trace?: string; executionId?: string; recordingId?: string };
         if (payload.recordingId && id && payload.recordingId !== id) return;
-        if (payload.executionId && replayExecutionIdRef.current && payload.executionId !== replayExecutionIdRef.current) return;
         setReplayStoreStatus({
           recordingId: id!,
           status: payload.status,
@@ -206,7 +212,8 @@ export function RecordingDetail() {
         });
         setReplaySteps((prev) => {
           let steps = prev;
-          if (steps.length === 0 && actionsRef.current.length > 0) {
+          const isNewExecution = steps.length > 0 && payload.executionId && payload.executionId !== prevExecutionIdRef.current;
+          if (isNewExecution || (steps.length === 0 && actionsRef.current.length > 0)) {
             steps = actionsRef.current.map((a, i) => ({
               index: i,
               actionName: a.name,
@@ -259,6 +266,7 @@ export function RecordingDetail() {
             : s,
         );
         setReplayExecutionId(restored.executionId);
+        prevExecutionIdRef.current = restored.executionId;
         setReplaySteps(steps);
       }
     }).catch((e) => {
@@ -327,6 +335,7 @@ export function RecordingDetail() {
     // Capture the new executionId synchronously — the agent may start sending
     // replay:step messages immediately after the API call returns.
     replayExecutionIdRef.current = executionId;
+    prevExecutionIdRef.current = executionId;
     setReplayExecutionId(executionId);
 
     setReplayStoreStatus({ recordingId: id!, status: 'running', projectId: recording?.projectId, executionId });
