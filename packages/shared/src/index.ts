@@ -1,2 +1,2 @@
 export * from './schema/index.js';
-export * from './types/actions.js';
+export * from './types/index.js';

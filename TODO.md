@@ -17,6 +17,13 @@
 ## 远期
 
 - [ ] AI 辅助元素定位（自然语言描述 → selector）
-- [ ] 录制动作导出（导出为 Playwright test 代码）
+- [x] 录制动作导出（导出为 Playwright test 代码）
 - [ ] 多浏览器支持（WebKit, Firefox）
 - [ ] CI/CD 集成（GitHub Actions webhook）
+
+## 架构演进 (针对大规模并发/多租户场景)
+
+- [ ] **分布式任务队列**：引入 Redis + BullMQ，将 Server 与 Agent 由直接 WebSocket 通信重构为生产者/消费者模式，支持多 Agent 集群横向扩展。
+- [ ] **容器化隔离 (Ephemeral Containers)**：实现按需拉起 Docker/K8s Job 执行录制或回放，任务结束后自动销毁，彻底解决资源竞争与环境污染。
+- [ ] **远程浏览器集群集成**：支持通过 `connectOverCDP` 连接外部高性能浏览器云（如 Browserless），实现 Agent 轻量化。
+- [ ] **多租户配额管理**：建立用户级的并发 Worker 限制与公平调度算法，防止单用户霸占全局资源。

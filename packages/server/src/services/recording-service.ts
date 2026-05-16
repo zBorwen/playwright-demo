@@ -69,9 +69,12 @@ export async function processRecordingComplete(
 
   if (rec) {
     await storage.saveRecording(recordingId, {
+      ...rec,
+      id: rec.id,
       recordingId,
       targetUrl: rec.targetUrl ?? '',
-      title: rec.title,
+      createdAt: rec.createdAt?.toISOString() ?? new Date().toISOString(),
+      updatedAt: rec.updatedAt?.toISOString() ?? new Date().toISOString(),
       actions,
     });
   }

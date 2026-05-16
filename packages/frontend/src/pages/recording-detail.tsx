@@ -27,7 +27,7 @@ import { RecordingHeader } from '@/components/recording/recording-header';
 import { CodegenTab } from '@/components/recording/codegen-tab';
 import { TabBar, type TabKey } from '@/components/ui/tab-bar';
 import { StepListPanel } from '@/components/recording/step-list-panel';
-import { Eye } from 'lucide-react';
+import { Eye, AlertCircle, X } from 'lucide-react';
 import { highlightJSON } from '@/lib/syntax-highlight';
 
 export function RecordingDetail() {
@@ -46,6 +46,7 @@ export function RecordingDetail() {
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [replayError, setReplayError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('timeline');
   const [recordingStatus, setRecordingStatusLocal] = useState<'idle' | 'recording'>('idle');
 
@@ -111,13 +112,22 @@ export function RecordingDetail() {
   };
 
   const handleReplay = async () => {
-    const { executionId } = await replayRecording(id!, { useMock, replaySpeed: projectReplaySpeed, headless, browserType });
-    const store = useRecordingReplayStore.getState();
-    const currentActions = store.activeRecordingActions[id!] || [];
-    startReplay(id!, executionId, currentActions, recording?.projectId);
+    setReplayError(null);
+    if (actionsCount === 0) {
+      setReplayError('没有可回放的操作步骤，请先进行录制。');
+      return;
+    }
+    try {
+      const { executionId } = await replayRecording(id!, { useMock, replaySpeed: projectReplaySpeed, headless, browserType });
+      const store = useRecordingReplayStore.getState();
+      const currentActions = store.activeRecordingActions[id!] || [];
+      startReplay(id!, executionId, currentActions, recording?.projectId);
 
-    const execs = await fetchExecutions(id!);
-    setExecutions(execs);
+      const execs = await fetchExecutions(id!);
+      setExecutions(execs);
+    } catch (e) {
+      setReplayError(e instanceof Error ? e.message : '回放启动失败');
+    }
   };
 
   const handleJsonSave = async () => {
@@ -146,6 +156,20 @@ export function RecordingDetail() {
 
   return (
     <div className="flex flex-col h-full">
+      {replayError && (
+        <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-red-400 text-sm font-medium">
+            <AlertCircle className="h-4 w-4" />
+            <span>{replayError}</span>
+          </div>
+          <button 
+            onClick={() => setReplayError(null)}
+            className="text-red-400/50 hover:text-red-400 transition"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       <RecordingHeader
         recording={recording}
         recordingStatus={recordingStatus}

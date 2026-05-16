@@ -1,3 +1,2 @@
 export * from './actions.js';
-export * from './protocol.js';
 export * from './entities.js';
