@@ -20,15 +20,17 @@ type ProjectReplayStatus = 'running' | 'passed' | 'failed' | null;
 
 function getProjectReplayStatus(
   projectId: string,
-  recordingReplays: Record<string, { status: 'running' | 'passed' | 'failed'; projectId?: string; finishedAt?: number }>,
+  recordingReplays: Record<string, { status: 'running' | 'passed' | 'failed' | 'idle'; projectId?: string; finishedAt?: number }>,
 ): ProjectReplayStatus {
-  const projectReplays = Object.values(recordingReplays).filter(r => r.projectId === projectId);
+  const projectReplays = Object.values(recordingReplays).filter(r => r.projectId === projectId && r.status !== 'idle');
   if (projectReplays.length === 0) return null;
   // Running takes priority — project is still replaying
   if (projectReplays.some(r => r.status === 'running')) return 'running';
   // Otherwise, take the latest completed result
   projectReplays.sort((a, b) => (b.finishedAt ?? 0) - (a.finishedAt ?? 0));
-  return projectReplays[0].status;
+  const latest = projectReplays[0];
+  if (latest.status === 'idle') return null;
+  return latest.status;
 }
 
 function ProjectCard({ project, stats, replayStatus, selected, onToggleSelect, onDelete }: {

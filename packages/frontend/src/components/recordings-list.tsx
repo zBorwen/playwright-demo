@@ -16,7 +16,7 @@ interface RecordingsListProps {
 
 function ReplayStatusIndicator({ recordingId }: { recordingId: string }) {
   const replay = useRecordingReplayStore(s => s.recordingReplays[recordingId]);
-  if (!replay) return null;
+  if (!replay || replay.status === 'idle') return null;
   if (replay.status === 'running') {
     return (
       <span className="ml-2 inline-flex items-center gap-1.5 text-xs">

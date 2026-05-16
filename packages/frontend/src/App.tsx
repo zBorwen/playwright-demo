@@ -23,10 +23,11 @@ export function App() {
     useRecordingReplayStore.getState().hydrate();
 
     const unsub = subscribeToMessages((msg) => {
+      const store = useRecordingReplayStore.getState();
       if (msg.type === 'batch-replay:result') {
         const p = msg.payload as { recordingId: string; status: 'passed' | 'failed' | 'running' | 'pending'; error?: string; executionId?: string; projectId?: string };
         if (p.status !== 'pending') {
-          useRecordingReplayStore.getState().setRecordingStatus({
+          store.setRecordingStatus({
             recordingId: p.recordingId,
             status: p.status === 'running' ? 'running' : p.status,
             error: p.error,
@@ -34,6 +35,12 @@ export function App() {
             projectId: p.projectId,
           });
         }
+      } else if (msg.type === 'replay:step') {
+        const p = msg.payload as { recordingId: string; executionId: string; index: number; status: 'completed' | 'failed'; error?: string };
+        if (p.recordingId) store.handleReplayStep(p);
+      } else if (msg.type === 'replay:done') {
+        const p = msg.payload as { recordingId: string; executionId?: string; status: 'passed' | 'failed'; error?: string };
+        if (p.recordingId) store.handleReplayDone(p);
       }
     });
 
