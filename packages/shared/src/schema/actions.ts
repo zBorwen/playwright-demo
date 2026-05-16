@@ -4,7 +4,7 @@ import { z } from 'zod';
 // ElementInfo
 // ---------------------------------------------------------------------------
 
-const ElementInfoSchema = z.object({
+export const ElementInfoSchema = z.object({
   dataTestId: z.string().nullable(),
   dataTest: z.string().nullable(),
   role: z.string().nullable(),
@@ -29,7 +29,7 @@ export type ElementInfo = z.infer<typeof ElementInfoSchema>;
 // Signal (discriminated union)
 // ---------------------------------------------------------------------------
 
-const SignalSchema = z.discriminatedUnion('name', [
+export const SignalSchema = z.discriminatedUnion('name', [
   z.object({ name: z.literal('navigation'), url: z.string() }),
   z.object({ name: z.literal('popup'), popupAlias: z.string() }),
   z.object({ name: z.literal('download'), downloadAlias: z.string() }),
@@ -40,7 +40,7 @@ const SignalSchema = z.discriminatedUnion('name', [
 // Action schemas
 // ---------------------------------------------------------------------------
 
-const ClickActionSchema = z.object({
+export const ClickActionSchema = z.object({
   name: z.literal('click'),
   selector: z.string(),
   button: z.enum(['left', 'middle', 'right']).default('left'),
@@ -50,21 +50,21 @@ const ClickActionSchema = z.object({
   signals: z.array(SignalSchema).default([]),
 });
 
-const FillActionSchema = z.object({
+export const FillActionSchema = z.object({
   name: z.literal('fill'),
   selector: z.string(),
   value: z.string(),
   signals: z.array(SignalSchema).default([]),
 });
 
-const HoverActionSchema = z.object({
+export const HoverActionSchema = z.object({
   name: z.literal('hover'),
   selector: z.string(),
   position: z.object({ x: z.number(), y: z.number() }).optional(),
   signals: z.array(SignalSchema).default([]),
 });
 
-const PressActionSchema = z.object({
+export const PressActionSchema = z.object({
   name: z.literal('press'),
   selector: z.string(),
   key: z.string(),
@@ -72,45 +72,45 @@ const PressActionSchema = z.object({
   signals: z.array(SignalSchema).default([]),
 });
 
-const SelectActionSchema = z.object({
+export const SelectActionSchema = z.object({
   name: z.literal('select'),
   selector: z.string(),
   options: z.array(z.string()),
   signals: z.array(SignalSchema).default([]),
 });
 
-const CheckActionSchema = z.object({
+export const CheckActionSchema = z.object({
   name: z.literal('check'),
   selector: z.string(),
   signals: z.array(SignalSchema).default([]),
 });
 
-const UncheckActionSchema = z.object({
+export const UncheckActionSchema = z.object({
   name: z.literal('uncheck'),
   selector: z.string(),
   signals: z.array(SignalSchema).default([]),
 });
 
-const SetInputFilesActionSchema = z.object({
+export const SetInputFilesActionSchema = z.object({
   name: z.literal('setInputFiles'),
   selector: z.string(),
   files: z.array(z.string()),
   signals: z.array(SignalSchema).default([]),
 });
 
-const NavigateActionSchema = z.object({
+export const NavigateActionSchema = z.object({
   name: z.literal('navigate'),
   url: z.string(),
   signals: z.array(SignalSchema).default([]),
 });
 
-const AssertVisibleActionSchema = z.object({
+export const AssertVisibleActionSchema = z.object({
   name: z.literal('assertVisible'),
   selector: z.string(),
   signals: z.array(SignalSchema).default([]),
 });
 
-const AssertTextActionSchema = z.object({
+export const AssertTextActionSchema = z.object({
   name: z.literal('assertText'),
   selector: z.string(),
   text: z.string(),
@@ -118,14 +118,14 @@ const AssertTextActionSchema = z.object({
   signals: z.array(SignalSchema).default([]),
 });
 
-const AssertCheckedActionSchema = z.object({
+export const AssertCheckedActionSchema = z.object({
   name: z.literal('assertChecked'),
   selector: z.string(),
   checked: z.boolean(),
   signals: z.array(SignalSchema).default([]),
 });
 
-const AssertValueActionSchema = z.object({
+export const AssertValueActionSchema = z.object({
   name: z.literal('assertValue'),
   selector: z.string(),
   value: z.string(),
@@ -136,7 +136,7 @@ const AssertValueActionSchema = z.object({
 // Action (discriminated union of all actions)
 // ---------------------------------------------------------------------------
 
-const ActionSchema = z.discriminatedUnion('name', [
+export const ActionSchema = z.discriminatedUnion('name', [
   ClickActionSchema,
   FillActionSchema,
   HoverActionSchema,
@@ -158,7 +158,7 @@ export type Action = z.infer<typeof ActionSchema>;
 // PageContext
 // ---------------------------------------------------------------------------
 
-const PageContextSchema = z.object({
+export const PageContextSchema = z.object({
   url: z.string(),
   title: z.string().optional(),
 });
@@ -197,7 +197,7 @@ export type RecordingAction = z.infer<typeof RecordingActionSchema>;
 // NetworkEntry (parsed HAR entry for API requests)
 // ---------------------------------------------------------------------------
 
-const NetworkEntrySchema = z.object({
+export const NetworkEntrySchema = z.object({
   id: z.string(),
   url: z.string(),
   method: z.string(),
@@ -226,7 +226,7 @@ export type NetworkEntry = z.infer<typeof NetworkEntrySchema>;
 // MockRule (replay API mock configuration)
 // ---------------------------------------------------------------------------
 
-const MockRuleSchema = z.object({
+export const MockRuleSchema = z.object({
   urlPattern: z.string(),
   enabled: z.boolean(),
   method: z.string().optional(),
@@ -242,7 +242,7 @@ export type MockRule = z.infer<typeof MockRuleSchema>;
 // Recording
 // ---------------------------------------------------------------------------
 
-const RecordingSchema = z.object({
+export const RecordingSchema = z.object({
   recordingId: z.string().uuid(),
   targetUrl: z.string().url(),
   title: z.string(),
