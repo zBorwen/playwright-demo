@@ -213,8 +213,20 @@ export function RecordingDetail() {
         // Only finalize existing steps — don't rebuild here. Steps are initialized
         // by replay:step messages; rebuilding in done causes all steps to show as
         // completed when done arrives before all step messages have been processed.
+        // However, if steps are empty and executionId differs from our tracked one,
+        // this is a completed replay we missed entirely (e.g. batch replay from
+        // another page that finished before the user navigated here).
         if (payload.executionId) prevExecutionIdRef.current = payload.executionId;
         setReplaySteps((prev) => {
+          if (prev.length === 0 && actionsRef.current.length > 0) {
+            // Replay completed without any step messages reaching us — show all completed.
+            return actionsRef.current.map((a, i) => ({
+              index: i,
+              actionName: a.name,
+              detail: formatActionDetail(a),
+              status: payload.status === 'failed' ? 'skipped' as const : 'completed' as const,
+            }));
+          }
           if (prev.length === 0) return prev;
           if (payload.status === 'failed') {
             return prev.map((s) =>
