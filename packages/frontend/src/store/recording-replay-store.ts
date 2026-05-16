@@ -208,14 +208,15 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
   handleReplayStep(payload) {
     set((s) => {
       const existing = s.recordingReplays[payload.recordingId];
-      // Detect new execution (e.g. second batch replay) — reset all steps to pending.
-      const isNewExecution = existing && existing.executionId && existing.executionId !== payload.executionId;
+      // Detect stale message from a previous execution — skip it entirely.
+      // Step reset is handled by startReplay, not by incoming WS messages.
+      if (existing && existing.executionId && existing.executionId !== payload.executionId) {
+        return s;
+      }
       const stepStatuses = s.stepStatuses[payload.recordingId] ?? {};
       stepStatuses[payload.index] = payload.status === 'failed' ? 'failed' : 'completed';
 
       // If no entry exists yet (WS arrived before any status update), create one.
-      // Do NOT overwrite executionId on existing entries — it's set by
-      // setRecordingStatus (batch-replay result) or startReplay.
       if (!existing) {
         return {
           recordingReplays: {
@@ -237,10 +238,6 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
       const entry: RecordingReplayStatus = { ...existing };
       entry.status = 'running';
       entry.error = payload.error;
-
-      if (isNewExecution && entry.replaySteps) {
-        entry.replaySteps = entry.replaySteps.map(st => ({ ...st, status: 'pending' as const }));
-      }
 
       if (entry.replaySteps) {
         const steps = [...entry.replaySteps];

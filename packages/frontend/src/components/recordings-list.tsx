@@ -235,6 +235,7 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
           recordingId: r.recordingId,
           status: 'running',
           projectId: r.projectId,
+          executionId: r.executionId,
         });
       }
     } catch (e) {

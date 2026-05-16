@@ -206,7 +206,7 @@ export function RecordingDetail() {
   const handleReplay = async () => {
     const { executionId } = await replayRecording(id!, { useMock, replaySpeed: projectReplaySpeed, headless, browserType });
 
-    startReplay(id!, executionId, actions, recording?.projectId);
+    startReplay(id!, executionId, actionsRef.current, recording?.projectId);
 
     const execs = await fetchExecutions(id!);
     setExecutions(execs);
