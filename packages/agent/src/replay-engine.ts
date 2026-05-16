@@ -1,5 +1,11 @@
-import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright-core';
-import type { RecordingAction, MockRule } from '@playwright-demo/shared';
+import { chromium, firefox, webkit, type Browser, type BrowserContext, type Page, type Route } from 'playwright-core';
+import type { BrowserType, RecordingAction, MockRule } from '@playwright-demo/shared';
+
+const browserLaunchers: Record<BrowserType, typeof chromium> = {
+  chromium,
+  firefox,
+  webkit,
+};
 import { readFileSync, existsSync, mkdirSync } from 'fs';
 import path from 'node:path';
 
@@ -145,6 +151,7 @@ export class ReplayEngine {
     mockRules?: MockRule[];
     useMock?: boolean;
     stepDelay?: number;
+    browserType?: BrowserType;
   } = {}): Promise<ReplayResult> {
     this.screenshots = [];
 
@@ -155,6 +162,7 @@ export class ReplayEngine {
       mockRules = [],
       useMock = false,
       stepDelay = 300,
+      browserType = 'chromium',
     } = options;
 
     const storageBase = path.resolve(process.env.STORAGE_PATH || './storage', 'recordings', recordingId);
@@ -166,7 +174,10 @@ export class ReplayEngine {
     // Deduplicate near-simultaneous actions (Enter + click on form submit)
     const deduplicated = deduplicateActions(actions);
 
-    this.browser = await chromium.launch({ headless });
+    const launcher = browserLaunchers[browserType];
+    if (!launcher) throw new Error(`Unsupported browser: ${browserType}`);
+
+    this.browser = await launcher.launch({ headless });
     try {
       this.context = await this.browser.newContext();
       await this.context.tracing.start({ screenshots: true, snapshots: true });

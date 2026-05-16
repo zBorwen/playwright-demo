@@ -15,6 +15,7 @@ import {
   type Recording,
   type Execution,
   type RecordingAction,
+  type BrowserType,
 } from '@/lib/api';
 import { useWebSocket, getSingleReplayProgress } from '@/hooks/use-websocket';
 import { RecordingJsonEditor } from '@/components/recording-json-editor';
@@ -76,6 +77,37 @@ export function RecordingDetail() {
       // localStorage may be blocked; non-critical
     }
   };
+  const [headless, setHeadless] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`replay-headless:${id}`);
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const handleHeadlessChange = (value: boolean) => {
+    setHeadless(value);
+    try {
+      if (id) localStorage.setItem(`replay-headless:${id}`, String(value));
+    } catch {}
+  };
+
+  const [browserType, setBrowserType] = useState<BrowserType>(() => {
+    try {
+      const saved = localStorage.getItem(`replay-browser-type:${id}`);
+      return (saved as BrowserType) || 'chromium';
+    } catch {
+      return 'chromium';
+    }
+  });
+
+  const handleBrowserTypeChange = (value: BrowserType) => {
+    setBrowserType(value);
+    try {
+      if (id) localStorage.setItem(`replay-browser-type:${id}`, value);
+    } catch {}
+  };
   const [projectReplaySpeed, setProjectReplaySpeed] = useState<'fast' | 'normal' | 'slow'>('normal');
   const [codegen, setCodegen] = useState<string>('');
 
@@ -124,7 +156,7 @@ export function RecordingDetail() {
           }
         }
         if (id) {
-          fetchRecordingCodegen(id).then((r) => setCodegen(r.codegen || '')).catch((e) => {
+          fetchRecordingCodegen(id, browserType).then((r) => setCodegen(r.codegen || '')).catch((e) => {
             console.warn('Failed to fetch codegen:', e.message);
           });
         }
@@ -243,7 +275,7 @@ export function RecordingDetail() {
     setActions([]);
     actionsRef.current = [];
     setCodegen('');
-    await startRecording(id!);
+    await startRecording(id!, { browserType });
     setRecordingStatus('recording');
   };
 
@@ -266,7 +298,7 @@ export function RecordingDetail() {
       detail: formatActionDetail(a),
       status: 'pending' as const,
     })));
-    await replayRecording(id!, { useMock, replaySpeed: projectReplaySpeed });
+    await replayRecording(id!, { useMock, replaySpeed: projectReplaySpeed, headless, browserType });
     const execs = await fetchExecutions(id!);
     setExecutions(execs);
   };
@@ -309,11 +341,15 @@ export function RecordingDetail() {
         actionsCount={actions.length}
         lastExecutionStatus={lastExecution?.status}
         lastExecutedAt={lastExecutedAt}
+        headless={recordingStatus === 'recording' ? false : headless}
+        browserType={browserType}
         onStartRecording={handleStartRecording}
         onStopRecording={handleStopRecording}
         onReplay={handleReplay}
         onUseMockChange={handleUseMockChange}
         onSpeedChange={handleSpeedChange}
+        onHeadlessChange={handleHeadlessChange}
+        onBrowserTypeChange={handleBrowserTypeChange}
       />
 
       {/* Tab bar */}

@@ -2,6 +2,7 @@ import { Play, Loader2, CheckCircle, XCircle, Circle, Square } from 'lucide-reac
 import { ControlBar } from '@/components/control-bar';
 import { StatusBadge } from '@/components/status-badge';
 import type { Recording } from '@/lib/api';
+import type { BrowserType } from '@playwright-demo/shared';
 
 const REPLAY_BUTTON_CONFIG: Record<string, { icon: React.ComponentType<{ className?: string }>; text: string; className?: string }> = {
   running: { icon: Loader2, text: '回放中', className: 'animate-spin' },
@@ -20,11 +21,15 @@ interface RecordingHeaderProps {
   actionsCount: number;
   lastExecutionStatus?: string;
   lastExecutedAt?: string;
+  headless: boolean;
+  browserType: BrowserType;
   onStartRecording: () => void;
   onStopRecording: () => void;
   onReplay: () => void;
   onUseMockChange: (checked: boolean) => void;
   onSpeedChange: (speed: 'fast' | 'normal' | 'slow') => void;
+  onHeadlessChange: (headless: boolean) => void;
+  onBrowserTypeChange: (type: BrowserType) => void;
 }
 
 export function RecordingHeader({
@@ -37,11 +42,15 @@ export function RecordingHeader({
   actionsCount,
   lastExecutionStatus,
   lastExecutedAt,
+  headless,
+  browserType,
   onStartRecording,
   onStopRecording,
   onReplay,
   onUseMockChange,
   onSpeedChange,
+  onHeadlessChange,
+  onBrowserTypeChange,
 }: RecordingHeaderProps) {
   const replayConfig = REPLAY_BUTTON_CONFIG[replayStatus] ?? REPLAY_BUTTON_CONFIG.idle;
   const ReplayIcon = replayConfig.icon;
@@ -113,8 +122,12 @@ export function RecordingHeader({
           mockEnabled={useMock}
           replaySpeed={projectReplaySpeed}
           disabled={isRunning}
+          headless={headless}
+          browserType={browserType}
           onMockChange={onUseMockChange}
           onSpeedChange={onSpeedChange}
+          onHeadlessChange={onHeadlessChange}
+          onBrowserTypeChange={onBrowserTypeChange}
         />
       </div>
     </div>

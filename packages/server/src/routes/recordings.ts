@@ -4,7 +4,15 @@ import { z } from 'zod';
 import { db } from '../db/index';
 import { projects, recordings, recordingArtifacts, executions } from '../db/schema';
 import { eq, desc, and } from 'drizzle-orm';
-import type { Recording, MockRule } from '@playwright-demo/shared';
+import type { BrowserType, Recording, MockRule } from '@playwright-demo/shared';
+
+const VALID_BROWSER_TYPES: BrowserType[] = ['chromium', 'firefox', 'webkit'];
+
+function parseBrowserType(value?: string): BrowserType | undefined {
+  if (!value) return undefined;
+  if (VALID_BROWSER_TYPES.includes(value as BrowserType)) return value as BrowserType;
+  return undefined;
+}
 import type { Env } from '../types/env';
 import { getWsHandlers } from '../context';
 import { generateCodegen } from '../services/codegen';
@@ -63,6 +71,8 @@ async function executeBatchReplay(
   useMock: boolean,
   agentId: string,
   batchId: string,
+  headless?: boolean,
+  browserType?: BrowserType,
 ): Promise<{ results: Array<{ recordingId: string; executionId: string; projectId?: string }> }> {
   // Look up project-level replay speeds
   const projectIds = [...new Set(validRecordings.map(r => r.projectId).filter(Boolean))];
@@ -116,6 +126,8 @@ async function executeBatchReplay(
         harRef: useMock ? `${rec.id}/recording.har` : '',
         mockRules,
         replaySpeed: (speedCache.get(rec.projectId || '') || 'normal') as 'fast' | 'normal' | 'slow',
+        headless,
+        browserType,
       },
     });
 
@@ -172,12 +184,13 @@ recordingsRouter.get('/:id/actions', async (c) => {
 
 recordingsRouter.get('/:id/codegen', async (c) => {
   const id = c.req.param('id');
+  const browserType = parseBrowserType(c.req.query('browserType'));
   const content = await loadActionsArtifact(id);
   if (content === null) return c.json(successResponse({ codegen: '' }));
   const parsed = JSON.parse(content);
   const actions = Array.isArray(parsed) ? parsed : parsed.actions ?? [];
   try {
-    const code = generateCodegen(actions);
+    const code = generateCodegen(actions, { browserName: browserType });
     return c.json(successResponse({ codegen: code }));
   } catch (err) {
     console.error('Codegen failed:', err);
@@ -222,6 +235,7 @@ recordingsRouter.post('/:id/actions', zValidator('json', z.object({
 recordingsRouter.post('/:id/start', async (c) => {
   const id = c.req.param('id');
   const agentId = c.req.query('agentId') || 'default';
+  const browserType = parseBrowserType(c.req.query('browserType'));
 
   const recording = await db.select().from(recordings).where(eq(recordings.id, id)).limit(1);
   if (!recording.length) return c.json(errorResponse(API_CODES.NOT_FOUND, '录制不存在'), 404);
@@ -232,6 +246,7 @@ recordingsRouter.post('/:id/start', async (c) => {
     payload: {
       targetUrl: recording[0].targetUrl || '',
       recordingId: id,
+      browserType,
     },
   });
 
@@ -258,6 +273,9 @@ recordingsRouter.post('/:id/replay', async (c) => {
   const agentId = c.req.query('agentId') || 'default';
   const useMock = c.req.query('mock') === 'true';
   const querySpeed = c.req.query('replaySpeed') as 'fast' | 'normal' | 'slow' | undefined;
+  const headlessParam = c.req.query('headless');
+  const headless = headlessParam !== undefined ? headlessParam === 'true' : undefined;
+  const browserType = parseBrowserType(c.req.query('browserType'));
 
   // Look up recording to get project for project-level replay speed
   const rec = await db.query.recordings.findFirst({
@@ -292,6 +310,8 @@ recordingsRouter.post('/:id/replay', async (c) => {
       harRef: useMock ? `${id}/recording.har` : '',
       mockRules,
       replaySpeed,
+      headless,
+      browserType,
     },
   });
 
@@ -303,8 +323,10 @@ recordingsRouter.post('/batch-replay', zValidator('json', z.object({
   recordingIds: z.array(z.string().uuid()).min(1),
   useMock: z.boolean().optional().default(false),
   agentId: z.string().optional().default('default'),
+  headless: z.boolean().optional(),
+  browserType: z.string().optional(),
 })), async (c) => {
-  const { recordingIds, useMock, agentId } = c.req.valid('json');
+  const { recordingIds, useMock, agentId, headless, browserType } = c.req.valid('json');
 
   const validRecordings = await loadValidRecordings(recordingIds);
 
@@ -313,7 +335,7 @@ recordingsRouter.post('/batch-replay', zValidator('json', z.object({
   }
 
   const batchId = crypto.randomUUID();
-  const { results } = await executeBatchReplay(validRecordings, useMock, agentId, batchId);
+  const { results } = await executeBatchReplay(validRecordings, useMock, agentId, batchId, headless, parseBrowserType(browserType));
 
   return c.json(successResponse({
     batchId,
@@ -326,8 +348,10 @@ recordingsRouter.post('/batch-replay/projects', zValidator('json', z.object({
   projectIds: z.array(z.string().uuid()).min(1),
   useMock: z.boolean().optional().default(false),
   agentId: z.string().optional().default('default'),
+  headless: z.boolean().optional(),
+  browserType: z.string().optional(),
 })), async (c) => {
-  const { projectIds, useMock, agentId } = c.req.valid('json');
+  const { projectIds, useMock, agentId, headless, browserType } = c.req.valid('json');
 
   // Collect all recording IDs from the specified projects
   const allRecordingIds: string[] = [];
@@ -350,7 +374,7 @@ recordingsRouter.post('/batch-replay/projects', zValidator('json', z.object({
   }
 
   const batchId = crypto.randomUUID();
-  const { results } = await executeBatchReplay(validRecordings, useMock, agentId, batchId);
+  const { results } = await executeBatchReplay(validRecordings, useMock, agentId, batchId, headless, parseBrowserType(browserType));
 
   return c.json(successResponse({
     batchId,
