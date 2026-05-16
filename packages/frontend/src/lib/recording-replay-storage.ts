@@ -1,4 +1,4 @@
-import type { ReplayStep } from '@/components/replay-panel';
+import type { ReplayStep } from '@/store/types';
 
 const STORAGE_KEY_PREFIX = 'recording-replay-state';
 

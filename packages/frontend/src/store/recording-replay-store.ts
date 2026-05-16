@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { formatActionDetail } from '@/lib/action-formatter';
 import type { RecordingAction } from '@playwright-demo/shared';
-import type { ReplayStep } from '@/components/replay-panel';
+import type { ReplayStep } from './types';
 import {
   loadAllRecordingReplayStates,
   saveRecordingReplayState,
