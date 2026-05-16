@@ -33,9 +33,9 @@ import { highlightJSON } from '@/lib/syntax-highlight';
 
 export function RecordingDetail() {
   const { id } = useParams<{ id: string }>();
-  const replayStatus = useRecordingReplayStore(s => id ? s.recordingReplays[id]?.status ?? 'idle' : 'idle');
-  const replaySteps = useRecordingReplayStore(s => id ? s.recordingReplays[id]?.replaySteps ?? [] : []);
-  const replayExecutionId = useRecordingReplayStore(s => id ? s.recordingReplays[id]?.executionId ?? null : null);
+  const replayStatus = useRecordingReplayStore(s => id ? s.recordingReplays[id]?.status : undefined);
+  const replaySteps = useRecordingReplayStore(s => id ? s.recordingReplays[id]?.replaySteps : undefined);
+  const replayExecutionId = useRecordingReplayStore(s => id ? s.recordingReplays[id]?.executionId : undefined);
   const startReplay = useRecordingReplayStore(s => s.startReplay);
   const initSteps = useRecordingReplayStore(s => s.initSteps);
   const resetReplay = useRecordingReplayStore(s => s.resetReplay);
@@ -247,7 +247,7 @@ export function RecordingDetail() {
       <RecordingHeader
         recording={recording}
         recordingStatus={recordingStatus}
-        replayStatus={replayStatus}
+        replayStatus={replayStatus ?? 'idle'}
         useMock={useMock}
         projectReplaySpeed={projectReplaySpeed}
         actionsCount={actions.length}
@@ -277,7 +277,7 @@ export function RecordingDetail() {
         {isTimeline && (
           <StepListPanel
             actions={actions}
-            steps={replaySteps}
+            steps={replaySteps ?? []}
             isRunning={replayStatus === 'running'}
             selectedStep={selectedStep}
             onSelectStep={(i) => setSelectedStep(selectedStep === i ? null : i)}
@@ -303,7 +303,7 @@ export function RecordingDetail() {
                 {(() => {
                   const action = actions[selectedStep];
                   if (!action) return null;
-                  const step = replaySteps.find(s => s.index === selectedStep);
+                  const step = replaySteps?.find(s => s.index === selectedStep);
                   const maskedAction = action.name === 'fill' && isPasswordField(action)
                     ? { ...action, value: '***' }
                     : action;
