@@ -105,6 +105,8 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
     useAppStore();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [replaying, setReplaying] = useState(false);
+  const [batchHeadless, setBatchHeadless] = useState(true);
+  const [batchBrowserType, setBatchBrowserType] = useState<'chromium' | 'firefox' | 'webkit'>('chromium');
   const [projectStats, setProjectStats] = useState<Map<string, ProjectStats>>(new Map());
   const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
 
@@ -188,7 +190,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
     if (selectedIds.size === 0) return;
     setReplaying(true);
     try {
-      const result = await batchReplayProjects([...selectedIds], { useMock: false });
+      const result = await batchReplayProjects([...selectedIds], { useMock: false, headless: batchHeadless, browserType: batchBrowserType });
       for (const r of result.results) {
         useRecordingReplayStore.getState().setRecordingStatus({
           recordingId: r.recordingId,
@@ -223,6 +225,10 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
           },
         ]}
         onCancel={() => setSelectedIds(new Set())}
+        headless={batchHeadless}
+        browserType={batchBrowserType}
+        onHeadlessChange={setBatchHeadless}
+        onBrowserTypeChange={setBatchBrowserType}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -161,6 +161,8 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
   const [replaying, setReplaying] = useState(false);
+  const [batchHeadless, setBatchHeadless] = useState(true);
+  const [batchBrowserType, setBatchBrowserType] = useState<'chromium' | 'firefox' | 'webkit'>('chromium');
 
   const loadData = () => {
     setLoading(true);
@@ -220,11 +222,11 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
       const allResults: Array<{ recordingId: string; executionId: string; projectId?: string }> = [];
 
       if (mockOn.length > 0) {
-        const r = await batchReplayRecordings(mockOn, { useMock: true });
+        const r = await batchReplayRecordings(mockOn, { useMock: true, headless: batchHeadless, browserType: batchBrowserType });
         allResults.push(...r.results);
       }
       if (mockOff.length > 0) {
-        const r = await batchReplayRecordings(mockOff, { useMock: false });
+        const r = await batchReplayRecordings(mockOff, { useMock: false, headless: batchHeadless, browserType: batchBrowserType });
         allResults.push(...r.results);
       }
 
@@ -268,6 +270,10 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
           },
         ]}
         onCancel={() => setSelectedIds(new Set())}
+        headless={batchHeadless}
+        browserType={batchBrowserType}
+        onHeadlessChange={setBatchHeadless}
+        onBrowserTypeChange={setBatchBrowserType}
       />
 
       {error && <p className="mb-4 text-sm text-red-400">{error}</p>}

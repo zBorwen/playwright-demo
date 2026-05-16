@@ -1,4 +1,5 @@
 import { Check, X } from 'lucide-react';
+import type { BrowserType } from '@playwright-demo/shared';
 
 interface BatchAction {
   label: string;
@@ -14,6 +15,10 @@ interface BatchActionBarProps {
   countLabel: string;
   actions: BatchAction[];
   onCancel: () => void;
+  headless?: boolean;
+  browserType?: BrowserType;
+  onHeadlessChange?: (headless: boolean) => void;
+  onBrowserTypeChange?: (type: BrowserType) => void;
 }
 
 const VARIANT_CLASSES: Record<string, string> = {
@@ -21,7 +26,7 @@ const VARIANT_CLASSES: Record<string, string> = {
   danger: 'border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20',
 };
 
-export function BatchActionBar({ count, countLabel, actions, onCancel }: BatchActionBarProps) {
+export function BatchActionBar({ count, countLabel, actions, onCancel, headless = true, browserType = 'chromium', onHeadlessChange, onBrowserTypeChange }: BatchActionBarProps) {
   const visible = count > 0;
 
   return (
@@ -49,6 +54,52 @@ export function BatchActionBar({ count, countLabel, actions, onCancel }: BatchAc
             {action.loading ? action.loadingLabel : action.label}
           </button>
         ))}
+      </div>
+      <div className="flex items-center gap-2">
+        {onBrowserTypeChange && (
+          <div className="flex items-center rounded-lg border border-zinc-700 bg-zinc-800 p-0.5">
+            {(['chromium', 'firefox', 'webkit'] as BrowserType[]).map((type) => {
+              const labels: Record<BrowserType, string> = { chromium: 'Cr', firefox: 'Fx', webkit: 'Wk' };
+              return (
+                <button
+                  key={type}
+                  onClick={() => onBrowserTypeChange(type)}
+                  className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                    browserType === type
+                      ? 'bg-violet-600 text-white'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  {labels[type]}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {onHeadlessChange && (
+          <div className="flex items-center rounded-lg border border-zinc-700 bg-zinc-800 p-0.5">
+            <button
+              onClick={() => onHeadlessChange(false)}
+              className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                !headless
+                  ? 'bg-violet-600 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Headed
+            </button>
+            <button
+              onClick={() => onHeadlessChange(true)}
+              className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                headless
+                  ? 'bg-violet-600 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Headless
+            </button>
+          </div>
+        )}
       </div>
       <button
         onClick={onCancel}
