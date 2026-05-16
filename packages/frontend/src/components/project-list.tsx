@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FolderOpen, Trash2, Check } from 'lucide-react';
-import { fetchProjects, fetchRecordings, fetchExecutions, deleteProject, batchReplayProjects, type Project } from '@/lib/api';
+import { fetchProjects, deleteProject, batchReplayProjects, type Project } from '@/lib/api';
 import { useAppStore } from '@/store/app-store';
 import { StatusBadge } from '@/components/status-badge';
 import { CardSkeleton } from '@/components/skeleton';
@@ -109,48 +109,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
   const [replaying, setReplaying] = useState(false);
   const [batchHeadless, setBatchHeadless] = useState(true);
   const [batchBrowserType, setBatchBrowserType] = useState<'chromium' | 'firefox' | 'webkit'>('chromium');
-  const [projectStats, setProjectStats] = useState<Map<string, ProjectStats>>(new Map());
   const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
-
-  // Load project stats
-  useEffect(() => {
-    const loadStats = async () => {
-      const stats = new Map<string, ProjectStats>();
-      for (const project of projects) {
-        try {
-          const recordings = await fetchRecordings(project.id);
-          let lastExecutedAt: string | null = null;
-          let latestTime = 0;
-          for (const rec of recordings) {
-            try {
-              const execs = await fetchExecutions(rec.id);
-              for (const ex of execs) {
-                if (ex.finishedAt) {
-                  const t = new Date(ex.finishedAt).getTime();
-                  if (t > latestTime) {
-                    latestTime = t;
-                    lastExecutedAt = formatRelativeTime(ex.finishedAt);
-                  }
-                }
-              }
-            } catch {
-              // Skip if can't fetch executions
-            }
-          }
-          stats.set(project.id, {
-            recordingCount: recordings.length,
-            lastExecutedAt,
-          });
-        } catch {
-          stats.set(project.id, { recordingCount: 0, lastExecutedAt: null });
-        }
-      }
-      setProjectStats(stats);
-    };
-    if (projects.length > 0) {
-      loadStats();
-    }
-  }, [projects]);
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -235,7 +194,10 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {projects.map((p) => {
-          const stats = projectStats.get(p.id) ?? { recordingCount: 0, lastExecutedAt: null };
+          const stats = p.stats ? {
+            recordingCount: p.stats.recordingCount,
+            lastExecutedAt: p.stats.lastExecutedAt ? formatRelativeTime(p.stats.lastExecutedAt) : null,
+          } : { recordingCount: 0, lastExecutedAt: null };
           const replayStatus = getProjectReplayStatus(p.id, recordingReplays);
           return (
             <ProjectCard

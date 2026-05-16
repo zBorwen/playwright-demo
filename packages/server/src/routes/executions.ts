@@ -29,6 +29,66 @@ executionsRouter.post('/', zValidator('json', createExecutionSchema), async (c) 
   return c.json(successResponse(result[0]), 201);
 });
 
+executionsRouter.get('/summary', async (c) => {
+  const { recordings } = await import('../db/schema');
+  
+  // Total recordings
+  const allRecs = await db.select({ id: recordings.id }).from(recordings);
+  const totalRecordings = allRecs.length;
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  // All executions (for pass rate)
+  const allExecs = await db.select({ id: executions.id, status: executions.status }).from(executions);
+  const totalExecs = allExecs.length;
+  const passedCount = allExecs.filter(e => e.status === 'passed').length;
+  const passRate = totalExecs > 0 ? Math.round((passedCount / totalExecs) * 100) : 0;
+
+  // Executions from the last 7 days
+  const recentExecs = await db.select()
+    .from(executions)
+    // where startedAt >= weekAgo
+    .orderBy(desc(executions.startedAt));
+  
+  const todayExecutions = recentExecs.filter(e => e.startedAt && new Date(e.startedAt) >= todayStart).length;
+  
+  const recentFailures = recentExecs.filter(e => e.status === 'failed').slice(0, 5);
+
+  const dailyMap = new Map<string, { passed: number; failed: number }>();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const key = `${d.getMonth() + 1}/${d.getDate()}`;
+    dailyMap.set(key, { passed: 0, failed: 0 });
+  }
+
+  for (const e of recentExecs) {
+    if (!e.startedAt) continue;
+    const d = new Date(e.startedAt);
+    if (d >= weekAgo) {
+      const key = `${d.getMonth() + 1}/${d.getDate()}`;
+      const day = dailyMap.get(key);
+      if (day) {
+        if (e.status === 'passed') day.passed++;
+        else if (e.status === 'failed') day.failed++;
+      }
+    }
+  }
+
+  return c.json(successResponse({
+    totalRecordings,
+    todayExecutions,
+    passRate,
+    recentFailures,
+    trendData: Array.from(dailyMap.entries()).map(([date, data]) => ({
+      date,
+      passed: data.passed,
+      failed: data.failed,
+    })),
+  }));
+});
+
 executionsRouter.get('/:id', async (c) => {
   const id = c.req.param('id');
   const ex = await db.select().from(executions).where(eq(executions.id, id)).limit(1);
