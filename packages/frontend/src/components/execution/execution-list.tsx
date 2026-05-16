@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Code } from 'lucide-react';
 import type { Execution } from '@/lib/api';
-import { EmptyState } from '@/components/empty-state';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface ExecutionListProps {
   executions: Execution[];

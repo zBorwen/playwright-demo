@@ -1,72 +1,31 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, Loader2 } from 'lucide-react';
-import { fetchRecordings, fetchExecutions, fetchProjects } from '@/lib/api';
+import { fetchRecordings, fetchExecutionsSummary, fetchProjects, type ExecutionSummary } from '@/lib/api';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
-import { TrendChart } from '@/components/trend-chart';
-import { StatusBadge } from '@/components/status-badge';
-import type { Execution, Recording, Project } from '@/lib/api';
+import { TrendChart } from '@/components/ui/trend-chart';
+import { StatusBadge } from '@/components/ui/status-badge';
+import type { Recording, Project } from '@/lib/api';
 
 export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [recordings, setRecordings] = useState<Recording[]>([]);
-  const [executions, setExecutions] = useState<Execution[]>([]);
+  const [stats, setStats] = useState<ExecutionSummary | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
 
   useEffect(() => {
     Promise.all([
       fetchRecordings(),
-      fetchExecutions(''),
+      fetchExecutionsSummary(),
       fetchProjects(),
-    ]).then(([recs, execs, projs]) => {
+    ]).then(([recs, summary, projs]) => {
       setRecordings(recs);
-      setExecutions(execs);
+      setStats(summary);
       setProjects(projs);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
-
-  const stats = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const todayExecutions = executions.filter(e => new Date(e.startedAt) >= todayStart);
-    const failedExecutions = executions.filter(e => e.status === 'failed').slice(0, 5);
-    const passedCount = executions.filter(e => e.status === 'passed').length;
-    const passRate = executions.length > 0 ? Math.round((passedCount / executions.length) * 100) : 0;
-
-    // 7-day trend data
-    const dailyMap = new Map<string, { passed: number; failed: number }>();
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-      const key = `${d.getMonth() + 1}/${d.getDate()}`;
-      dailyMap.set(key, { passed: 0, failed: 0 });
-    }
-    for (const e of executions) {
-      const d = new Date(e.startedAt);
-      if (d >= weekAgo) {
-        const key = `${d.getMonth() + 1}/${d.getDate()}`;
-        const day = dailyMap.get(key);
-        if (day) {
-          if (e.status === 'passed') day.passed++;
-          else if (e.status === 'failed') day.failed++;
-        }
-      }
-    }
-
-    return {
-      totalRecordings: recordings.length,
-      todayExecutions: todayExecutions.length,
-      passRate,
-      recentFailures: failedExecutions,
-      trendData: Array.from(dailyMap.entries()).map(([date, data]) => ({
-        date,
-        passed: data.passed,
-        failed: data.failed,
-      })),
-    };
-  }, [recordings, executions]);
 
   const activeReplays = Object.values(recordingReplays).filter(r => r.status === 'running');
 
@@ -90,7 +49,7 @@ export function Dashboard() {
     return project ? `${project.name} — ${rec.title}` : rec.title;
   }
 
-  if (loading) {
+  if (loading || !stats) {
     return (
       <div className="space-y-6">
         <div className="grid gap-4 sm:grid-cols-3">

@@ -19,6 +19,10 @@ export interface Project {
   replaySpeed: 'fast' | 'normal' | 'slow';
   createdAt: string;
   updatedAt: string;
+  stats?: {
+    recordingCount: number;
+    lastExecutedAt: string | null;
+  };
 }
 
 export interface Recording {
@@ -158,7 +162,20 @@ export async function fetchExecutionArtifacts(id: string): Promise<ExecutionArti
 }
 
 export async function fetchExecutions(recordingId: string): Promise<Execution[]> {
-  return request(`${API_BASE}/executions?recordingId=${recordingId}`);
+  const url = recordingId ? `${API_BASE}/executions?recordingId=${recordingId}` : `${API_BASE}/executions`;
+  return request(url);
+}
+
+export interface ExecutionSummary {
+  totalRecordings: number;
+  todayExecutions: number;
+  passRate: number;
+  recentFailures: Execution[];
+  trendData: Array<{ date: string; passed: number; failed: number }>;
+}
+
+export async function fetchExecutionsSummary(): Promise<ExecutionSummary> {
+  return request(`${API_BASE}/executions/summary`);
 }
 
 export async function fetchExecution(id: string): Promise<Execution> {

@@ -1,13 +1,16 @@
+import type { ReplayStep } from '@/store/types';
+
 const STORAGE_KEY_PREFIX = 'recording-replay-state';
 
 export interface PersistedRecordingReplayState {
   recordingId: string;
-  status: 'running' | 'passed' | 'failed';
+  status: 'running' | 'passed' | 'failed' | 'idle';
   projectId?: string;
   error?: string;
   executionId?: string;
   startedAt: number;
   finishedAt?: number;
+  replaySteps?: ReplayStep[];
 }
 
 function buildKey(recordingId: string): string {
@@ -15,6 +18,11 @@ function buildKey(recordingId: string): string {
 }
 
 export function saveRecordingReplayState(state: PersistedRecordingReplayState): void {
+  // Don't persist idle entries (no active replay)
+  if (state.status === 'idle') {
+    clearRecordingReplayState(state.recordingId);
+    return;
+  }
   sessionStorage.setItem(buildKey(state.recordingId), JSON.stringify(state));
 }
 

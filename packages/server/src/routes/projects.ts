@@ -3,7 +3,7 @@ import { zValidator } from '../middleware/zod-validator';
 import { z } from 'zod';
 import { db } from '../db/index';
 import { projects, recordings, recordingArtifacts, executions } from '../db/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, desc } from 'drizzle-orm';
 import { successResponse, errorResponse, API_CODES } from '../middleware/response';
 
 export const projectsRouter = new Hono();
@@ -15,7 +15,51 @@ const createProjectSchema = z.object({
 
 projectsRouter.get('/', async (c) => {
   const list = await db.select().from(projects).orderBy(projects.createdAt);
-  return c.json(successResponse(list));
+  
+  // Aggregate stats: recording count and last executed at
+  // Note: we can do a query to count recordings per project
+  const allRecordings = await db.select({ id: recordings.id, projectId: recordings.projectId }).from(recordings);
+  
+  // Find last execution for all recordings
+  const allExecutions = await db
+    .select({ recordingId: executions.recordingId, finishedAt: executions.finishedAt })
+    .from(executions)
+    .where(inArray(executions.status, ['passed', 'failed']))
+    .orderBy(desc(executions.finishedAt));
+
+  const statsMap = new Map<string, { recordingCount: number; lastExecutedAt: string | null }>();
+  
+  // Initialize map
+  for (const p of list) {
+    statsMap.set(p.id, { recordingCount: 0, lastExecutedAt: null });
+  }
+
+  // Count recordings
+  const recordingToProject = new Map<string, string>();
+  for (const r of allRecordings) {
+    const stats = statsMap.get(r.projectId);
+    if (stats) stats.recordingCount++;
+    recordingToProject.set(r.id, r.projectId);
+  }
+
+  // Find latest execution
+  for (const ex of allExecutions) {
+    if (!ex.finishedAt) continue;
+    const projectId = recordingToProject.get(ex.recordingId);
+    if (!projectId) continue;
+    const stats = statsMap.get(projectId);
+    if (stats && !stats.lastExecutedAt) {
+      // Because allExecutions is ordered by finishedAt DESC, the first one we see is the latest
+      stats.lastExecutedAt = ex.finishedAt.toISOString();
+    }
+  }
+
+  const resultList = list.map(p => ({
+    ...p,
+    stats: statsMap.get(p.id) || { recordingCount: 0, lastExecutedAt: null }
+  }));
+
+  return c.json(successResponse(resultList));
 });
 
 projectsRouter.post('/', zValidator('json', createProjectSchema), async (c) => {

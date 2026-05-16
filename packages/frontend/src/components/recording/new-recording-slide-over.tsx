@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { createRecording } from '@/lib/api';
-import { SlideOver } from '@/components/slide-over';
+import { SlideOver } from '@/components/ui/slide-over';
 
 interface NewRecordingSlideOverProps {
   open: boolean;

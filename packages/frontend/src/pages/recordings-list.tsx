@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Trash2, Globe, Calendar, Check } from 'lucide-react';
 import { fetchRecordings, deleteRecording, deleteRecordings, batchReplayRecordings, type Recording } from '@/lib/api';
-import { StatusBadge, StatusIcon } from '@/components/status-badge';
-import { EmptyState } from '@/components/empty-state';
-import { BatchActionBar } from '@/components/batch-action-bar';
-import { CardSkeleton } from '@/components/skeleton';
-import { ConfirmDialog } from '@/components/confirm-dialog';
+import { StatusBadge, StatusIcon } from '@/components/ui/status-badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { BatchActionBar } from '@/components/ui/batch-action-bar';
+import { CardSkeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatRelativeTime } from '@/lib/time-ago';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
@@ -16,7 +16,7 @@ interface RecordingsListProps {
 
 function ReplayStatusIndicator({ recordingId }: { recordingId: string }) {
   const replay = useRecordingReplayStore(s => s.recordingReplays[recordingId]);
-  if (!replay) return null;
+  if (!replay || replay.status === 'idle') return null;
   if (replay.status === 'running') {
     return (
       <span className="ml-2 inline-flex items-center gap-1.5 text-xs">
@@ -161,6 +161,8 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
   const [replaying, setReplaying] = useState(false);
+  const [batchHeadless, setBatchHeadless] = useState(true);
+  const [batchBrowserType, setBatchBrowserType] = useState<'chromium' | 'firefox' | 'webkit'>('chromium');
 
   const loadData = () => {
     setLoading(true);
@@ -220,11 +222,11 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
       const allResults: Array<{ recordingId: string; executionId: string; projectId?: string }> = [];
 
       if (mockOn.length > 0) {
-        const r = await batchReplayRecordings(mockOn, { useMock: true });
+        const r = await batchReplayRecordings(mockOn, { useMock: true, headless: batchHeadless, browserType: batchBrowserType });
         allResults.push(...r.results);
       }
       if (mockOff.length > 0) {
-        const r = await batchReplayRecordings(mockOff, { useMock: false });
+        const r = await batchReplayRecordings(mockOff, { useMock: false, headless: batchHeadless, browserType: batchBrowserType });
         allResults.push(...r.results);
       }
 
@@ -233,6 +235,7 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
           recordingId: r.recordingId,
           status: 'running',
           projectId: r.projectId,
+          executionId: r.executionId,
         });
       }
     } catch (e) {
@@ -268,6 +271,10 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
           },
         ]}
         onCancel={() => setSelectedIds(new Set())}
+        headless={batchHeadless}
+        browserType={batchBrowserType}
+        onHeadlessChange={setBatchHeadless}
+        onBrowserTypeChange={setBatchBrowserType}
       />
 
       {error && <p className="mb-4 text-sm text-red-400">{error}</p>}

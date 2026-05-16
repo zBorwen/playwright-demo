@@ -1,5 +1,28 @@
 # Bug 修复记录
 
+## 批量回放状态丢失与二次回放状态未重置（2026-05-17）
+
+### 现象
+1. **状态丢失**：在一个 Project 下点击批量回放。回放中途，点击进入某个正在回放的 Recording 详情页，发现该页面的步骤列表（StepListPanel）中，前面已经执行完的步骤卡在 Pending 状态，只有后续新推送的步骤才会更新为 Completed。此外，刷新页面也会导致已完成步骤的状态丢失。
+2. **状态未重置**：当某个 Recording 的批量回放结束后（全部 Completed），如果在此 Project 下再次触发该录制的批量回放，详情页中的步骤状态会直接显示为全 Completed，没有重置为 Pending 重新开始。
+
+### 根因
+1. **状态丢失原因 (Bug 1)**：
+   - 过滤条件过严：前端 `useRecordingReplayStore.ts` 的 `handleReplayStep` 中存在防御性代码。如果新 WebSocket 消息的 `executionId` 与 Store 中暂存的 `executionId` 不一致，它会将其视为旧消息直接丢弃。导致批量回放产生新 ExecutionId 时，前端在进入详情页更新 ID 之前的所有进度消息都被丢弃。
+   - 缓存被覆盖：页面刷新时，Zustand 的 `hydrate` 正确从 SessionStorage 恢复了 `replaySteps` 的状态。但组件挂载调用的 `initSteps` 没有继承这些已恢复的状态，而是粗暴地根据 `actions` 生成了一个全为 pending 的新步骤数组直接覆盖。
+2. **状态未重置原因 (Bug 2)**：
+   - 更新时序漏洞：批量执行开始时，Server 推送了 `batch-replay:result` (running) 消息，前端调用 `setRecordingStatus` 提前更新了 `executionId`。当后续真实的 `replay:step` 消息到来时，由于 ID 已经一致，`handleReplayStep` 内部原本用于识别“新执行任务并重置步骤”的逻辑被绕过了，导致旧的 `completed` 状态一直残留。
+
+### 修复方案
+1. 修复状态丢失：
+   - 在 `initSteps` 中，生成初始步骤数组后，检查是否存在由 `hydrate` 恢复的 `existing.replaySteps`，如果存在且状态不为 pending，则将 status 和 error 继承过来。
+   - 在 `handleReplayStep` 中，如果发现 `executionId` 不一致，不再丢弃消息，而是视其为后台触发了新执行。主动将当前状态标记为 running，更新 executionId，**并将现有的 replaySteps 状态重置为 pending**。
+2. 修复二次回放状态未重置：
+   - 增强 `setRecordingStatus` 逻辑。当其接收到新的状态并发现 `executionId` 与现有记录不同时（表明新的批量回放开始了），不仅更新基本信息，还强制遍历并重置所有已有的 `replaySteps` 状态为 pending，并清空相关的步骤状态缓存 (`stepStatuses` 和 `pendingDones`)。
+
+### 修改文件
+- `packages/frontend/src/store/recording-replay-store.ts` — 修改 `initSteps`、`handleReplayStep` 和 `setRecordingStatus` 函数。
+
 ## 连续回放状态泄漏（2026-05-16）
 
 ### 现象
@@ -49,6 +72,80 @@ setReplaySteps(actions.map(...));
 ### 教训
 - React setState 是异步的，`useEffect` 更新 ref 有延迟。当 ref 用于消息过滤时，必须在事件触发前同步更新
 - 全局状态 Map 在操作重复执行时必须清理，否则会泄漏到新操作
+
+---
+
+## 跨页面批量回放状态不同步（迭代 3 次修复，2026-05-16）
+
+### 现象
+从项目列表页或录制列表页发起批量回放，导航到 `recordings/:id` 详情页查看回放进度：
+1. 第一次批量回放：首次进入详情页能看到回放状态和步骤进度
+2. 第二次批量回放：状态显示正确（运行中），但操作步骤没有被重置，仍残留上次的完成状态，全绿
+3. 已完成回放后进入详情页：无任何进度显示
+
+### 根因
+三个层面问题叠加：
+
+1. **`replaySteps` 初始为空数组**：详情页 mount 时 steps 为空，批量回放从其他页面发起时 `replay:step` 消息到达，`prev.map(...)` 在空数组上什么都不做。
+
+2. **`replay:done` 重建步骤导致全绿**：`replay:done` 消息中的 `isNewExecution` 逻辑会重建所有步骤为 pending 然后立即标记为 completed。当 `replay:step` 消息还未全部到达时，`replay:done` 提前重建并完成所有步骤。
+
+3. **第二次回放步骤未重置**：第一次回放完成后 `replaySteps` 不为空，第二次批量回放时 `steps.length === 0` 为 false，ref 比较在 React 批量更新的 `setReplaySteps` updater 函数中不可靠。
+
+### 修复方案
+1. **`replay:step` handler**：当 steps 为空时从 `actionsRef.current` 初始化步骤数组。
+
+2. **`useEffect` 监听 `replayExecutionId`**：每当 executionId 变化（新回放开始），useEffect 在渲染完成后自动重建所有步骤为 pending。这比在消息 handler 中用 ref 比较更可靠，因为 useEffect 保证看到最新的 state。
+
+3. **`completedStepsRef` 防止覆盖**：`replay:step` 消息可能在 useEffect 之前到达并标记步骤完成。使用 ref Set 跟踪已完成的步骤索引，useEffect 重建时保留这些完成状态。
+
+4. **`replay:done` 不重建步骤**：只更新已存在步骤的最终状态，如果步骤为空且回放已完成，则显示全部 completed。
+
+```typescript
+// 1. 监听 executionId 变化重建步骤
+useEffect(() => {
+  if (!replayExecutionId || actions.length === 0) return;
+  if (rebuiltForExecutionRef.current === replayExecutionId) return;
+  rebuiltForExecutionRef.current = replayExecutionId;
+  const completed = completedStepsRef.current;
+  setReplaySteps(actions.map((a, i) => ({
+    index: i,
+    actionName: a.name,
+    detail: formatActionDetail(a),
+    status: completed.has(i) ? 'completed' as const : 'pending' as const,
+  })));
+}, [replayExecutionId, actions.length]);
+
+// 2. replay:step handler 跟踪已完成步骤
+case 'replay:step': {
+  if (prevExecutionIdRef.current && stepPayload.executionId !== prevExecutionIdRef.current) {
+    prevExecutionIdRef.current = stepPayload.executionId;
+    completedStepsRef.current = new Set();
+    rebuiltForExecutionRef.current = null;
+  }
+  completedStepsRef.current.add(stepPayload.index);
+  // 更新步骤状态...
+}
+
+// 3. replay:done 不重建，只标记最终状态
+case 'replay:done': {
+  if (prev.length === 0 && actionsRef.current.length > 0) {
+    // 回放已完成但错过了所有 step 消息 — 显示全部完成
+    return actionsRef.current.map((a, i) => ({
+      ...status: payload.status === 'failed' ? 'skipped' : 'completed',
+    }));
+  }
+  // 否则只更新剩余 pending 步骤...
+}
+```
+
+### 修改文件
+- `packages/frontend/src/components/recording-detail.tsx` — 新增 useEffect + 三个 ref 协作
+
+### 教训
+- React 的 `setReplaySteps` updater 中比较 ref 值不可靠（批量更新时序不确定），改为用 `useEffect` 监听 state 变化
+- 多个异步来源（WS handler + useEffect）更新同一 state 时，需要用 ref 做"桥接"防止相互覆盖
+- 修复跨页面状态同步：消息到达时的初始化和 state 变化后的重建要互补而非互斥
 
 ---
 

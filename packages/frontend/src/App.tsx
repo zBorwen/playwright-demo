@@ -1,14 +1,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Routes, Route, useParams } from 'react-router-dom';
 import { FolderPlus } from 'lucide-react';
-import { ProjectList } from '@/components/project-list';
-import { ProjectForm } from '@/components/project-form';
-import { ProjectDetail } from '@/components/project-detail';
-import { RecordingsList } from '@/components/recordings-list';
-import { RecordingDetail } from '@/components/recording-detail';
-import { ExecutionDetail } from '@/components/execution-detail';
-import { Dashboard } from '@/components/dashboard';
-import { AppLayout } from '@/components/app-layout';
+import { ProjectList } from '@/pages/project-list';
+import { ProjectForm } from '@/components/project/project-form';
+import { ProjectDetail } from '@/pages/project-detail';
+import { RecordingsList } from '@/pages/recordings-list';
+import { RecordingDetail } from '@/pages/recording-detail';
+import { ExecutionDetail } from '@/pages/execution-detail';
+import { Dashboard } from '@/pages/dashboard';
+import { AppLayout } from '@/components/layout/app-layout';
 import { connect, subscribeToMessages } from '@/hooks/use-websocket';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
@@ -23,10 +23,11 @@ export function App() {
     useRecordingReplayStore.getState().hydrate();
 
     const unsub = subscribeToMessages((msg) => {
+      const store = useRecordingReplayStore.getState();
       if (msg.type === 'batch-replay:result') {
         const p = msg.payload as { recordingId: string; status: 'passed' | 'failed' | 'running' | 'pending'; error?: string; executionId?: string; projectId?: string };
         if (p.status !== 'pending') {
-          useRecordingReplayStore.getState().setRecordingStatus({
+          store.setRecordingStatus({
             recordingId: p.recordingId,
             status: p.status === 'running' ? 'running' : p.status,
             error: p.error,
@@ -34,6 +35,12 @@ export function App() {
             projectId: p.projectId,
           });
         }
+      } else if (msg.type === 'replay:step') {
+        const p = msg.payload as { recordingId: string; executionId: string; index: number; status: 'completed' | 'failed'; error?: string };
+        if (p.recordingId) store.handleReplayStep(p);
+      } else if (msg.type === 'replay:done') {
+        const p = msg.payload as { recordingId: string; executionId?: string; status: 'passed' | 'failed'; error?: string };
+        if (p.recordingId) store.handleReplayDone(p);
       }
     });
 

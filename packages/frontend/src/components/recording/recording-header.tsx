@@ -1,6 +1,6 @@
 import { Play, Loader2, CheckCircle, XCircle, Circle, Square } from 'lucide-react';
-import { ControlBar } from '@/components/control-bar';
-import { StatusBadge } from '@/components/status-badge';
+import { ControlBar } from '@/components/ui/control-bar';
+import { StatusBadge } from '@/components/ui/status-badge';
 import type { Recording } from '@/lib/api';
 import type { BrowserType } from '@playwright-demo/shared';
 
@@ -15,7 +15,6 @@ interface RecordingHeaderProps {
   recording: Recording;
   recordingStatus: 'idle' | 'recording';
   replayStatus: string;
-  storeStatus: string | undefined;
   useMock: boolean;
   projectReplaySpeed: 'fast' | 'normal' | 'slow';
   actionsCount: number;
@@ -36,7 +35,6 @@ export function RecordingHeader({
   recording,
   recordingStatus,
   replayStatus,
-  storeStatus,
   useMock,
   projectReplaySpeed,
   actionsCount,
@@ -54,7 +52,7 @@ export function RecordingHeader({
 }: RecordingHeaderProps) {
   const replayConfig = REPLAY_BUTTON_CONFIG[replayStatus] ?? REPLAY_BUTTON_CONFIG.idle;
   const ReplayIcon = replayConfig.icon;
-  const isRunning = replayStatus === 'running' || storeStatus === 'running';
+  const isRunning = replayStatus === 'running';
 
   return (
     <div className="mb-4 border-b border-zinc-800 pb-4">
@@ -90,7 +88,7 @@ export function RecordingHeader({
         {recordingStatus === 'idle' ? (
           <button
             onClick={onStartRecording}
-            disabled={storeStatus === 'running'}
+            disabled={replayStatus === 'running'}
             className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Circle className="h-4 w-4 fill-current" /> 录制

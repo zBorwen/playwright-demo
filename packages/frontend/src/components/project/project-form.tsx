@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { createProject } from '@/lib/api';
 import { useAppStore } from '@/store/app-store';
-import { SlideOver } from '@/components/slide-over';
+import { SlideOver } from '@/components/ui/slide-over';
 
 interface ProjectFormProps {
   open: boolean;

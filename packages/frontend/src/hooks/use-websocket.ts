@@ -10,9 +10,6 @@ type Listener = (msg: WsMessage) => void;
 const listeners = new Set<Listener>();
 let ws: WebSocket | null = null;
 
-// Global single-replay progress tracker (executionId → max completed step index)
-const singleReplayProgress = new Map<string, number>();
-
 export function connect(): void {
   if (ws && ws.readyState <= WebSocket.OPEN) return;
 
@@ -27,20 +24,6 @@ export function connect(): void {
   ws.onmessage = (event) => {
     try {
       const msg: WsMessage = JSON.parse(event.data);
-
-      // Track single-replay progress globally
-      if (msg.type === 'replay:step') {
-        const p = msg.payload as { recordingId?: string; executionId?: string; index?: number; status?: string };
-        if (p.executionId && typeof p.index === 'number') {
-          if (p.status === 'completed') {
-            const prev = singleReplayProgress.get(p.executionId) ?? -1;
-            if (p.index > prev) singleReplayProgress.set(p.executionId, p.index);
-          } else if (p.status === 'failed') {
-            singleReplayProgress.delete(p.executionId);
-          }
-        }
-      }
-
       for (const listener of listeners) {
         listener(msg);
       }
@@ -78,19 +61,4 @@ export function useWebSocket(onMessage?: (msg: WsMessage) => void): void {
 export function subscribeToMessages(onMessage: (msg: WsMessage) => void): () => void {
   listeners.add(onMessage);
   return () => listeners.delete(onMessage);
-}
-
-/** Get the max completed step index for a single replay execution. */
-export function getSingleReplayProgress(executionId: string): number {
-  return singleReplayProgress.get(executionId) ?? -1;
-}
-
-/** Clear progress for a specific execution (call when starting a new replay). */
-export function clearSingleReplayProgress(executionId: string): void {
-  singleReplayProgress.delete(executionId);
-}
-
-/** Clear all single-replay progress (call when navigating away or resetting). */
-export function clearAllSingleReplayProgress(): void {
-  singleReplayProgress.clear();
 }

@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FolderOpen, Trash2, Check } from 'lucide-react';
-import { fetchProjects, fetchRecordings, fetchExecutions, deleteProject, batchReplayProjects, type Project } from '@/lib/api';
+import { fetchProjects, deleteProject, batchReplayProjects, type Project } from '@/lib/api';
 import { useAppStore } from '@/store/app-store';
-import { StatusBadge } from '@/components/status-badge';
-import { CardSkeleton } from '@/components/skeleton';
-import { EmptyState } from '@/components/empty-state';
-import { ConfirmDialog } from '@/components/confirm-dialog';
-import { BatchActionBar } from '@/components/batch-action-bar';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { CardSkeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { BatchActionBar } from '@/components/ui/batch-action-bar';
 import { formatRelativeTime } from '@/lib/time-ago';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
 
@@ -20,15 +20,17 @@ type ProjectReplayStatus = 'running' | 'passed' | 'failed' | null;
 
 function getProjectReplayStatus(
   projectId: string,
-  recordingReplays: Record<string, { status: 'running' | 'passed' | 'failed'; projectId?: string; finishedAt?: number }>,
+  recordingReplays: Record<string, { status: 'running' | 'passed' | 'failed' | 'idle'; projectId?: string; finishedAt?: number }>,
 ): ProjectReplayStatus {
-  const projectReplays = Object.values(recordingReplays).filter(r => r.projectId === projectId);
+  const projectReplays = Object.values(recordingReplays).filter(r => r.projectId === projectId && r.status !== 'idle');
   if (projectReplays.length === 0) return null;
   // Running takes priority — project is still replaying
   if (projectReplays.some(r => r.status === 'running')) return 'running';
   // Otherwise, take the latest completed result
   projectReplays.sort((a, b) => (b.finishedAt ?? 0) - (a.finishedAt ?? 0));
-  return projectReplays[0].status;
+  const latest = projectReplays[0];
+  if (latest.status === 'idle') return null;
+  return latest.status;
 }
 
 function ProjectCard({ project, stats, replayStatus, selected, onToggleSelect, onDelete }: {
@@ -105,48 +107,9 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
     useAppStore();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [replaying, setReplaying] = useState(false);
-  const [projectStats, setProjectStats] = useState<Map<string, ProjectStats>>(new Map());
+  const [batchHeadless, setBatchHeadless] = useState(true);
+  const [batchBrowserType, setBatchBrowserType] = useState<'chromium' | 'firefox' | 'webkit'>('chromium');
   const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
-
-  // Load project stats
-  useEffect(() => {
-    const loadStats = async () => {
-      const stats = new Map<string, ProjectStats>();
-      for (const project of projects) {
-        try {
-          const recordings = await fetchRecordings(project.id);
-          let lastExecutedAt: string | null = null;
-          let latestTime = 0;
-          for (const rec of recordings) {
-            try {
-              const execs = await fetchExecutions(rec.id);
-              for (const ex of execs) {
-                if (ex.finishedAt) {
-                  const t = new Date(ex.finishedAt).getTime();
-                  if (t > latestTime) {
-                    latestTime = t;
-                    lastExecutedAt = formatRelativeTime(ex.finishedAt);
-                  }
-                }
-              }
-            } catch {
-              // Skip if can't fetch executions
-            }
-          }
-          stats.set(project.id, {
-            recordingCount: recordings.length,
-            lastExecutedAt,
-          });
-        } catch {
-          stats.set(project.id, { recordingCount: 0, lastExecutedAt: null });
-        }
-      }
-      setProjectStats(stats);
-    };
-    if (projects.length > 0) {
-      loadStats();
-    }
-  }, [projects]);
 
   useEffect(() => {
     setLoadingProjects(true);
@@ -188,7 +151,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
     if (selectedIds.size === 0) return;
     setReplaying(true);
     try {
-      const result = await batchReplayProjects([...selectedIds], { useMock: false });
+      const result = await batchReplayProjects([...selectedIds], { useMock: false, headless: batchHeadless, browserType: batchBrowserType });
       for (const r of result.results) {
         useRecordingReplayStore.getState().setRecordingStatus({
           recordingId: r.recordingId,
@@ -223,11 +186,18 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
           },
         ]}
         onCancel={() => setSelectedIds(new Set())}
+        headless={batchHeadless}
+        browserType={batchBrowserType}
+        onHeadlessChange={setBatchHeadless}
+        onBrowserTypeChange={setBatchBrowserType}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {projects.map((p) => {
-          const stats = projectStats.get(p.id) ?? { recordingCount: 0, lastExecutedAt: null };
+          const stats = p.stats ? {
+            recordingCount: p.stats.recordingCount,
+            lastExecutedAt: p.stats.lastExecutedAt ? formatRelativeTime(p.stats.lastExecutedAt) : null,
+          } : { recordingCount: 0, lastExecutedAt: null };
           const replayStatus = getProjectReplayStatus(p.id, recordingReplays);
           return (
             <ProjectCard
