@@ -46,18 +46,31 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
   setRecordingStatus(status) {
     set((s) => {
       const existing = s.recordingReplays[status.recordingId];
-      // Detect new execution — clear old replaySteps and tracking state.
-      const isNewExecution = existing?.executionId && status.executionId && existing.executionId !== status.executionId;
-      const entry: RecordingReplayStatus = {
-        recordingId: status.recordingId,
-        status: status.status,
-        projectId: status.projectId ?? existing?.projectId,
-        error: isNewExecution ? undefined : (status.error ?? existing?.error),
-        executionId: status.executionId ?? existing?.executionId,
-        startedAt: status.startedAt ?? (isNewExecution ? Date.now() : existing?.startedAt ?? Date.now()),
-        finishedAt: status.finishedAt ?? (status.status !== 'running' ? Date.now() : (isNewExecution ? undefined : existing?.finishedAt)),
-        replaySteps: isNewExecution ? undefined : existing?.replaySteps,
-      };
+      const entry: RecordingReplayStatus = existing
+        ? {
+            ...existing,
+            status: status.status,
+            projectId: status.projectId ?? existing.projectId,
+            error: status.error ?? existing.error,
+            executionId: status.executionId ?? existing.executionId,
+            startedAt: status.startedAt ?? existing.startedAt,
+            finishedAt: status.finishedAt ?? existing.finishedAt,
+            // DO NOT clear replaySteps here — they are managed by
+            // startReplay (detail page) and initSteps (batch replay).
+            // External callers (batch-replay result, list pages) should
+            // only update scalar fields.
+            replaySteps: existing.replaySteps,
+          }
+        : {
+            recordingId: status.recordingId,
+            status: status.status,
+            projectId: status.projectId,
+            error: status.error,
+            executionId: status.executionId,
+            startedAt: status.startedAt ?? Date.now(),
+            finishedAt: status.finishedAt,
+            replaySteps: undefined,
+          };
       return {
         recordingReplays: {
           ...s.recordingReplays,
@@ -200,21 +213,33 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
       const stepStatuses = s.stepStatuses[payload.recordingId] ?? {};
       stepStatuses[payload.index] = payload.status === 'failed' ? 'failed' : 'completed';
 
-      const entry: RecordingReplayStatus = existing
-        ? { ...existing }
-        : {
-            recordingId: payload.recordingId,
-            status: 'running',
-            executionId: payload.executionId,
-            startedAt: Date.now(),
-          };
+      // If no entry exists yet (WS arrived before any status update), create one.
+      // Do NOT overwrite executionId on existing entries — it's set by
+      // setRecordingStatus (batch-replay result) or startReplay.
+      if (!existing) {
+        return {
+          recordingReplays: {
+            ...s.recordingReplays,
+            [payload.recordingId]: {
+              recordingId: payload.recordingId,
+              status: 'running',
+              executionId: payload.executionId,
+              startedAt: Date.now(),
+            },
+          },
+          stepStatuses: {
+            ...s.stepStatuses,
+            [payload.recordingId]: stepStatuses,
+          },
+        };
+      }
 
-      entry.executionId = payload.executionId;
+      const entry: RecordingReplayStatus = { ...existing };
       entry.status = 'running';
       entry.error = payload.error;
 
       if (isNewExecution && entry.replaySteps) {
-        entry.replaySteps = entry.replaySteps.map(s => ({ ...s, status: 'pending' as const }));
+        entry.replaySteps = entry.replaySteps.map(st => ({ ...st, status: 'pending' as const }));
       }
 
       if (entry.replaySteps) {
@@ -245,20 +270,37 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
   handleReplayDone(payload) {
     set((s) => {
       const existing = s.recordingReplays[payload.recordingId];
-      const entry: RecordingReplayStatus = existing
-        ? { ...existing }
-        : {
-            recordingId: payload.recordingId,
-            status: payload.status,
-            executionId: payload.executionId,
-            startedAt: Date.now(),
-            finishedAt: Date.now(),
-          };
+      const finishedAt = Date.now();
 
+      if (!existing) {
+        // No entry yet (done arrived before component mount / status update).
+        // Store as pendingDones for initSteps to apply.
+        const newPendingDones = { ...s.pendingDones };
+        newPendingDones[payload.recordingId] = {
+          status: payload.status,
+          error: payload.error,
+          executionId: payload.executionId,
+        };
+        return {
+          recordingReplays: {
+            ...s.recordingReplays,
+            [payload.recordingId]: {
+              recordingId: payload.recordingId,
+              status: payload.status,
+              executionId: payload.executionId,
+              startedAt: Date.now(),
+              finishedAt,
+            },
+          },
+          pendingDones: newPendingDones,
+        };
+      }
+
+      const entry: RecordingReplayStatus = { ...existing };
       entry.status = payload.status;
-      entry.executionId = payload.executionId ?? entry.executionId;
       entry.error = payload.error;
-      entry.finishedAt = Date.now();
+      entry.finishedAt = finishedAt;
+      // Do NOT overwrite executionId — it's set by setRecordingStatus or startReplay.
 
       if (entry.replaySteps && entry.replaySteps.length > 0) {
         entry.replaySteps = entry.replaySteps.map((step) => {
@@ -271,7 +313,7 @@ export const useRecordingReplayStore = create<RecordingReplayStore>((set) => ({
           return step;
         });
       } else {
-        // No steps yet — store as pending done for startReplay to apply
+        // No steps yet — store as pending done for startReplay/initSteps to apply
         const newPendingDones = { ...s.pendingDones };
         newPendingDones[payload.recordingId] = {
           status: payload.status,
