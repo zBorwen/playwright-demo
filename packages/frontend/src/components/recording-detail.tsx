@@ -220,16 +220,20 @@ export function RecordingDetail() {
       case 'replay:done': {
         const payload = msg.payload as { status: 'passed' | 'failed'; error?: string; trace?: string; executionId?: string; recordingId?: string };
         if (payload.recordingId && id && payload.recordingId !== id) return;
+        if (payload.executionId) prevExecutionIdRef.current = payload.executionId;
         setReplayStoreStatus({
           recordingId: id!,
           status: payload.status,
           executionId: payload.executionId,
           error: payload.error,
         });
-        if (payload.executionId) prevExecutionIdRef.current = payload.executionId;
         setReplaySteps((prev) => {
           if (prev.length === 0 && actionsRef.current.length > 0) {
             // No step messages arrived (replay completed before user navigated here).
+            // Populate completedStepsRef so the effect can preserve completions.
+            completedStepsRef.current = new Set(
+              payload.status === 'failed' ? [] : actionsRef.current.map((_, i) => i),
+            );
             return actionsRef.current.map((a, i) => ({
               index: i,
               actionName: a.name,
@@ -238,6 +242,12 @@ export function RecordingDetail() {
             }));
           }
           if (prev.length === 0) return prev;
+          // Populate completedStepsRef for the effect.
+          const completed = new Set(prev.filter(s => s.status === 'completed').map(s => s.index));
+          if (payload.status !== 'failed') {
+            prev.forEach(s => { if (s.status === 'pending') completed.add(s.index); });
+          }
+          completedStepsRef.current = completed;
           if (payload.status === 'failed') {
             return prev.map((s) =>
               s.status === 'pending' ? { ...s, status: 'skipped' as const } : s
