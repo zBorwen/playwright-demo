@@ -1,5 +1,30 @@
 # Bug 修复记录
 
+## 录制内容被覆盖与保存不完整（2026-05-17）
+
+### 现象
+1. **内容覆盖**：在不同项目录制相同网址时，后停止的录制内容会将先录制的内容覆盖，或者录制 B 的内容变成了录制 A 的内容。
+2. **保存不完整**：点击停止录制后，有时会发现只有动作（Actions）数据，缺失网络请求（HAR）数据或代码（Codegen）。
+
+### 根因
+1. **Worker 路由逻辑错误**：在 `WorkerPool.ts` 中，`sendToRecording` 之前的实现是盲目查找第一个处于录制状态的子进程并发送停止指令。在多任务并发（或任务状态未及时清理）时，Manager 会把停止指令发错给另一个 Worker，导致该 Worker 用错误的任务 ID 汇报了正确的数据，造成数据错位覆盖。
+2. **IO 竞争与刷盘延迟**：Agent 在发送 `record:complete` 消息时，底层的 Playwright 浏览器上下文可能尚未完全关闭，导致 HAR 文件还在被占用或未完全写入磁盘，Server 端尝试读取时因文件不存在或被锁定而失败。
+
+### 修复方案
+1. **实现精确指令路由**：
+   - 重构 `WorkerPool`：将内部活跃进程映射 `active` 的 Key 从自增 ID 改为业务唯一的 `taskId` (UUID)。
+   - 实现 `sendToTask(taskId, ...)`：确保 Manager 发送的每一个指令（特别是 `task:record:stop`）都能通过 UUID 精准命中对应的子进程。
+2. **增加 Worker 端安全校验**：
+   - 在 `worker.ts` 中增加校验，确保收到的 `stop` 指令对应的 ID 与当前进程正在处理的任务 ID 严格一致。
+3. **强化 IO 完整性**：
+   - 在 `RecorderManager.stopRecording` 中，显式 `await` 浏览器上下文关闭，确保所有暂存数据已落盘后再返回文件路径。
+
+### 修改文件
+- `packages/agent/src/worker-pool.ts` — 重构映射与路由逻辑
+- `packages/agent/src/worker.ts` — 增加 ID 匹配校验
+- `packages/agent/src/recorder-manager.ts` — 优化停止录制时的状态清理与 IO 等待
+- `packages/server/src/services/recording-service.ts` — 增加 HAR 读取容错检查
+
 ## 批量回放状态丢失与二次回放状态未重置（2026-05-17）
 
 ### 现象

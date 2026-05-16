@@ -137,6 +137,12 @@ process.on('message', async (msg: TaskMessage) => {
           break;
         }
 
+        // Verify this worker is indeed recording the requested ID
+        if (recordTaskId !== msg.id) {
+          console.warn(`[worker] Received stop for ${msg.id} but current task is ${recordTaskId}. Ignoring.`);
+          break;
+        }
+
         try {
           const { actions, harPath, codegen } = await activeRecorder.stopRecording();
           process.send!({

@@ -22,10 +22,10 @@ export class WorkerPool {
   private readonly workerPath: string;
   private readonly maxWorkers: number;
   private readonly timeout: number;
+  /** Key is taskId (recordingId or executionId) */
   private readonly active: Map<string, WorkerInfo> = new Map();
   private readonly queue: PendingTask[] = [];
   private onMessage: ((msg: Record<string, unknown>) => void) | null = null;
-  private workerCounter = 0;
 
   constructor(options?: { maxWorkers?: number; timeout?: number }) {
     this.maxWorkers = options?.maxWorkers ?? (Number(process.env.MAX_WORKERS) || 3);
@@ -39,25 +39,32 @@ export class WorkerPool {
 
   /** Submit a task. Spawns a worker immediately if a slot is free, otherwise queues. */
   submit(task: PendingTask): void {
-    const freeSlot = this.findFreeSlot(task.type === 'task:replay' ? 'replay' : 'recording');
-    if (freeSlot) {
-      this.dispatch(freeSlot, task);
+    if (this.active.size < this.maxWorkers) {
+      this.spawnAndDispatch(task);
     } else {
       this.queue.push(task);
     }
   }
 
-  /** Send a stop signal to the recording worker. */
-  sendToRecording(taskType: 'task:record:stop', payload: Record<string, unknown>): void {
-    const recordingWorker = this.findRecordingWorker();
-    if (recordingWorker) {
-      recordingWorker.child.send({ type: taskType, id: recordingWorker.id, payload });
+  /** Send a message to a specific worker by its task ID. */
+  sendToTask(taskId: string, type: string, payload: Record<string, unknown>): boolean {
+    const info = this.active.get(taskId);
+    if (info) {
+      info.child.send({ type, id: taskId, payload });
+      return true;
     }
+    return false;
   }
 
-  /** Force-terminate a specific worker. */
-  killWorker(workerId: string): void {
-    const info = this.active.get(workerId);
+  /** Send a stop signal to the recording worker. */
+  sendToRecording(taskType: 'task:record:stop', payload: Record<string, any>): void {
+    // Precise routing by recordingId
+    this.sendToTask(payload.recordingId, taskType, payload);
+  }
+
+  /** Force-terminate a specific task. */
+  killTask(taskId: string): void {
+    const info = this.active.get(taskId);
     if (info) {
       info.child.kill('SIGTERM');
     }
@@ -80,156 +87,79 @@ export class WorkerPool {
     return this.queue.length;
   }
 
-  private findFreeSlot(taskType: 'replay' | 'recording'): WorkerInfo | null {
-    // Recording always gets its own slot if available
-    if (taskType === 'recording') {
-      if (this.active.size < this.maxWorkers) {
-        return this.spawn();
-      }
-      return null;
-    }
-    // Replay: check if any slot is free (not occupied by recording)
-    for (const [, info] of this.active) {
-      if (info.taskType === null) return info;
-    }
-    // Spawn new if under limit
-    if (this.active.size < this.maxWorkers) {
-      return this.spawn();
-    }
-    return null;
-  }
-
-  private findRecordingWorker(): WorkerInfo | null {
-    for (const [, info] of this.active) {
-      if (info.taskType === 'recording') return info;
-    }
-    return null;
-  }
-
-  private spawn(): WorkerInfo {
-    const id = `worker-${++this.workerCounter}`;
+  private spawnAndDispatch(task: PendingTask): void {
+    const taskId = task.id;
     const child = fork(this.workerPath, [], {
       execArgv: ['--import', 'tsx'],
       stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
       env: { ...process.env, IS_WORKER: 'true' },
     });
 
-    const info: WorkerInfo = { child, id, taskType: null, currentTask: null, timer: null };
-    this.active.set(id, info);
+    const info: WorkerInfo = {
+      child,
+      id: taskId,
+      taskType: task.type === 'task:replay' ? 'replay' : 'recording',
+      currentTask: task,
+      timer: null
+    };
 
-    // Forward stderr with prefix
-    child.stderr?.on('data', (data: Buffer) => {
-      process.stderr.write(`[${id}] ${data}`);
-    });
+    this.active.set(taskId, info);
 
-    child.stdout?.on('data', (data: Buffer) => {
-      process.stdout.write(`[${id}] ${data}`);
-    });
+    // Forward stderr/stdout
+    child.stderr?.on('data', (data: Buffer) => process.stderr.write(`[${taskId}] ${data}`));
+    child.stdout?.on('data', (data: Buffer) => process.stdout.write(`[${taskId}] ${data}`));
 
-    child.on('message', (msg: unknown) => {
-      this.handleMessage(id, msg as Record<string, unknown>);
+    child.on('message', (msg: any) => {
+      if (this.onMessage) this.onMessage(msg);
     });
 
     child.on('exit', (code, signal) => {
-      this.handleExit(id, code, signal);
+      this.handleExit(taskId, code, signal);
     });
 
-    return info;
-  }
-
-  private dispatch(worker: WorkerInfo, task: PendingTask): void {
-    worker.taskType = task.type === 'task:replay' ? 'replay' : 'recording';
-    worker.currentTask = task;
-
-    // Set timeout timer
-    worker.timer = setTimeout(() => {
-      console.log(`[${worker.id}] task timed out, killing worker`);
-      worker.child.kill('SIGKILL');
-      if (this.onMessage) {
-        this.onMessage({
-          type: task.type === 'task:replay' ? 'replay:done' : 'record:complete',
-          payload: {
-            ...(task.payload as Record<string, unknown>),
-            status: 'failed',
-            error: 'Worker timed out',
-          },
-        });
-      }
+    // Set timeout
+    info.timer = setTimeout(() => {
+      console.log(`[${taskId}] Task timed out, killing worker`);
+      child.kill('SIGKILL');
     }, this.timeout);
 
-    worker.child.send({ type: task.type, id: task.id, payload: task.payload });
+    // Initial dispatch
+    child.send({ type: task.type, id: taskId, payload: task.payload });
   }
 
-  private handleMessage(workerId: string, msg: Record<string, unknown>): void {
-    const info = this.active.get(workerId);
+  private handleExit(taskId: string, code: number | null, signal: string | null): void {
+    const info = this.active.get(taskId);
     if (!info) return;
 
-    switch (msg.type as string) {
-      case 'worker:ready':
-        // Worker is ready to receive tasks
-        break;
-
-      case 'replay:step':
-      case 'replay:step:failed':
-      case 'replay:done':
-      case 'record:action':
-      case 'record:complete':
-      case 'error':
-        // Forward to manager (which sends to server via WebSocket)
-        if (this.onMessage) {
-          this.onMessage(msg);
-        }
-        break;
-
-      default:
-        console.warn(`[${workerId}] unknown message type: ${msg.type}`);
-    }
-  }
-
-  private handleExit(workerId: string, code: number | null, signal: string | null): void {
-    const info = this.active.get(workerId);
-    if (!info) return;
-
-    // Clear timeout timer
     if (info.timer) clearTimeout(info.timer);
 
-    const wasRecording = info.taskType === 'recording';
-    const wasReplay = info.taskType === 'replay';
     const task = info.currentTask;
-
-    // If worker exited abnormally, send failure
     if (code !== 0 && code !== null && this.onMessage && task) {
       const errorMsg = signal ? `Worker killed by signal ${signal}` : `Worker exited with code ${code}`;
-      console.error(`[${workerId}] Abnormal exit: ${errorMsg}`);
+      console.error(`[${taskId}] Abnormal exit: ${errorMsg}`);
 
-      if (wasReplay) {
+      if (info.taskType === 'replay') {
         this.onMessage({
           type: 'replay:done',
           payload: {
-            executionId: task.id,
+            executionId: taskId,
             recordingId: (task.payload as any).recordingId,
             status: 'failed',
             error: errorMsg,
           },
         });
-      } else if (wasRecording) {
+      } else {
         this.onMessage({
           type: 'record:complete',
-          payload: {
-            recordingId: task.id,
-            error: errorMsg,
-          },
+          payload: { recordingId: taskId, error: errorMsg },
         });
       }
     }
 
-    this.active.delete(workerId);
+    this.active.delete(taskId);
 
-    // Drain next task from queue
+    // Process queue
     const next = this.queue.shift();
-    if (next) {
-      const newWorker = this.spawn();
-      this.dispatch(newWorker, next);
-    }
+    if (next) this.spawnAndDispatch(next);
   }
 }

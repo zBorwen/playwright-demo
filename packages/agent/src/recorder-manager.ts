@@ -352,13 +352,18 @@ export class RecorderManager {
     codegen: string;
   }> {
     const harPath = this.getHarPath();
-    await this.context?.close();
-    await this.browser?.close();
+    const actions = [...this.actions];
+    const codegen = this.codegenLines.join('\n');
+
+    await this.context?.close().catch(() => {});
+    await this.browser?.close().catch(() => {});
+    
     this.browser = null;
     this.context = null;
-
-    const codegen = this.codegenLines.join('\n');
-    return { actions: this.actions, harPath, codegen };
+    this.actions = [];
+    this.codegenLines = [];
+    
+    return { actions, harPath, codegen };
   }
 
   private getHarPath(): string {

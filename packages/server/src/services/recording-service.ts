@@ -33,27 +33,31 @@ export async function processRecordingComplete(
   // Process HAR if available
   if (harPath) {
     try {
-      const harBuffer = await readFile(harPath);
-      await storage.saveHar(recordingId, harBuffer);
+      const harBuffer = await readFile(harPath).catch(() => null);
+      if (harBuffer) {
+        await storage.saveHar(recordingId, harBuffer);
 
-      const { parseAndFilterHar } = await import('./har-filter');
-      const entries = await parseAndFilterHar(harPath);
+        const { parseAndFilterHar } = await import('./har-filter');
+        const entries = await parseAndFilterHar(harPath);
 
-      // Clean up old har before inserting new one
-      await db
-        .delete(recordingArtifacts)
-        .where(and(
-          eq(recordingArtifacts.recordingId, recordingId),
-          eq(recordingArtifacts.type, 'har'),
-        ));
+        // Clean up old har before inserting new one
+        await db
+          .delete(recordingArtifacts)
+          .where(and(
+            eq(recordingArtifacts.recordingId, recordingId),
+            eq(recordingArtifacts.type, 'har'),
+          ));
 
-      await db.insert(recordingArtifacts).values({
-        recordingId,
-        type: 'har',
-        content: JSON.stringify(entries),
-      });
+        await db.insert(recordingArtifacts).values({
+          recordingId,
+          type: 'har',
+          content: JSON.stringify(entries),
+        });
 
-      console.log(`HAR processed: ${entries.length} network entries for recording ${recordingId}`);
+        console.log(`HAR processed: ${entries.length} network entries for recording ${recordingId}`);
+      } else {
+        console.warn(`HAR file not found at ${harPath} for recording ${recordingId}`);
+      }
     } catch (err) {
       console.error('Failed to process HAR:', err);
     }
