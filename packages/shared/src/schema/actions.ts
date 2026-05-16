@@ -167,7 +167,7 @@ export const PageContextSchema = z.object({
 // RecordingAction (each action variant extended with recording metadata)
 // ---------------------------------------------------------------------------
 
-const recordingExtraFields = {
+export const recordingExtraFields = {
   elementInfo: ElementInfoSchema,
   pageContext: PageContextSchema,
   timestamp: z.number(),
@@ -237,16 +237,3 @@ export const MockRuleSchema = z.object({
 });
 
 export type MockRule = z.infer<typeof MockRuleSchema>;
-
-// ---------------------------------------------------------------------------
-// Recording
-// ---------------------------------------------------------------------------
-
-export const RecordingSchema = z.object({
-  recordingId: z.string().uuid(),
-  targetUrl: z.string().url(),
-  title: z.string(),
-  actions: z.array(RecordingActionSchema),
-});
-
-export type Recording = z.infer<typeof RecordingSchema>;
