@@ -27,7 +27,7 @@ import { RecordingHeader } from '@/components/recording/recording-header';
 import { CodegenTab } from '@/components/recording/codegen-tab';
 import { TabBar, type TabKey } from '@/components/ui/tab-bar';
 import { StepListPanel } from '@/components/recording/step-list-panel';
-import { Eye, AlertCircle, X } from 'lucide-react';
+import { Eye, AlertCircle, X, Camera } from 'lucide-react';
 import { highlightJSON } from '@/lib/syntax-highlight';
 
 export function RecordingDetail() {
@@ -248,6 +248,24 @@ export function RecordingDetail() {
                           )}
                         </div>
                       )}
+
+                      {step?.screenshot && (
+                        <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden">
+                          <div className="flex items-center gap-1.5 border-b border-zinc-800 px-4 py-2.5">
+                            <Camera className="h-3.5 w-3.5 text-zinc-500" />
+                            <span className="text-xs font-medium text-zinc-400">回放截图证据</span>
+                          </div>
+                          <div className="bg-black/20 p-1">
+                            <img 
+                              src={`/api/${step.screenshot}`} 
+                              alt={`Step ${selectedStep + 1} Evidence`}
+                              className="w-full h-auto rounded shadow-lg border border-zinc-800/50"
+                              loading="lazy"
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       <div className="rounded-lg border border-zinc-800 bg-zinc-900/50">
                         <div className="flex items-center gap-1.5 border-b border-zinc-800 px-4 py-2.5">
                           <span className="text-xs font-medium text-zinc-400">操作参数</span>

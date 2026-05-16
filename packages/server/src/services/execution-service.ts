@@ -1,8 +1,41 @@
 import { readFile } from 'node:fs/promises';
 import { db } from '../db/index';
-import { recordings, executions } from '../db/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { recordings, executions, executionArtifacts } from '../db/schema';
+import { eq, and, inArray } from 'drizzle-orm';
 import type { StorageService } from './storage';
+
+export async function processReplayArtifact(
+  storage: StorageService,
+  payload: {
+    executionId: string;
+    recordingId: string;
+    index: number;
+    type: 'screenshot' | 'har' | 'trace';
+    path: string;
+  }
+) {
+  const { executionId, index, type, path: agentLocalPath } = payload;
+
+  if (type === 'screenshot') {
+    try {
+      const buffer = await readFile(agentLocalPath);
+      const serverPath = await storage.saveExecutionScreenshot(executionId, index, buffer);
+
+      // Record in DB
+      await db.insert(executionArtifacts).values({
+        executionId,
+        type: 'screenshot',
+        path: serverPath,
+        stepIndex: index,
+      });
+
+      return { serverPath };
+    } catch (err) {
+      console.error(`[ExecutionService] Failed to process screenshot from ${agentLocalPath}:`, err);
+    }
+  }
+  return null;
+}
 
 export async function processReplayDone(
   storage: StorageService,

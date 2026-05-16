@@ -1,8 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { formatActionDetail } from '@/lib/action-formatter';
-import type { RecordingAction } from '@playwright-demo/shared';
-import type { ReplayStep } from './types';
+import type { RecordingAction, ReplayStep } from '@playwright-demo/shared';
 import {
   loadAllRecordingReplayStates,
   saveRecordingReplayState,
@@ -28,6 +27,8 @@ interface RecordingReplayStore {
   startReplay: (recordingId: string, executionId: string, actions: RecordingAction[], projectId?: string) => void;
   /** Handle a replay:step WS message. */
   handleReplayStep: (payload: { recordingId: string; executionId: string; index: number; status: 'completed' | 'failed'; error?: string }) => void;
+  /** Handle a replay:artifact WS message. */
+  handleReplayArtifact: (payload: { recordingId: string; executionId: string; index: number; type: 'screenshot' | 'har' | 'trace'; path: string }) => void;
   /** Handle a replay:done WS message. */
   handleReplayDone: (payload: { recordingId: string; executionId?: string; status: 'passed' | 'failed'; error?: string }) => void;
   /** Reset replay state. */
@@ -235,6 +236,21 @@ export const useRecordingReplayStore = create<RecordingReplayStore>()(
         if (existing.replaySteps && existing.replaySteps[payload.index]) {
           existing.replaySteps[payload.index].status = payload.status === 'failed' ? 'failed' : 'completed';
           if (payload.error) existing.replaySteps[payload.index].error = payload.error;
+        }
+      }
+    }),
+
+    handleReplayArtifact: (payload) => set((state) => {
+      const existing = state.recordingReplays[payload.recordingId];
+      
+      // Detect stale message
+      if (existing && existing.executionId && existing.executionId !== payload.executionId) {
+        return;
+      }
+
+      if (existing && existing.replaySteps && existing.replaySteps[payload.index]) {
+        if (payload.type === 'screenshot') {
+          existing.replaySteps[payload.index].screenshot = payload.path;
         }
       }
     }),

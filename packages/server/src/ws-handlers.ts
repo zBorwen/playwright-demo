@@ -2,7 +2,7 @@ import type { WebSocket } from 'ws';
 import type { AgentMessage, ServerMessage } from '@playwright-demo/shared';
 import { StorageService } from './services/storage';
 import { processRecordingComplete } from './services/recording-service';
-import { processReplayDone, cleanupOrphanedExecutions } from './services/execution-service';
+import { processReplayDone, cleanupOrphanedExecutions, processReplayArtifact } from './services/execution-service';
 
 export class WsHandlers {
   private storage: StorageService;
@@ -108,6 +108,25 @@ export class WsHandlers {
 
       case 'replay:step': {
         this.broadcastToClients(JSON.stringify(msg));
+        break;
+      }
+
+      case 'replay:artifact': {
+        try {
+          const result = await processReplayArtifact(this.storage, msg.payload);
+          if (result) {
+            // Broadcast to frontend with server-relative path
+            this.broadcastToClients(JSON.stringify({
+              type: 'replay:artifact',
+              payload: {
+                ...msg.payload,
+                path: result.serverPath,
+              },
+            }));
+          }
+        } catch (err) {
+          console.error('Failed to process replay artifact:', err);
+        }
         break;
       }
 

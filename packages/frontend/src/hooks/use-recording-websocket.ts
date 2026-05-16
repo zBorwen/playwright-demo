@@ -58,6 +58,10 @@ export function useRecordingWebSocket(
           });
         break;
       }
+      case 'replay:artifact': {
+        store.handleReplayArtifact(msg.payload as any);
+        break;
+      }
     }
   }, [recordingId, browserType, onRecordingComplete]);
 
