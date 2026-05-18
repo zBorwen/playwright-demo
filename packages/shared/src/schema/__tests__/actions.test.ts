@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { RecordingAction, Recording, RecordingActionSchema } from '../schema/actions.js';
+import { RecordingAction, Recording, RecordingActionSchema } from '../actions.js';
 
 describe('RecordingActionSchema', () => {
   const baseFields = {
