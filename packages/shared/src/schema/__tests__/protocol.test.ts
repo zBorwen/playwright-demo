@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ServerMessageSchema, AgentMessageSchema } from '../schema/protocol.js';
+import { ServerMessageSchema, AgentMessageSchema } from '../protocol.js';
 import { v4 as uuidv4 } from 'uuid';
 
 describe('ServerMessageSchema', () => {

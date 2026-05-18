@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { StorageService } from '../services/storage';
-import * as dbModule from '../db/index';
+import { StorageService } from '../../services/storage';
+import * as dbModule from '../../db/index';
 
 // Create a flexible, chainable, thenable mock
 const createMockQueryBuilder = (defaultResult: any = []) => {
@@ -23,7 +23,7 @@ const createMockQueryBuilder = (defaultResult: any = []) => {
 let activeMockQueryBuilder = createMockQueryBuilder();
 
 // Mock the database module before importing routes
-vi.mock('../db/index.js', () => {
+vi.mock('../../db/index.js', () => {
   return {
     db: {
       select: vi.fn(() => activeMockQueryBuilder),
@@ -52,16 +52,16 @@ vi.mock('../db/index.js', () => {
 });
 
 // Mock context to avoid ws dependencies
-vi.mock('../context.js', () => ({
+vi.mock('../../context.js', () => ({
   getWsHandlers: vi.fn(() => ({
     sendToAgent: vi.fn(() => true),
   })),
 }));
 
 // Import routes after mocking
-import { projectsRouter } from '../routes/projects';
+import { projectsRouter } from '../projects';
 
-import type { Env } from '../types/env';
+import type { Env } from '../../types/env';
 
 describe('Projects routes', () => {
   const testApp = new Hono<Env>();

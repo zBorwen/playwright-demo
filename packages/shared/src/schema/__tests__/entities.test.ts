@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ProjectSchema, RecordingSchema, ExecutionSchema } from '../schema/entities.js';
+import { ProjectSchema, RecordingSchema, ExecutionSchema } from '../entities.js';
 
 describe('Entity Schemas', () => {
   it('validates a valid Project', () => {
