@@ -14,11 +14,14 @@ cd packages/server && pnpm test
 
 ## 当前覆盖
 
-| 包 | 测试数 | 范围 |
-|---|---|---|
-| shared | 6 | Zod schema 验证 |
-| agent | 5 | Fingerprint JS 有效性 + HAR 解析 + MockRule 匹配 |
-| server | 4 | Health endpoint + Projects 路由 CRUD + StorageService |
+| 包 | 测试文件数 | 测试数 | 范围 |
+|---|---|---|---|
+| shared | 3 | 14 | Zod schema 验证（actions、entities、protocol） |
+| agent | 5 | 18 | 录制转换、指纹采集、Mock 路由、WS 客户端、Worker Pool |
+| server | 4 | 12 | WS handlers、Projects 路由、执行服务、录制服务 |
+| frontend | 4 | 19 | action-formatter、time-ago、use-local-storage、recording-replay-store |
+
+**总计：16 个测试文件，63 个测试用例**
 
 ## 测试策略
 

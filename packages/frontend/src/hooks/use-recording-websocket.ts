@@ -59,7 +59,8 @@ export function useRecordingWebSocket(
         break;
       }
       case 'replay:artifact': {
-        store.handleReplayArtifact(msg.payload as any);
+        type ArtifactPayload = { recordingId: string; executionId: string; index: number; type: 'screenshot' | 'har' | 'trace'; path: string };
+        store.handleReplayArtifact(msg.payload as ArtifactPayload);
         break;
       }
     }

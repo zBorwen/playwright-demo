@@ -61,4 +61,4 @@ cd packages/agent && SERVER_URL=ws://localhost:3000/ws pnpm start
 pnpm -r test
 ```
 
-当前覆盖：12 个测试（6 shared schema + 5 agent mock matching + 1 server integration）。
+当前覆盖：63 个测试（14 shared + 18 agent + 12 server + 19 frontend），共 16 个测试文件。

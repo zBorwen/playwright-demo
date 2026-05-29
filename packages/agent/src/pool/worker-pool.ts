@@ -52,10 +52,10 @@ export class WorkerPool {
     return false;
   }
 
-  /** Send a stop signal to the recording worker. */
-  sendToRecording(taskType: 'task:record:stop', payload: Record<string, any>): void {
-    // Precise routing by recordingId
-    this.sendToTask(payload.recordingId, taskType, payload);
+  /** 向录制 Worker 发送停止信号。 */
+  sendToRecording(taskType: 'task:record:stop', payload: Record<string, unknown>): void {
+    // 按 recordingId 精确路由
+    this.sendToTask(payload.recordingId as string, taskType, payload);
   }
 
   /** Force-terminate a specific task. */
@@ -105,7 +105,7 @@ export class WorkerPool {
     child.stderr?.on('data', (data: Buffer) => process.stderr.write(`[${taskId}] ${data}`));
     child.stdout?.on('data', (data: Buffer) => process.stdout.write(`[${taskId}] ${data}`));
 
-    child.on('message', (msg: any) => {
+    child.on('message', (msg: Record<string, unknown>) => {
       if (this.onMessage) this.onMessage(msg);
     });
 
@@ -134,12 +134,12 @@ export class WorkerPool {
       const errorMsg = signal ? `Worker killed by signal ${signal}` : `Worker exited with code ${code}`;
       console.error(`[${taskId}] Abnormal exit: ${errorMsg}`);
 
-      if (info.taskType === 'replay') {
+      if (info.taskType === 'replay' && task.type === 'task:replay') {
         this.onMessage({
           type: 'replay:done',
           payload: {
             executionId: taskId,
-            recordingId: (task.payload as any).recordingId,
+            recordingId: task.payload.recordingId,
             status: 'failed',
             error: errorMsg,
           },

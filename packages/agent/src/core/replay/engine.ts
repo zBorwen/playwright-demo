@@ -4,7 +4,9 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { MockRouter } from './mock-router';
 
-const browserLaunchers: Record<BrowserType, typeof chromium> = {
+type BrowserLauncher = typeof chromium | typeof firefox | typeof webkit;
+
+const browserLaunchers: Record<BrowserType, BrowserLauncher> = {
   chromium,
   firefox,
   webkit,
@@ -207,7 +209,7 @@ export class ReplayEngine {
       }
       case 'click': {
         await this.withStrictModeFallback(page, action.selector, (loc) =>
-          loc.click({ button: action.button as any, timeout: 10000 }),
+          loc.click({ button: action.button, timeout: 10000 }),
         );
         break;
       }
@@ -281,7 +283,10 @@ export class ReplayEngine {
         );
         break;
       }
-      default: throw new Error(`Unknown action: ${(action as any).name}`);
+      default: {
+        const _exhaustive: never = action;
+        throw new Error(`Unknown action: ${(_exhaustive as RecordingAction).name}`);
+      }
     }
   }
 

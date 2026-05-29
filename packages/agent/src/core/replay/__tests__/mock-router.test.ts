@@ -47,6 +47,8 @@ describe('MockRouter', () => {
       enabled: true,
       method: 'GET',
       responseBody: '{"regex": "hit"}',
+      statusCode: 200,
+      contentType: 'application/json',
     }];
     const router = new MockRouter(rules);
     await router.handleRoute(mockRoute);
@@ -61,6 +63,8 @@ describe('MockRouter', () => {
       urlPattern: 'api.example.com/data',
       enabled: false,
       responseBody: '{"ok": true}',
+      statusCode: 200,
+      contentType: 'application/json',
     }];
     const router = new MockRouter(rules);
     await router.handleRoute(mockRoute);

@@ -2,7 +2,7 @@
 
 ## 近期
 
-- [ ] 录制器集成 playwright-core 内部 API
+- [x] 录制器集成 playwright-core 内部 API
 - [ ] 回放步骤实时截图推送到前端
 - [ ] Server routes 测试覆盖率 80%+
 - [ ] Docker Compose 一键启动

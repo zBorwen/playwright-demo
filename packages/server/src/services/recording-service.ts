@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
+import { rm } from 'node:fs/promises';
+import path from 'node:path';
 import { db } from '../db/index';
-import { recordings, recordingArtifacts } from '../db/schema';
+import { recordings, recordingArtifacts, executions } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import type { RecordingAction } from '@playwright-demo/shared';
 import type { StorageService } from './storage';
@@ -78,4 +80,19 @@ export async function processRecordingComplete(
       actions,
     });
   }
+}
+
+/** 删除录制及其关联数据（artifacts、executions、存储文件） */
+export async function deleteRecording(id: string): Promise<void> {
+  const rec = await db.select({ id: recordings.id }).from(recordings).where(eq(recordings.id, id)).limit(1);
+  if (!rec.length) return;
+
+  // 先清理关联的 artifacts 和 executions
+  await db.delete(recordingArtifacts).where(eq(recordingArtifacts.recordingId, id));
+  await db.delete(executions).where(eq(executions.recordingId, id));
+  // 删除录制记录
+  await db.delete(recordings).where(eq(recordings.id, id));
+  // 删除存储文件
+  const storageDir = path.join(process.env.STORAGE_PATH || './storage', 'recordings', id);
+  await rm(storageDir, { recursive: true, force: true });
 }

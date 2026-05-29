@@ -18,15 +18,15 @@ export interface RecorderActionData {
 export interface RecorderEventSink {
   actionAdded?: (page: Page, data: RecorderActionData, code: string) => Promise<void> | void;
   actionUpdated?: (page: Page, data: RecorderActionData, code: string) => Promise<void> | void;
-  signalAdded?: (page: Page, data: any) => Promise<void> | void;
+  signalAdded?: (page: Page, data: Record<string, unknown>) => Promise<void> | void;
 }
 
 export interface EnableRecorderParams {
   mode: 'recording' | 'inspecting' | 'none';
   recorderMode: 'api' | 'default';
   language: 'playwright-test' | 'javascript' | 'python' | 'java' | 'csharp';
-  launchOptions?: Record<string, any>;
-  contextOptions?: Record<string, any>;
+  launchOptions?: Record<string, unknown>;
+  contextOptions?: Record<string, unknown>;
   handleSIGINT?: boolean;
   hideToolbar?: boolean;
   testIdAttributeName?: string;

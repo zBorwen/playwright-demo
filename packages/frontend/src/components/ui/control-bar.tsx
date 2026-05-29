@@ -1,5 +1,6 @@
 import { Zap, Monitor, Terminal } from 'lucide-react';
 import type { BrowserType } from '@playwright-demo/shared';
+import type { ComponentType, SVGProps } from 'react';
 
 interface ControlBarProps {
   mockEnabled: boolean;
@@ -24,8 +25,6 @@ const BROWSER_OPTIONS: { value: BrowserType; label: string }[] = [
   { value: 'firefox', label: 'Fx' },
   { value: 'webkit', label: 'Wk' },
 ];
-
-import type { ComponentType, SVGProps } from 'react';
 
 const HEADLESS_OPTIONS: { value: boolean; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
   { value: false, label: 'Headed', icon: Monitor },

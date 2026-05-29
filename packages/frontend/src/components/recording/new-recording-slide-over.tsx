@@ -25,7 +25,7 @@ export function NewRecordingSlideOver({ open, onClose, projectId }: NewRecording
     }
   }, [open]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
 
@@ -44,7 +44,7 @@ export function NewRecordingSlideOver({ open, onClose, projectId }: NewRecording
       setError(err instanceof Error ? err.message : String(err));
       setSubmitting(false);
     }
-  };
+  }
 
   return (
     <SlideOver open={open} onClose={onClose} title="新建录制">

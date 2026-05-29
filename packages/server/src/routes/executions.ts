@@ -33,8 +33,8 @@ executionsRouter.get('/summary', async (c) => {
   const { recordings } = await import('../db/schema');
   
   // Total recordings
-  const allRecs = await db.select({ id: recordings.id }).from(recordings);
-  const totalRecordings = allRecs.length;
+  const allRecordingIds = await db.select({ id: recordings.id }).from(recordings);
+  const totalRecordings = allRecordingIds.length;
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -91,9 +91,9 @@ executionsRouter.get('/summary', async (c) => {
 
 executionsRouter.get('/:id', async (c) => {
   const id = c.req.param('id');
-  const ex = await db.select().from(executions).where(eq(executions.id, id)).limit(1);
-  if (!ex.length) return c.json(errorResponse(API_CODES.NOT_FOUND, '执行记录不存在'), 404);
-  return c.json(successResponse(ex[0]));
+  const targetExecution = await db.select().from(executions).where(eq(executions.id, id)).limit(1);
+  if (!targetExecution.length) return c.json(errorResponse(API_CODES.NOT_FOUND, '执行记录不存在'), 404);
+  return c.json(successResponse(targetExecution[0]));
 });
 
 executionsRouter.get('/:id/artifacts', async (c) => {
@@ -116,9 +116,14 @@ executionsRouter.get('/:id/trace', async (c: Context<Env>) => {
   });
 });
 
-executionsRouter.patch('/:id', async (c) => {
+const updateExecutionSchema = z.object({
+  status: z.enum(['running', 'passed', 'failed']).optional(),
+  error: z.string().optional(),
+}).strict();
+
+executionsRouter.patch('/:id', zValidator('json', updateExecutionSchema), async (c) => {
   const id = c.req.param('id');
-  const body = await c.req.json();
+  const body = c.req.valid('json');
   await db
     .update(executions)
     .set({ ...body, finishedAt: new Date() })

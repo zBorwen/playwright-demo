@@ -32,9 +32,8 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
     payload: z.object({
       recordingId: z.string().uuid(),
       executionId: z.string().uuid(),
-      // Replay start uses base Actions (without metadata) 
-      // but we often pass RecordingAction for simplicity
-      actions: z.array(z.any()), 
+      // 回放启动时传入基础 Action 列表（不含录制元数据）
+      actions: z.array(RecordingActionSchema),
       harRef: z.string().optional(),
       mockRules: z.array(MockRuleSchema).default([]),
       replaySpeed: z.enum(['fast', 'normal', 'slow']).optional(),

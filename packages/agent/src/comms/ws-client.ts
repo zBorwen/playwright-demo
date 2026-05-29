@@ -8,12 +8,6 @@ export class WsClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private token?: string;
   private messageBuffer: string[] = [];
-
-  constructor(url: string, token?: string) {
-    this.url = url;
-    this.token = token;
-  }
-
   private connecting = false;
 
   connect(): Promise<void> {

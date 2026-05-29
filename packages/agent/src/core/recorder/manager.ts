@@ -5,7 +5,9 @@ import { captureFingerprint } from './fingerprint';
 import { transformRecorderAction } from './transformer';
 import type { RecorderActionData, RecorderEventSink } from '../../types/playwright-internal';
 
-const browserLaunchers: Record<BrowserType, typeof chromium> = {
+type BrowserLauncher = typeof chromium | typeof firefox | typeof webkit;
+
+const browserLaunchers: Record<BrowserType, BrowserLauncher> = {
   chromium,
   firefox,
   webkit,

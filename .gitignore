@@ -3,6 +3,17 @@
 node_modules/
 *.tsbuildinfo
 
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+
+# Logs
+*.log
+
 # Playwright MCP runtime
 .playwright-mcp/
 
