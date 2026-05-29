@@ -12,7 +12,17 @@ import type { Env } from './types/env';
 
 const app = new Hono<Env>();
 
-app.use('*', cors());
+app.use('*', cors({
+  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:5173'],
+  credentials: true,
+}));
+
+// 安全头中间件
+app.use('*', async (c, next) => {
+  await next();
+  c.res.headers.set('X-Content-Type-Options', 'nosniff');
+  c.res.headers.set('X-Frame-Options', 'DENY');
+});
 
 // Inject storage to context
 app.use('*', async (c, next) => {
