@@ -2,16 +2,15 @@
 
 ## Recorder 集成方案
 
-当前使用注入 JS 事件监听捕获用户操作，替代方案是 playwright-core 内部 recorder API。
+当前使用 playwright-core 内部 API（_enableRecorder + eventSink）捕获用户操作。
 
-### 当前方案（注入 JS）
-- 优点：不依赖内部 API，版本兼容性好
-- 缺点：只能捕获简单事件，无法捕获复杂交互（拖拽、右键菜单等）
-
-### 内部 API 方案
-- 路径：`playwright-core/lib/server/recorder`
-- 优点：完整捕获所有交互类型，与 Playwright 官方 recorder 一致
+### 当前方案（内部 API）
+- 优点：完整捕获所有交互类型（包括拖拽、右键菜单等），与 Playwright 官方 recorder 一致
 - 缺点：内部 API，可能随版本变化
+
+### 历史方案（注入 JS）
+- 之前使用注入 JS 事件监听，因只能捕获简单事件已废弃
+- 参考文档：`docs/recorder-architecture.md`
 
 ## 数据库选择
 

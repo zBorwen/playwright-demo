@@ -24,30 +24,21 @@
 - [x] Recorder 系统架构文档 + 修复总结文档
 - [x] Network/HAR 功能：录制捕获 → 过滤静态资源 → DB 存储 → 前端 Network tab → Mock 规则编辑 → 回放 Mock 路由
 - [x] 代码质量优化：清理死代码、修复空 catch、修复 artifact 删除误删、统一 import 位置、移除未使用状态
+- [x] 测试覆盖率提升（包含 shared, agent, server, frontend 的核心逻辑测试）
 
 ## 进行中 / 待排期
 
-- [ ] 测试覆盖率提升（server routes、agent replay engine 端到端测试）
 - [ ] 部署配置（Dockerfile、环境变量文档）
 - [ ] 回放步骤实时截图展示（通过 WebSocket 推送截图到前端）
 
 ## 测试状态
 
-| 包 | 测试数 | 状态 |
-|---|---|---|
-| shared | 6 | ✅ |
-| agent | 5 | ✅ |
-| server | 1 | ✅（仅 health check） |
+各包的核心逻辑已基本覆盖单元测试，结构已优化至 `__tests__` 目录。
 
 ## 最近提交
 
-- `9d1fd3f` fix: 修复方法名引用 createAction -> handleRecorderAction
-- `44525f3` fix: fill 去重优化 + 清理调试日志 + 写入修复文档
-- `cc8164e` fix: 前端 fill 操作去重，按 selector 更新而非追加
-- `1679787` fix: fill 操作双重去重防护 + 日志排查
-- `d7e8a4b` fix: fill 操作去重 + 支持 assert/setInputFiles 操作录制
-- `b077904` fix: fill 操作只保留一条最终记录，避免每次按键都输出
-- `a49145e` fix: 修复 fill 操作值截断问题，actionUpdated 更新累积文本
-- `e988a74` fix: Zod passthrough 修复动作数据丢失 + codegen/时间戳容错
-- `a2c11d0` fix: 修复数据回显 timeline 丰富信息/codegen/JSON 完整展示
-- `77787fd` fix: 修复数据回显、回放无浏览器、codegen 非实时三个问题
+- `refactor: 拆分 recordings route + 安全加固 + 消除 any 类型 + 文档同步`（本轮质量修复）
+- `9d1fd3f` test: 补全核心逻辑单元测试并重构前端测试环境
+- `ee07592` feat: 实现回放过程自动截图留证功能
+- `72c8dfc` merge: 合并后端可靠性重构与协议优化分支
+- `a3eb10b` feat: 增加回放前的操作步骤检查与错误提示
