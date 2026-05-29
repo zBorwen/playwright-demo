@@ -2,7 +2,7 @@ import { serve } from '@hono/node-server';
 import { app } from './app';
 import { WebSocketServer } from 'ws';
 import type { Server } from 'http';
-import type { AgentMessage } from '@playwright-demo/shared';
+import { AgentMessageSchema } from '@playwright-demo/shared';
 import { StorageService } from './services/storage';
 import { WsHandlers } from './ws-handlers';
 import { setContext } from './context';
@@ -36,14 +36,14 @@ wss.on('connection', (ws, req) => {
   ws.on('message', async (data) => {
     try {
       const parsed = JSON.parse(data.toString());
-      if (!parsed || typeof parsed.type !== 'string') {
-        console.error('Invalid message: missing type field');
+      const result = AgentMessageSchema.safeParse(parsed);
+      if (!result.success) {
+        console.error('Invalid agent message schema:', result.error.issues);
         return;
       }
-      const msg = parsed as AgentMessage;
-      await wsHandlers.handleAgentMessage(ws, msg);
-    } catch (e) {
-      console.error('Invalid message:', e);
+      await wsHandlers.handleAgentMessage(ws, result.data);
+    } catch (e: unknown) {
+      console.error('Invalid message:', e instanceof Error ? e.message : String(e));
     }
   });
 
