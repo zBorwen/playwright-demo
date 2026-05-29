@@ -19,10 +19,10 @@ export function Dashboard() {
       fetchRecordings(),
       fetchExecutionsSummary(),
       fetchProjects(),
-    ]).then(([recs, summary, projs]) => {
-      setRecordings(recs);
-      setStats(summary);
-      setProjects(projs);
+    ]).then(([recordingsData, summaryData, projectsData]) => {
+      setRecordings(recordingsData);
+      setStats(summaryData);
+      setProjects(projectsData);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
