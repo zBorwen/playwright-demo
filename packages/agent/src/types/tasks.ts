@@ -1,10 +1,6 @@
 import type { BrowserType, MockRule, RecordingAction } from '@playwright-demo/shared';
 
-export interface PendingTask {
-  type: 'task:replay' | 'task:record:start' | 'task:record:stop';
-  id: string; // recordingId or executionId
-  payload: any;
-}
+export type PendingTask = TaskMessage;
 
 export interface TaskReplayPayload {
   executionId: string;

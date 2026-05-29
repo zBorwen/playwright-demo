@@ -1,20 +1,27 @@
-import type { RecordingAction } from '@playwright-demo/shared';
+import type { RecordingAction, ElementInfo } from '@playwright-demo/shared';
 import type { Page } from 'playwright-core';
 import type { RecorderActionData } from '../../types/playwright-internal';
+
+interface BaseRecordingFields {
+  signals: unknown[];
+  elementInfo: ElementInfo;
+  pageContext: { url: string; title: string };
+  timestamp: number;
+}
 
 export function transformRecorderAction(
   actionData: RecorderActionData['action'],
   page: Page,
-  elementInfo: any,
+  elementInfo: ElementInfo,
   timestamp: number
 ): RecordingAction | null {
   const { name: actionName, selector, url, value, text, key, options, checked, signals } = actionData;
-  
-  const baseFields: any = {
+
+  const baseFields: BaseRecordingFields = {
     signals: signals ?? [],
     elementInfo,
-    pageContext: { 
-      url: page.url(), 
+    pageContext: {
+      url: page.url(),
       title: '' // Will be updated by caller
     },
     timestamp,

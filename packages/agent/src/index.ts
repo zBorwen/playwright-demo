@@ -83,8 +83,8 @@ async function main() {
           payload: {
             recordingId: msg.payload.recordingId,
             targetUrl: msg.payload.targetUrl,
-            headless: msg.payload.headless,
-            browserType: msg.payload.browserType,
+            headless: msg.payload.headless ?? true,
+            browserType: msg.payload.browserType ?? 'chromium',
           },
         });
         break;
@@ -98,8 +98,7 @@ async function main() {
       }
       case 'replay:start': {
         const payload = msg.payload as TaskReplayPayload;
-        // Re-type replaySpeed for comparison
-        const speed = (payload as any).replaySpeed;
+        const speed = payload.replaySpeed;
         const stepDelay = speed === 'fast' ? 0 : speed === 'slow' ? 1000 : 300;
 
         console.log(`[manager] Submitting replay: ${payload.recordingId} (pool busy: ${pool.activeCount}, queued: ${pool.queueLength})`);
