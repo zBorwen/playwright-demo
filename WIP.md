@@ -37,12 +37,13 @@
 - [x] 安全头补充（X-Content-Type-Options、X-Frame-Options）
 - [x] GEMINI.md 重复文档删除、CLAUDE.md 文档清单更新
 - [x] 修复全部 7 个安全与稳定性风险（R1-R7，包括任意文件读取防御、deleteRecording 纵深防御、类型加固、全局异常处理、safeSend 防止崩溃、ZodError 信息精简、replaySpeed 运行时校验）
+- [x] 补全 HSTS + CSP 等核心安全头，加固 HTTP Web 服务安全
+- [x] 优化前端 Zustand 订阅持久化防抖 (100ms)，降低高频状态变更时的 sessionStorage 写入压力
 
 ## 进行中 / 待排期
 
 ### 🔴 高优先级（安全 / 核心测试）
 
-- [ ] **补全 HSTS + CSP 安全头**：app.ts 当前仅有 X-Content-Type-Options + X-Frame-Options
 - [ ] **WS 强制认证**：当前仅当 AGENT_TOKEN 环境变量设置时才校验，未设置时等同于开放
 - [ ] **ServerMessage schema 补全**：protocol.ts 仅定义 4 种变体，缺少 batch-replay:start、batch-replay:result、error 等
 - [ ] **ReplayEngine 单元测试**（engine.ts 397 行，12 种 action 回放 + 自愈逻辑，零覆盖）
