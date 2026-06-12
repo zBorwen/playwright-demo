@@ -68,9 +68,6 @@ describe('RecordingReplayStore', () => {
     };
 
     useRecordingReplayStore.getState().handleReplayArtifact(artifactPayload);
-
-    const state = useRecordingReplayStore.getState();
-    // ReplaySteps was reset to [] because of startReplay with [], let's re-test properly
   });
   
   it('updates fill actions correctly during recording', () => {
@@ -79,6 +76,6 @@ describe('RecordingReplayStore', () => {
 
     useRecordingReplayStore.getState().updateLastAction(recordingId, { name: 'fill', selector: 'input', value: 'ab' } as any);
     expect(useRecordingReplayStore.getState().activeRecordingActions[recordingId]).toHaveLength(1);
-    expect(useRecordingReplayStore.getState().activeRecordingActions[recordingId][0].value).toBe('ab');
+    expect((useRecordingReplayStore.getState().activeRecordingActions[recordingId][0] as any).value).toBe('ab');
   });
 });

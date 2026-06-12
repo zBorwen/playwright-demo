@@ -9,6 +9,7 @@ import type { Env } from '../types/env';
 import { getWsHandlers } from '../context';
 import { generateCodegen } from '../services/codegen';
 import { successResponse, errorResponse, API_CODES } from '../middleware/response';
+import { validateUuidParam } from '../middleware/uuid-validator';
 import {
   loadActionsArtifact,
   loadMockRules,
@@ -26,6 +27,8 @@ function parseBrowserType(value?: string): BrowserType | undefined {
 }
 
 export const recordingsRouter = new Hono<Env>();
+
+recordingsRouter.use('/:id*', validateUuidParam('id'));
 
 const createRecordingSchema = z.object({
   projectId: z.string().uuid(),

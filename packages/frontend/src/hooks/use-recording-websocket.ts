@@ -14,7 +14,8 @@ export function useRecordingWebSocket(
 
     switch (msg.type) {
       case 'record:action': {
-        const payload = msg.payload as { action: RecordingAction; code?: string };
+        const payload = msg.payload as { recordingId: string; action: RecordingAction; code?: string };
+        if (payload.recordingId !== recordingId) return;
         const action = payload.action;
         
         const activeActions = store.activeRecordingActions[recordingId] || [];

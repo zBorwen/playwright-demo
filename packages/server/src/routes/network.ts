@@ -5,8 +5,11 @@ import { db } from '../db/index';
 import { recordingArtifacts } from '../db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { successResponse } from '../middleware/response';
+import { validateUuidParam } from '../middleware/uuid-validator';
 
 export const networkRouter = new Hono();
+
+networkRouter.use('*', validateUuidParam('id'));
 
 // GET /api/recordings/:id/network — 返回过滤后的 NetworkEntry[]
 networkRouter.get('/', async (c) => {

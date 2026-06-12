@@ -51,6 +51,7 @@ async function main() {
         const agentMsg: AgentMessage = {
           type: 'record:action',
           payload: {
+            recordingId: msg.taskId as string,
             action: recP.action,
             code: recP.code,
             selector: recP.selector,

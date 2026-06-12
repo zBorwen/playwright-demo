@@ -5,8 +5,11 @@ import { db } from '../db/index';
 import { projects, recordings, recordingArtifacts, executions } from '../db/schema';
 import { eq, inArray, desc } from 'drizzle-orm';
 import { successResponse, errorResponse, API_CODES } from '../middleware/response';
+import { validateUuidParam } from '../middleware/uuid-validator';
 
 export const projectsRouter = new Hono();
+
+projectsRouter.use('/:id*', validateUuidParam('id'));
 
 const createProjectSchema = z.object({
   name: z.string().min(1),

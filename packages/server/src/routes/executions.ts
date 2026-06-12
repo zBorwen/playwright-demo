@@ -5,10 +5,13 @@ import { db } from '../db/index';
 import { executions, executionArtifacts } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { successResponse, errorResponse, API_CODES } from '../middleware/response';
+import { validateUuidParam } from '../middleware/uuid-validator';
 import type { Context } from 'hono';
 import type { Env } from '../types/env';
 
 export const executionsRouter = new Hono();
+
+executionsRouter.use('/:id*', validateUuidParam('id'));
 
 const createExecutionSchema = z.object({
   recordingId: z.string().uuid(),
