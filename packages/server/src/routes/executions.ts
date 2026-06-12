@@ -18,8 +18,8 @@ const createExecutionSchema = z.object({
   status: z.enum(['running', 'passed', 'failed']),
 });
 
-executionsRouter.get('/', async (c) => {
-  const recordingId = c.req.query('recordingId');
+executionsRouter.get('/', zValidator('query', z.object({ recordingId: z.string().uuid().optional() })), async (c) => {
+  const { recordingId } = c.req.valid('query');
   const query = db.select().from(executions);
   const filtered = recordingId ? query.where(eq(executions.recordingId, recordingId)) : query;
   const list = await filtered.orderBy(desc(executions.startedAt));

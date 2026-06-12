@@ -40,8 +40,9 @@ export function useRecordingWebSocket(
         break;
       }
       case 'record:complete': {
+        const payload = msg.payload as { recordingId: string; actions?: RecordingAction[]; codegen?: string };
+        if (payload.recordingId !== recordingId) return;
         onRecordingComplete();
-        const payload = msg.payload as { actions?: RecordingAction[]; codegen?: string };
         
         if (payload.actions) {
           store.setActions(recordingId, payload.actions);
@@ -61,7 +62,9 @@ export function useRecordingWebSocket(
       }
       case 'replay:artifact': {
         type ArtifactPayload = { recordingId: string; executionId: string; index: number; type: 'screenshot' | 'har' | 'trace'; path: string };
-        store.handleReplayArtifact(msg.payload as ArtifactPayload);
+        const payload = msg.payload as ArtifactPayload;
+        if (payload.recordingId !== recordingId) return;
+        store.handleReplayArtifact(payload);
         break;
       }
     }
