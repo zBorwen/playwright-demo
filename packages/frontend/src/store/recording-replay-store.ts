@@ -351,15 +351,22 @@ export const useRecordingReplayStore = create<RecordingReplayStore>()(
   }))
 );
 
-// Auto-persist: when store changes, save all entries and clear removed ones
+// Auto-persist: when store changes, save all entries and clear removed ones with debounce
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
 useRecordingReplayStore.subscribe((state, prevState) => {
-  for (const entry of Object.values(state.recordingReplays)) {
-    saveRecordingReplayState(entry);
+  if (state.recordingReplays === prevState.recordingReplays) return;
+  if (persistTimer) {
+    clearTimeout(persistTimer);
   }
-  const currentIds = new Set(Object.keys(state.recordingReplays));
-  for (const prevId of Object.keys(prevState.recordingReplays)) {
-    if (!currentIds.has(prevId)) {
-      clearRecordingReplayState(prevId);
+  persistTimer = setTimeout(() => {
+    for (const entry of Object.values(state.recordingReplays)) {
+      saveRecordingReplayState(entry);
     }
-  }
+    const currentIds = new Set(Object.keys(state.recordingReplays));
+    for (const prevId of Object.keys(prevState.recordingReplays)) {
+      if (!currentIds.has(prevId)) {
+        clearRecordingReplayState(prevId);
+      }
+    }
+  }, 100);
 });
