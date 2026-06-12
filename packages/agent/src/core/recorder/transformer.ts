@@ -32,9 +32,9 @@ export function transformRecorderAction(
       return {
         name: 'click',
         selector: selector || '',
-        button: (actionData as any).button || 'left',
-        modifiers: (actionData as any).modifiers || 0,
-        clickCount: (actionData as any).clickCount || 1,
+        button: actionData.button || 'left',
+        modifiers: actionData.modifiers || 0,
+        clickCount: actionData.clickCount || 1,
         ...baseFields,
       } as RecordingAction;
 
@@ -51,7 +51,7 @@ export function transformRecorderAction(
         name: 'press',
         selector: selector || '',
         key: key ?? 'Enter',
-        modifiers: (actionData as any).modifiers || 0,
+        modifiers: actionData.modifiers || 0,
         ...baseFields,
       } as RecordingAction;
 

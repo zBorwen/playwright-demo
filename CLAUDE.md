@@ -29,8 +29,12 @@
 | `TESTING.md` | 测试指南（运行方式、覆盖率要求） |
 | `DEPLOYMENT.md` | 部署指南 |
 | `DEV_NOTE.md` | 长期关注事项：框架新知识、环境配置等 |
+| `BUG_LOG.md` | 历史 Bug 修复原因与方案记录（现象、根因、修复、教训） |
+| `QUALITY_REPORT.md` | 项目质量与安全性审查评估报告 |
 | `WIP.md` | 中短期开发计划、任务分解、待办事项 |
 | `TODO.md` | 长期开发计划 |
+| `docs/recorder-architecture.md` | 录制器集成 playwright-core 内部 API 架构设计 |
+| `docs/replay-state-management.md` | 回放及状态管理重构设计文档 |
 
 ## 开发流程
 

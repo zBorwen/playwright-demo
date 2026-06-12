@@ -11,6 +11,9 @@ export interface RecorderActionData {
     options?: string[];
     checked?: boolean;
     signals?: unknown[];
+    button?: 'left' | 'right' | 'middle';
+    modifiers?: number;
+    clickCount?: number;
   };
   frame: { pageGuid: string };
 }
