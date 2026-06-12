@@ -17,8 +17,12 @@ export function errorHandler() {
     }
 
     if (err instanceof ZodError) {
+      const issues = err.issues.map((issue) => ({
+        path: issue.path.join('.'),
+        message: issue.message,
+      }));
       return c.json(
-        errorResponse(API_CODES.VALIDATION_ERROR, 'Validation failed', err.issues),
+        errorResponse(API_CODES.VALIDATION_ERROR, 'Validation failed', issues),
         400,
       );
     }

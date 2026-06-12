@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { db } from '../db/index';
 import { projects, recordings, recordingArtifacts, executions } from '../db/schema';
 import { eq, desc, and } from 'drizzle-orm';
-import type { BrowserType, Recording } from '@playwright-demo/shared';
+import type { BrowserType, Recording, ReplaySpeed } from '@playwright-demo/shared';
 import type { Env } from '../types/env';
 import { getWsHandlers } from '../context';
 import { generateCodegen } from '../services/codegen';
@@ -19,10 +19,17 @@ import {
 import { deleteRecording } from '../services/recording-service';
 
 const VALID_BROWSER_TYPES: BrowserType[] = ['chromium', 'firefox', 'webkit'];
+const VALID_REPLAY_SPEEDS: ReplaySpeed[] = ['fast', 'normal', 'slow'];
 
 function parseBrowserType(value?: string): BrowserType | undefined {
   if (!value) return undefined;
   if (VALID_BROWSER_TYPES.includes(value as BrowserType)) return value as BrowserType;
+  return undefined;
+}
+
+function parseReplaySpeed(value?: string): ReplaySpeed | undefined {
+  if (!value) return undefined;
+  if (VALID_REPLAY_SPEEDS.includes(value as ReplaySpeed)) return value as ReplaySpeed;
   return undefined;
 }
 
@@ -163,7 +170,7 @@ recordingsRouter.post('/:id/replay', async (c) => {
   const id = c.req.param('id');
   const agentId = c.req.query('agentId') || 'default';
   const useMock = c.req.query('mock') === 'true';
-  const querySpeed = c.req.query('replaySpeed') as 'fast' | 'normal' | 'slow' | undefined;
+  const querySpeed = parseReplaySpeed(c.req.query('replaySpeed'));
   const headlessParam = c.req.query('headless');
   const headless = headlessParam !== undefined ? headlessParam === 'true' : undefined;
   const browserType = parseBrowserType(c.req.query('browserType'));

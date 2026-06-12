@@ -85,3 +85,13 @@ wss.on('connection', (ws, req) => {
     console.log(agentId ? `Agent ${agentId} disconnected` : 'Frontend client disconnected');
   });
 });
+
+process.on('uncaughtException', (err) => {
+  console.error('[server] uncaughtException:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[server] unhandledRejection:', reason);
+  process.exit(1);
+});

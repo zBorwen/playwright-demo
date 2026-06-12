@@ -82,8 +82,14 @@ export async function processRecordingComplete(
   }
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** 删除录制及其关联数据（artifacts、executions、存储文件） */
 export async function deleteRecording(id: string): Promise<void> {
+  if (!UUID_REGEX.test(id)) {
+    throw new Error(`无效录制 ID 格式: ${id}`);
+  }
+
   const rec = await db.select({ id: recordings.id }).from(recordings).where(eq(recordings.id, id)).limit(1);
   if (!rec.length) return;
 
@@ -93,6 +99,11 @@ export async function deleteRecording(id: string): Promise<void> {
   // 删除录制记录
   await db.delete(recordings).where(eq(recordings.id, id));
   // 删除存储文件
-  const storageDir = path.join(process.env.STORAGE_PATH || './storage', 'recordings', id);
+  const storageBase = path.resolve(process.env.STORAGE_PATH || './storage');
+  const storageDir = path.resolve(storageBase, 'recordings', id);
+  // 纵深防御：确保解析后的路径在 storage 目录内
+  if (!storageDir.startsWith(storageBase + path.sep)) {
+    throw new Error('检测到路径遍历');
+  }
   await rm(storageDir, { recursive: true, force: true });
 }

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { MockRouter } from './mock-router';
 import { generateFallbackSelectors, type FallbackStrategy } from './selector-healer';
 
-const HEALABLE_ACTIONS = new Set<string>([
+const HEALABLE_ACTIONS = new Set<RecordingAction['name']>([
   'click', 'fill', 'hover', 'press', 'select', 'check', 'uncheck', 'setInputFiles',
 ]);
 
@@ -310,7 +310,8 @@ export class ReplayEngine {
       throw new Error(originalError);
     }
 
-    console.log(`[replay] selector "${(action as any).selector}" failed. Attempting heal with ${fallbacks.length} fallback(s)...`);
+    const selectorValue = 'selector' in action ? action.selector : '<unknown>';
+    console.log(`[replay] selector "${selectorValue}" failed. Attempting heal with ${fallbacks.length} fallback(s)...`);
 
     for (const fb of fallbacks) {
       try {

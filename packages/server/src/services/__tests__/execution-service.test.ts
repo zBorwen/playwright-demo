@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import path from 'node:path';
+import os from 'node:os';
 import { processReplayArtifact, processReplayDone } from '../execution-service';
 import { db } from '../../db/index';
 
@@ -48,7 +50,7 @@ describe('ExecutionService', () => {
         recordingId,
         index: 2,
         type: 'screenshot' as const,
-        path: '/agent/local/path.jpg',
+        path: path.join(os.tmpdir(), 'path.jpg'),
       };
 
       const result = await processReplayArtifact(mockStorage, payload);
@@ -64,7 +66,7 @@ describe('ExecutionService', () => {
         recordingId,
         index: 2,
         type: 'unknown' as any,
-        path: '/agent/local/path.dat',
+        path: path.join(os.tmpdir(), 'path.dat'),
       };
 
       const result = await processReplayArtifact(mockStorage, payload);
@@ -77,7 +79,7 @@ describe('ExecutionService', () => {
       const payload = {
         executionId,
         status: 'passed' as const,
-        tracePath: '/agent/local/trace.zip',
+        tracePath: path.join(os.tmpdir(), 'trace.zip'),
       };
 
       // Mock select for recording info
