@@ -35,10 +35,11 @@
 - [x] 路径遍历防护（storage.ts sanitizeId + resolveSafe）
 - [x] 错误信息脱敏（全局 error handler 返回通用消息）
 - [x] 安全头补充（X-Content-Type-Options、X-Frame-Options）
-- [x] GEMINI.md 重复文档删除、CLAUDE.md 文档清单更新
-- [x] 修复全部 7 个安全与稳定性风险（R1-R7，包括任意文件读取防御、deleteRecording 纵深防御、类型加固、全局异常处理、safeSend 防止崩溃、ZodError 信息精简、replaySpeed 运行时校验）
-- [x] 补全 HSTS + CSP 等核心安全头，加固 HTTP Web 服务安全
-- [x] 优化前端 Zustand 订阅持久化防抖 (100ms)，降低高频状态变更时的 sessionStorage 写入压力
+- [x] GEMINI.md 重复文档删除
+- [x] 修复全部 7 个安全与稳定性风险：R1 任意文件读取防御（execution-service validateAgentFilePath）、R2 deleteRecording 纵深防御（UUID 校验 + 路径遍历二次检查）、R3 类型加固（HEALABLE_ACTIONS 精确类型 + 消除最后 as any）、R4 全局异常处理（agent/worker/server 全部注册 uncaughtException + unhandledRejection）、R5 safeSend 防止 IPC 崩溃、R6 ZodError 信息精简、R7 replaySpeed 运行时白名单校验
+- [x] 补全 HSTS + CSP + X-XSS-Protection + Referrer-Policy 安全头
+- [x] 执行列表查询 Zod 校验 + record:complete / replay:artifact 消息 recordingId 过滤
+- [x] 前端 Zustand 订阅持久化防抖 (100ms)
 
 ## 进行中 / 待排期
 
@@ -61,7 +62,7 @@
 
 ### 🟡 低优先级
 
-- [ ] **engine.ts 残留 as any 修复**（第 313 行，RecordingAction 本身有 selector 字段）
+- [ ] **GEMINI.md 再次重复**：R1-R7 提交中重新创建为 CLAUDE.md 100% 副本，应删除或改为引用链接
 - [ ] **frontend api.ts 类型去重**：Project/Recording/Execution 等类型在 shared 包已定义
 - [ ] **network routes 测试**（81 行，零覆盖）
 - [ ] **自愈集成测试深度补强**（当前仅 1 个 selector 差异验证）
@@ -78,8 +79,8 @@
 
 ## 最近提交
 
+- `64ae796` fix: 修复全部 7 个安全与稳定性风险 (R1-R7)
+- `aea1f83` fix: 执行列表查询校验与WebSocket完成事件隔离
 - `a9c1cc1` fix: 路由参数UUID校验与WebSocket录制广播数据隔离
 - `697decf` feat: 实现回放自愈功能与WebSocket连接安全加固
-- `7768f13` 删除prompt
 - `87094a6` refactor: 项目质量修复 — 消除 any 类型、安全加固、架构优化、文档同步
-- `9d65f87` test: 补全核心逻辑单元测试并重构前端测试环境

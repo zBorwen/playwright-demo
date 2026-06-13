@@ -6,6 +6,7 @@ import { recordings, recordingArtifacts, executions } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import type { RecordingAction } from '@playwright-demo/shared';
 import type { StorageService } from './storage';
+import { validateAgentFilePath } from './path-validator';
 
 export async function processRecordingComplete(
   storage: StorageService,
@@ -35,6 +36,7 @@ export async function processRecordingComplete(
   // Process HAR if available
   if (harPath) {
     try {
+      validateAgentFilePath(harPath);
       const harBuffer = await readFile(harPath).catch(() => null);
       if (harBuffer) {
         await storage.saveHar(recordingId, harBuffer);

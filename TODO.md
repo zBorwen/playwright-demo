@@ -3,7 +3,7 @@
 ## 近期
 
 - [x] 录制器集成 playwright-core 内部 API
-- [ ] 补全 HSTS + CSP 安全头
+- [x] 补全 HSTS + CSP 安全头
 - [ ] WS 强制认证（移除「未设 AGENT_TOKEN 则跳过」的绕过条件）
 - [ ] ServerMessage schema 补全（batch-replay:start、batch-replay:result、error）
 - [ ] 录制漏记遮罩层点击修复（Playwright api 模式对纯 div 不敏感）
