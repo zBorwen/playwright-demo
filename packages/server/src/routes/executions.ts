@@ -5,18 +5,21 @@ import { db } from '../db/index';
 import { executions, executionArtifacts } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { successResponse, errorResponse, API_CODES } from '../middleware/response';
+import { validateUuidParam } from '../middleware/uuid-validator';
 import type { Context } from 'hono';
 import type { Env } from '../types/env';
 
 export const executionsRouter = new Hono();
+
+executionsRouter.use('/:id*', validateUuidParam('id'));
 
 const createExecutionSchema = z.object({
   recordingId: z.string().uuid(),
   status: z.enum(['running', 'passed', 'failed']),
 });
 
-executionsRouter.get('/', async (c) => {
-  const recordingId = c.req.query('recordingId');
+executionsRouter.get('/', zValidator('query', z.object({ recordingId: z.string().uuid().optional() })), async (c) => {
+  const { recordingId } = c.req.valid('query');
   const query = db.select().from(executions);
   const filtered = recordingId ? query.where(eq(executions.recordingId, recordingId)) : query;
   const list = await filtered.orderBy(desc(executions.startedAt));

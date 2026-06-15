@@ -27,6 +27,16 @@ wss.on('connection', (ws, req) => {
   const agentId = url.searchParams.get('agentId');
 
   if (agentId) {
+    const expectedToken = process.env.AGENT_TOKEN;
+    if (expectedToken) {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : undefined;
+      if (token !== expectedToken) {
+        console.error(`Unauthorized connection attempt for agent: ${agentId}`);
+        ws.close(4001, 'Unauthorized');
+        return;
+      }
+    }
     wsHandlers.registerAgent(agentId, ws);
   } else {
     wsHandlers.registerClient(ws);
@@ -74,4 +84,14 @@ wss.on('connection', (ws, req) => {
     }
     console.log(agentId ? `Agent ${agentId} disconnected` : 'Frontend client disconnected');
   });
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[server] uncaughtException:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[server] unhandledRejection:', reason);
+  process.exit(1);
 });

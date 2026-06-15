@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import path from 'node:path';
+import os from 'node:os';
 import { processRecordingComplete } from '../recording-service';
 import { db } from '../../db/index';
 
@@ -72,7 +74,7 @@ describe('RecordingService', () => {
     const payload = {
       recordingId,
       actions: [],
-      harPath: '/tmp/test.har',
+      harPath: path.join(os.tmpdir(), 'test.har'),
     };
 
     await processRecordingComplete(mockStorage, payload);

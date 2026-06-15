@@ -10,6 +10,11 @@ export class WsClient {
   private messageBuffer: string[] = [];
   private connecting = false;
 
+  constructor(url: string, token?: string) {
+    this.url = url;
+    this.token = token;
+  }
+
   connect(): Promise<void> {
     if (this.connecting) {
       return Promise.resolve();

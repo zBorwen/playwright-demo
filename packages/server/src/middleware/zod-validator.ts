@@ -8,13 +8,17 @@ export function zValidator<Target extends keyof ValidationTargets, Schema extend
 ) {
   return baseZValidator(target, schema, async (result, c: Context<HonoEnv>) => {
     if (!result.success) {
+      const details = result.error.issues.map((issue) => ({
+        path: issue.path.join('.'),
+        message: issue.message,
+      }));
       return c.json(
         {
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Validation failed',
-            details: result.error.issues,
+            details,
           },
         },
         400,

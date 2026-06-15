@@ -2,6 +2,7 @@ import { db } from '../db/index';
 import { projects, recordings, recordingArtifacts, executions } from '../db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import type { BrowserType, MockRule } from '@playwright-demo/shared';
+import { ReplaySpeedSchema } from '@playwright-demo/shared';
 import { getWsHandlers } from '../context';
 
 export interface ValidRecording {
@@ -107,7 +108,7 @@ export async function executeBatchReplay(
         actions: actionsData.actions || [],
         harRef: useMock ? `${rec.id}/recording.har` : '',
         mockRules,
-        replaySpeed: (speedCache.get(rec.projectId || '') || 'normal') as 'fast' | 'normal' | 'slow',
+        replaySpeed: ReplaySpeedSchema.catch('normal').parse(speedCache.get(rec.projectId || '') || 'normal'),
         headless,
         browserType,
       },

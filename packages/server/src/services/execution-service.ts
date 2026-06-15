@@ -3,6 +3,8 @@ import { db } from '../db/index';
 import { recordings, executions, executionArtifacts } from '../db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import type { StorageService } from './storage';
+import { validateAgentFilePath } from './path-validator';
+
 
 export async function processReplayArtifact(
   storage: StorageService,
@@ -18,6 +20,7 @@ export async function processReplayArtifact(
 
   if (type === 'screenshot') {
     try {
+      validateAgentFilePath(agentLocalPath);
       const buffer = await readFile(agentLocalPath);
       const serverPath = await storage.saveExecutionScreenshot(executionId, index, buffer);
 
@@ -52,6 +55,7 @@ export async function processReplayDone(
   // Save trace file from agent to storage
   if (tracePath) {
     try {
+      validateAgentFilePath(tracePath);
       const traceBuffer = await readFile(tracePath);
       await storage.saveTrace(executionId, traceBuffer);
     } catch (err) {

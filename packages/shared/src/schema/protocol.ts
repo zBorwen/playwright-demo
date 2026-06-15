@@ -54,6 +54,7 @@ export const AgentMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('record:action'),
     payload: z.object({
+      recordingId: z.string().uuid(),
       action: RecordingActionSchema,
       code: z.string().optional(),
       // Redundant but kept for backward compatibility if needed, 

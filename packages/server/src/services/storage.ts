@@ -55,6 +55,9 @@ export class StorageService {
 
   async saveExecutionScreenshot(executionId: string, stepIndex: number, buffer: Buffer): Promise<string> {
     sanitizeId(executionId);
+    if (!Number.isInteger(stepIndex) || stepIndex < 0) {
+      throw new Error(`无效的步骤索引: ${stepIndex}`);
+    }
     const dir = await this.getExecutionDir(executionId);
     const screenshotDir = path.join(dir, 'screenshots');
     await mkdir(screenshotDir, { recursive: true });

@@ -4,9 +4,12 @@ import {
   RecordingSchema, 
   ExecutionSchema, 
   ExecutionArtifactSchema, 
-  ExecutionSummarySchema 
+  ExecutionSummarySchema,
+  ReplaySpeedSchema
 } from '../schema/entities.js';
 import { type RecordingAction } from '../schema/actions.js';
+
+export type ReplaySpeed = z.infer<typeof ReplaySpeedSchema>;
 
 export type Project = z.infer<typeof ProjectSchema>;
 export type Recording = z.infer<typeof RecordingSchema> & {

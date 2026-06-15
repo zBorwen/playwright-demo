@@ -5,6 +5,15 @@ import type { TaskMessage } from './types/tasks';
 let activeRecorder: RecorderManager | null = null;
 let recordTaskId: string | null = null;
 
+/** 安全发送 IPC 消息，IPC 通道关闭时静默失败而非抛出 TypeError */
+function safeSend(msg: Record<string, unknown>): void {
+  if (typeof process.send === 'function') {
+    process.send(msg);
+  } else {
+    console.error('[worker] IPC 通道已关闭，无法发送消息:', msg.type);
+  }
+}
+
 process.on('message', async (msg: TaskMessage) => {
   try {
     switch (msg.type) {
@@ -13,21 +22,21 @@ process.on('message', async (msg: TaskMessage) => {
 
         const engine = new ReplayEngine();
         engine.onStep((index, status) => {
-          process.send!({
+          safeSend({
             type: 'replay:step',
             taskId: msg.id,
             payload: { executionId, recordingId, index, status },
           });
         });
         engine.onStepFailed((index, error) => {
-          process.send!({
+          safeSend({
             type: 'replay:step:failed',
             taskId: msg.id,
             payload: { executionId, recordingId, index, status: 'failed', error },
           });
         });
         engine.onArtifact((index, type, path) => {
-          process.send!({
+          safeSend({
             type: 'replay:artifact',
             taskId: msg.id,
             payload: { executionId, recordingId, index, type, path },
@@ -45,7 +54,7 @@ process.on('message', async (msg: TaskMessage) => {
             browserType,
           });
 
-          process.send!({
+          safeSend({
             type: 'replay:done',
             taskId: msg.id,
             payload: {
@@ -58,7 +67,7 @@ process.on('message', async (msg: TaskMessage) => {
             },
           });
         } catch (err) {
-          process.send!({
+          safeSend({
             type: 'error',
             taskId: msg.id,
             payload: { executionId, recordingId, message: err instanceof Error ? err.message : String(err) },
@@ -74,7 +83,7 @@ process.on('message', async (msg: TaskMessage) => {
         activeRecorder = new RecorderManager();
         recordTaskId = msg.id;
         activeRecorder.onAction((action, code) => {
-          process.send!({
+          safeSend({
             type: 'record:action',
             taskId: msg.id,
             payload: { 
@@ -89,7 +98,7 @@ process.on('message', async (msg: TaskMessage) => {
         try {
           await activeRecorder.startRecording(targetUrl, recordingId, { headless, browserType });
         } catch (err) {
-          process.send!({
+          safeSend({
             type: 'error',
             taskId: msg.id,
             payload: { recordingId, message: err instanceof Error ? err.message : String(err) },
@@ -101,7 +110,7 @@ process.on('message', async (msg: TaskMessage) => {
 
       case 'task:record:stop': {
         if (!activeRecorder) {
-          process.send!({
+          safeSend({
             type: 'error',
             taskId: msg.id,
             payload: { recordingId: msg.payload.recordingId, message: 'No active recording' },
@@ -117,13 +126,13 @@ process.on('message', async (msg: TaskMessage) => {
 
         try {
           const { actions, harPath, codegen } = await activeRecorder.stopRecording();
-          process.send!({
+          safeSend({
             type: 'record:complete',
             taskId: msg.id,
             payload: { recordingId: msg.payload.recordingId, actions, harPath, codegen },
           });
         } catch (err) {
-          process.send!({
+          safeSend({
             type: 'error',
             taskId: msg.id,
             payload: { recordingId: msg.payload.recordingId, message: err instanceof Error ? err.message : String(err) },
@@ -137,7 +146,7 @@ process.on('message', async (msg: TaskMessage) => {
       }
     }
   } catch (err) {
-    process.send!({
+    safeSend({
       type: 'error',
       taskId: 'id' in msg ? msg.id : undefined,
       payload: { message: err instanceof Error ? err.message : String(err) },
@@ -151,4 +160,18 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-process.send!({ type: 'worker:ready' });
+process.on('uncaughtException', (err) => {
+  console.error('[worker] uncaughtException:', err);
+  safeSend({ type: 'error', payload: { message: `uncaughtException: ${err.message}` } });
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[worker] unhandledRejection:', reason);
+  const message = reason instanceof Error ? reason.message : String(reason);
+  safeSend({ type: 'error', payload: { message: `unhandledRejection: ${message}` } });
+  process.exit(1);
+});
+
+safeSend({ type: 'worker:ready' });
+

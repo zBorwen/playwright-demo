@@ -51,6 +51,7 @@ async function main() {
         const agentMsg: AgentMessage = {
           type: 'record:action',
           payload: {
+            recordingId: msg.taskId as string,
             action: recP.action,
             code: recP.code,
             selector: recP.selector,
@@ -131,6 +132,20 @@ async function main() {
     pool.shutdown();
     ws.close();
     process.exit(0);
+  });
+
+  process.on('uncaughtException', (err) => {
+    console.error('[manager] uncaughtException:', err);
+    pool.shutdown();
+    ws.close();
+    process.exit(1);
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    console.error('[manager] unhandledRejection:', reason);
+    pool.shutdown();
+    ws.close();
+    process.exit(1);
   });
 
   await ws.connect();

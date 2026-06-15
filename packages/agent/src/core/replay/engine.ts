@@ -3,6 +3,12 @@ import type { BrowserType, RecordingAction, MockRule } from '@playwright-demo/sh
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { MockRouter } from './mock-router';
+import { generateFallbackSelectors, type FallbackStrategy } from './selector-healer';
+
+const HEALABLE_ACTIONS = new Set<RecordingAction['name']>([
+  'click', 'fill', 'hover', 'press', 'select', 'check', 'uncheck', 'setInputFiles',
+]);
+
 
 type BrowserLauncher = typeof chromium | typeof firefox | typeof webkit;
 
@@ -290,14 +296,103 @@ export class ReplayEngine {
     }
   }
 
+  private async tryHealAndRetry(page: Page, action: RecordingAction, originalError: string): Promise<void> {
+    if (!HEALABLE_ACTIONS.has(action.name)) {
+      throw new Error(originalError);
+    }
+
+    if (!action.elementInfo) {
+      throw new Error(originalError);
+    }
+
+    const fallbacks = generateFallbackSelectors(action.elementInfo);
+    if (fallbacks.length === 0) {
+      throw new Error(originalError);
+    }
+
+    const selectorValue = 'selector' in action ? action.selector : '<unknown>';
+    console.log(`[replay] selector "${selectorValue}" failed. Attempting heal with ${fallbacks.length} fallback(s)...`);
+
+    for (const fb of fallbacks) {
+      try {
+        const locator = this.resolveLocator(page, fb);
+        await locator.waitFor({ state: 'attached', timeout: 5000 });
+
+        console.log(`[replay] heal successful with ${fb.strategy} (${JSON.stringify(fb.value)})`);
+        await this.replayActionWithLocator(page, action, locator);
+        return;
+      } catch {
+        continue;
+      }
+    }
+
+    throw new Error(originalError);
+  }
+
+  private resolveLocator(page: Page, fallback: FallbackStrategy) {
+    switch (fallback.strategy) {
+      case 'role':
+        return page.getByRole(fallback.value.role as Parameters<typeof page.getByRole>[0], {
+          name: fallback.value.name,
+        });
+      case 'text':
+        return page.getByText(fallback.value);
+      case 'css':
+        return page.locator(fallback.value);
+    }
+  }
+
+  private async replayActionWithLocator(
+    page: Page,
+    action: RecordingAction,
+    locator: ReturnType<typeof page.locator>,
+  ): Promise<void> {
+    switch (action.name) {
+      case 'click':
+        await locator.click({ button: action.button, timeout: 10000 });
+        break;
+      case 'fill':
+        await locator.fill(action.value, { timeout: 10000 });
+        break;
+      case 'hover':
+        await locator.hover({ timeout: 10000 });
+        break;
+      case 'press':
+        await locator.press(action.key, { timeout: 10000 });
+        break;
+      case 'select':
+        await locator.selectOption(action.options, { timeout: 10000 });
+        break;
+      case 'check':
+        await locator.check({ timeout: 10000 });
+        break;
+      case 'uncheck':
+        await locator.uncheck({ timeout: 10000 });
+        break;
+      case 'setInputFiles':
+        await locator.setInputFiles(action.files, { timeout: 10000 });
+        break;
+    }
+  }
+
   private async executeActionAndWait(page: Page, action: RecordingAction): Promise<void> {
     const needsNavigation = action.name === 'click' || (action.name === 'press' && action.key === 'Enter');
     if (needsNavigation) {
       const navPromise = page.waitForNavigation({ timeout: 1000 }).catch(() => null);
-      await this.executeAction(page, action);
+      try {
+        await this.executeAction(page, action);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        await this.tryHealAndRetry(page, action, errorMsg);
+      }
       if (await navPromise) await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
     } else {
-      await this.executeAction(page, action);
+      try {
+        await this.executeAction(page, action);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        await this.tryHealAndRetry(page, action, errorMsg);
+      }
     }
   }
 }
