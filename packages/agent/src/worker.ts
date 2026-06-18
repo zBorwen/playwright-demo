@@ -30,7 +30,7 @@ process.on('message', async (msg: TaskMessage) => {
         });
         engine.onStepFailed((index, error) => {
           safeSend({
-            type: 'replay:step:failed',
+            type: 'replay:step',
             taskId: msg.id,
             payload: { executionId, recordingId, index, status: 'failed', error },
           });
@@ -48,6 +48,7 @@ process.on('message', async (msg: TaskMessage) => {
             harPath,
             headless,
             recordingId,
+            executionId,
             mockRules,
             useMock,
             stepDelay,

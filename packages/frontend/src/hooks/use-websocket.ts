@@ -14,12 +14,12 @@ export function connect(): void {
   if (ws && ws.readyState <= WebSocket.OPEN) return;
 
   // Dev: direct connect to backend. Prod: use relative URL (same origin).
-  const wsUrl = import.meta.env.VITE_WS_URL;
+  const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000/ws';
   const url = wsUrl || `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws`;
 
   ws = new WebSocket(url);
 
-  ws.onopen = () => {};
+  ws.onopen = () => { };
 
   ws.onmessage = (event) => {
     try {
@@ -48,12 +48,16 @@ export function useWebSocket(onMessage?: (msg: WsMessage) => void): void {
   useEffect(() => {
     connect();
 
-    if (onMessageRef.current) {
-      listeners.add(onMessageRef.current);
-      return () => {
-        listeners.delete(onMessageRef.current!);
-      };
-    }
+    const wrapperListener: Listener = (msg) => {
+      if (onMessageRef.current) {
+        onMessageRef.current(msg);
+      }
+    };
+
+    listeners.add(wrapperListener);
+    return () => {
+      listeners.delete(wrapperListener);
+    };
   }, []);
 }
 
