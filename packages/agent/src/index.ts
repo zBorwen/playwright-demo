@@ -84,7 +84,7 @@ async function main() {
           payload: {
             recordingId: msg.payload.recordingId,
             targetUrl: msg.payload.targetUrl,
-            headless: msg.payload.headless ?? true,
+            headless: msg.payload.headless ?? false,
             browserType: msg.payload.browserType ?? 'chromium',
           },
         });
