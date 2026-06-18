@@ -1,5 +1,23 @@
 # Bug 修复记录
 
+## 回放完全不生效 — 前端 WebSocket 连接断开（2026-06-19）
+
+### 现象
+回放功能完全不生效。Agent 正常执行所有步骤，Server 正常接收并广播消息，但前端不显示任何回放进度和状态。
+
+### 根因
+`packages/frontend/.env` 文件在 `697decf` (feat: 实现回放自愈功能与WebSocket连接安全加固) 提交中被删除。
+该文件内容为 `VITE_WS_URL=ws://localhost:3000/ws`，是前端 `use-websocket.ts` 的 `connect()` 函数连接后端 WebSocket 的必要配置。
+删除后 `connect()` 退化为连接 `ws://localhost:5173/ws`（Vite dev server），导致前端 WebSocket 从未连上后端，Server 的 `broadcastToClients` 遍历空 Set（`clients=0`），所有回放消息被静默丢弃。
+
+### 修复方案
+恢复 `packages/frontend/.env` 文件，写入 `VITE_WS_URL=ws://localhost:3000/ws`。
+
+### 教训
+- 从 git 追踪中移除 .env 文件时，应使用 `git rm --cached` 保留本地文件，而非直接 `git rm` 删除工作区副本。
+- `gitignore` 的目的仅是防止文件被提交，不应导致本地运行必需的配置文件丢失。
+- 排查「前端无状态」类 Bug 时，优先检查 WebSocket 连接是否建立（Server 终端的 `Frontend client connected` 日志是最快信号）。
+
 ## 录制内容被覆盖与保存不完整（2026-05-17）
 
 ### 现象
