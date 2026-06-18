@@ -38,18 +38,17 @@
 - [x] GEMINI.md 重复文档删除
 - [x] 修复全部 7 个安全与稳定性风险：R1 任意文件读取防御（execution-service validateAgentFilePath）、R2 deleteRecording 纵深防御（UUID 校验 + 路径遍历二次检查）、R3 类型加固（HEALABLE_ACTIONS 精确类型 + 消除最后 as any）、R4 全局异常处理（agent/worker/server 全部注册 uncaughtException + unhandledRejection）、R5 safeSend 防止 IPC 崩溃、R6 ZodError 信息精简、R7 replaySpeed 运行时白名单校验
 - [x] 补全 HSTS + CSP + X-XSS-Protection + Referrer-Policy 安全头
-- [x] 执行列表查询 Zod 校验 + record:complete / replay:artifact 消息 recordingId 过滤
 - [x] 前端 Zustand 订阅持久化防抖 (100ms)
+- [x] ServerMessage schema 补全（protocol.ts 补全 batch-replay:start、batch-replay:result、error 消息类型）
+- [x] recordings routes 单元测试（100% 覆盖 recordings.ts 路由中 8 个 API 端点）
+- [x] ReplayEngine 单元测试（覆盖 13 种 action 回放及自愈与去重逻辑）
+- [x] RecorderManager 单元测试（覆盖录制生命周期、键盘动作输入合并与 signal 捕获）
 
 ## 进行中 / 待排期
 
 ### 🔴 高优先级（安全 / 核心测试）
 
 - [ ] **WS 强制认证**：当前仅当 AGENT_TOKEN 环境变量设置时才校验，未设置时等同于开放
-- [ ] **ServerMessage schema 补全**：protocol.ts 仅定义 4 种变体，缺少 batch-replay:start、batch-replay:result、error 等
-- [ ] **ReplayEngine 单元测试**（engine.ts 397 行，12 种 action 回放 + 自愈逻辑，零覆盖）
-- [ ] **RecorderManager 单元测试**（manager.ts 228 行，录制生命周期 + fill 合并 + codegen 累积，零覆盖）
-- [ ] **recordings routes 测试**（recordings.ts 300 行，8 个 API 端点 + 批量回放编排，零覆盖）
 
 ### 🟠 中优先级
 
@@ -71,11 +70,11 @@
 
 | 包 | 测试文件 | 用例数 | 核心缺口 |
 |------|----------|--------|----------|
-| shared | 3 | 14 | ✅ 全部通过 |
-| agent | 7 | 27 | 🔴 ReplayEngine / RecorderManager 零覆盖 |
-| server | 4 | 12 | 🔴 recordings / executions / network routes 零覆盖 |
+| shared | 3 | 17 | ✅ 全部通过 |
+| agent | 9 | 41 | ✅ ReplayEngine / RecorderManager 覆盖完毕 |
+| server | 5 | 42 | 🔴 executions / network routes 零覆盖 |
 | frontend | 4 | 19 | ⚠️ 无组件级 UI 测试 |
-| **合计** | **18** | **72** | 🔴 无 E2E 集成测试 |
+| **合计** | **21** | **119** | 🔴 无 E2E 集成测试 |
 
 ## 最近提交
 

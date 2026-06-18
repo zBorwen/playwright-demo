@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { ServerMessageSchema, AgentMessageSchema } from '../protocol.js';
-import { v4 as uuidv4 } from 'uuid';
 
 describe('ServerMessageSchema', () => {
   it('validates record:start', () => {
@@ -38,6 +37,53 @@ describe('ServerMessageSchema', () => {
       },
     };
     expect(ServerMessageSchema.safeParse(msg).success).toBe(false);
+  });
+
+  it('validates batch-replay:start', () => {
+    const msg = {
+      type: 'batch-replay:start',
+      payload: {
+        batchId: crypto.randomUUID(),
+        totalRecordings: 5,
+      },
+    };
+    expect(ServerMessageSchema.safeParse(msg).success).toBe(true);
+  });
+
+  it('validates batch-replay:result', () => {
+    const msg = {
+      type: 'batch-replay:result',
+      payload: {
+        batchId: crypto.randomUUID(),
+        recordingId: crypto.randomUUID(),
+        recordingTitle: 'Test Recording',
+        executionId: crypto.randomUUID(),
+        projectId: crypto.randomUUID(),
+        status: 'passed',
+      },
+    };
+    expect(ServerMessageSchema.safeParse(msg).success).toBe(true);
+
+    const msgWithoutBatchId = {
+      type: 'batch-replay:result',
+      payload: {
+        recordingId: crypto.randomUUID(),
+        executionId: crypto.randomUUID(),
+        status: 'failed',
+        error: 'Execution failed',
+      },
+    };
+    expect(ServerMessageSchema.safeParse(msgWithoutBatchId).success).toBe(true);
+  });
+
+  it('validates error message', () => {
+    const msg = {
+      type: 'error',
+      payload: {
+        message: 'Something went wrong',
+      },
+    };
+    expect(ServerMessageSchema.safeParse(msg).success).toBe(true);
   });
 });
 
