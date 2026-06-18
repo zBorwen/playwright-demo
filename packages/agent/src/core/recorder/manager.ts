@@ -38,8 +38,9 @@ export class RecorderManager {
     if (!launcher) throw new Error(`Unsupported browser: ${browserType}`);
 
     try {
-      this.browser = await launcher.launch({ headless });
+      this.browser = await launcher.launch({ headless, args: ['--window-size=1280,720'] });
       this.context = await this.browser.newContext({
+        viewport: null,
         recordHar: { path: this.getHarPath() },
       });
       this.actions = [];
