@@ -108,9 +108,9 @@ export class ReplayEngine {
     const launcher = browserLaunchers[browserType];
     if (!launcher) throw new Error(`Unsupported browser: ${browserType}`);
 
-    this.browser = await launcher.launch({ headless });
+    this.browser = await launcher.launch({ headless, args: ['--window-size=1280,720'] });
     try {
-      this.context = await this.browser.newContext({ viewport: { width: 1280, height: 720 } });
+      this.context = await this.browser.newContext({ noViewport: true });
       await this.context.tracing.start({ screenshots: true, snapshots: true });
       const page = await this.context.newPage();
 

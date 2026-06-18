@@ -101,7 +101,7 @@ describe('RecorderManager', () => {
       browserType: 'chromium',
     });
 
-    expect(chromium.launch).toHaveBeenCalledWith({ headless: true });
+    expect(chromium.launch).toHaveBeenCalledWith({ headless: true, args: ['--window-size=1280,720'] });
     expect(mockBrowser.newContext).toHaveBeenCalled();
     expect(mockContext._enableRecorder).toHaveBeenCalledWith(
       expect.objectContaining({ mode: 'recording', recorderMode: 'api' }),
