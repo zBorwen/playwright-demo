@@ -3,8 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev:server": "cd packages/server && pnpm dev",
-    "dev:frontend": "cd packages/frontend && pnpm dev"
+    "dev": "bash -c 'trap \"kill 0\" EXIT; pnpm --filter server dev & sleep 2; pnpm --filter frontend dev & pnpm --filter agent start & wait'",
+    "dev:server": "pnpm --filter server dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:agent": "pnpm --filter agent start"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
