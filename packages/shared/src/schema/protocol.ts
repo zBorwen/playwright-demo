@@ -42,6 +42,31 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
     }),
   }),
   z.object({
+    type: z.literal('batch-replay:start'),
+    payload: z.object({
+      batchId: z.string().uuid(),
+      totalRecordings: z.number(),
+    }),
+  }),
+  z.object({
+    type: z.literal('batch-replay:result'),
+    payload: z.object({
+      batchId: z.string().uuid().optional(),
+      recordingId: z.string().uuid(),
+      recordingTitle: z.string().optional(),
+      executionId: z.string().uuid(),
+      projectId: z.string().uuid().optional(),
+      status: z.enum(['running', 'passed', 'failed']),
+      error: z.string().optional(),
+    }),
+  }),
+  z.object({
+    type: z.literal('error'),
+    payload: z.object({
+      message: z.string(),
+    }),
+  }),
+  z.object({
     type: z.literal('ping'),
   }),
 ]);
