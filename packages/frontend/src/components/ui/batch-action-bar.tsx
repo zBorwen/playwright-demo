@@ -32,7 +32,7 @@ const BROWSER_OPTIONS: { value: BrowserType; label: string }[] = [
   { value: 'webkit', label: 'Wk' },
 ];
 
-export function BatchActionBar({ count, countLabel, actions, onCancel, headless = true, browserType = 'chromium', onHeadlessChange, onBrowserTypeChange }: BatchActionBarProps) {
+export function BatchActionBar({ count, countLabel, actions, onCancel, headless = false, browserType = 'chromium', onHeadlessChange, onBrowserTypeChange }: BatchActionBarProps) {
   const visible = count > 0;
 
   return (

@@ -107,7 +107,7 @@ export function ProjectList({ reloadKey = 0 }: { reloadKey?: number }) {
     useAppStore();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [replaying, setReplaying] = useState(false);
-  const [batchHeadless, setBatchHeadless] = useState(true);
+  const [batchHeadless, setBatchHeadless] = useState(false);
   const [batchBrowserType, setBatchBrowserType] = useState<'chromium' | 'firefox' | 'webkit'>('chromium');
   const recordingReplays = useRecordingReplayStore(s => s.recordingReplays);
 

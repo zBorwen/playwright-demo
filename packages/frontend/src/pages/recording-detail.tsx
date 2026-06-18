@@ -52,7 +52,7 @@ export function RecordingDetail() {
 
   const [showTrace, setShowTrace] = useState(false);
   const [useMock, setUseMock] = useLocalStorage(`replay-use-mock:${id}`, false);
-  const [headless, setHeadless] = useLocalStorage(`replay-headless:${id}`, true);
+  const [headless, setHeadless] = useLocalStorage(`replay-headless:${id}`, false);
   const [browserType, setBrowserType] = useLocalStorage<BrowserType>(`replay-browser-type:${id}`, 'chromium');
   const [projectReplaySpeed, setProjectReplaySpeed] = useState<'fast' | 'normal' | 'slow'>('normal');
 

@@ -161,7 +161,7 @@ export function RecordingsList({ projectId }: RecordingsListProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
   const [replaying, setReplaying] = useState(false);
-  const [batchHeadless, setBatchHeadless] = useState(true);
+  const [batchHeadless, setBatchHeadless] = useState(false);
   const [batchBrowserType, setBatchBrowserType] = useState<'chromium' | 'firefox' | 'webkit'>('chromium');
 
   const loadData = () => {
