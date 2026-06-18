@@ -110,7 +110,7 @@ export class ReplayEngine {
 
     this.browser = await launcher.launch({ headless, args: ['--window-size=1280,720'] });
     try {
-      this.context = await this.browser.newContext({ noViewport: true });
+      this.context = await this.browser.newContext({ viewport: null });
       await this.context.tracing.start({ screenshots: true, snapshots: true });
       const page = await this.context.newPage();
 

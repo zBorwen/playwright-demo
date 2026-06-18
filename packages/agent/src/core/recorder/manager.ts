@@ -40,7 +40,7 @@ export class RecorderManager {
     try {
       this.browser = await launcher.launch({ headless, args: ['--window-size=1280,720'] });
       this.context = await this.browser.newContext({
-        noViewport: true,
+        viewport: null,
         recordHar: { path: this.getHarPath() },
       });
       this.actions = [];
