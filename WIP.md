@@ -5,7 +5,7 @@
 ## 已完成
 
 - [x] Monorepo 基础设施（pnpm workspace + shared 包）
-- [x] Server 基础设施（Hono + PostgreSQL + WebSocket）
+- [x] Server 基础设施（Hono + SQLite + WebSocket）
 - [x] Agent 基础 + Recorder（playwright-core + 元素指纹）
 - [x] WebSocket 消息路由 + 端到端录制流程
 - [x] Frontend 基础设施（React + Vite + Tailwind dark + Zustand）

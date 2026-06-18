@@ -43,7 +43,6 @@ vi.mock('../../db/index.js', () => {
       },
     },
     createMockQueryBuilder,
-    client: { end: vi.fn() },
     projects: { id: {}, name: {}, description: {}, createdAt: {}, updatedAt: {} },
     recordings: { id: {}, projectId: {}, title: {}, targetUrl: {}, createdAt: {}, updatedAt: {} },
     recordingArtifacts: { id: {}, recordingId: {}, type: {}, content: {} },

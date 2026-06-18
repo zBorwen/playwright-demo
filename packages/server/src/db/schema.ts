@@ -1,45 +1,45 @@
-import { pgTable, uuid, text, timestamp, varchar, integer } from 'drizzle-orm/pg-core';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
-export const projects = pgTable('projects', {
-  id: uuid('id').primaryKey().defaultRandom(),
+export const projects = sqliteTable('projects', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text('name').notNull(),
   description: text('description'),
-  replaySpeed: varchar('replay_speed', { enum: ['fast', 'normal', 'slow'] }).default('normal'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  replaySpeed: text('replay_speed').default('normal'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
-export const recordings = pgTable('recordings', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  projectId: uuid('project_id').notNull().references(() => projects.id),
+export const recordings = sqliteTable('recordings', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  projectId: text('project_id').notNull().references(() => projects.id),
   title: text('title').notNull(),
   targetUrl: text('target_url'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
-export const recordingArtifacts = pgTable('recording_artifacts', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  recordingId: uuid('recording_id').notNull().references(() => recordings.id),
-  type: varchar('type', { enum: ['actions', 'har', 'mock_rules'] }).notNull(),
+export const recordingArtifacts = sqliteTable('recording_artifacts', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  recordingId: text('recording_id').notNull().references(() => recordings.id),
+  type: text('type').notNull(),
   content: text('content'),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
 });
 
-export const executions = pgTable('executions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  recordingId: uuid('recording_id').notNull().references(() => recordings.id),
-  status: varchar('status', { enum: ['running', 'passed', 'failed'] }).notNull(),
-  startedAt: timestamp('started_at').defaultNow(),
-  finishedAt: timestamp('finished_at'),
+export const executions = sqliteTable('executions', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  recordingId: text('recording_id').notNull().references(() => recordings.id),
+  status: text('status').notNull(),
+  startedAt: integer('started_at', { mode: 'timestamp' }).$defaultFn(() => new Date()),
+  finishedAt: integer('finished_at', { mode: 'timestamp' }),
   error: text('error'),
   trace: text('trace'),
 });
 
-export const executionArtifacts = pgTable('execution_artifacts', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  executionId: uuid('execution_id').notNull().references(() => executions.id),
-  type: varchar('type', { enum: ['screenshot', 'har'] }).notNull(),
+export const executionArtifacts = sqliteTable('execution_artifacts', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  executionId: text('execution_id').notNull().references(() => executions.id),
+  type: text('type').notNull(),
   path: text('path').notNull(),
   stepIndex: integer('step_index'),
 });

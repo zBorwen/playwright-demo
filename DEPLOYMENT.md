@@ -3,7 +3,7 @@
 ## 环境要求
 
 - Node.js >= 24
-- PostgreSQL >= 15
+- SQLite（嵌入式，无需额外安装）
 - pnpm >= 9
 
 ## 本地开发
@@ -27,7 +27,7 @@ cd packages/agent && pnpm start         # WebSocket → localhost:3000
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `PORT` | `3000` | HTTP 端口 |
-| `DATABASE_URL` | `postgres://localhost:5432/playwright_demo` | PostgreSQL 连接字符串 |
+| `DATABASE_PATH` | `./storage/playwright-demo.db` | SQLite 数据库文件路径 |
 | `STORAGE_PATH` | `./storage` | 本地存储路径（HAR、截图、JSON） |
 
 ### Agent
@@ -56,7 +56,7 @@ pnpm -r build
 
 ```bash
 cd packages/server
-DATABASE_URL=your_connection_string pnpm db:push
+DATABASE_PATH=./storage/playwright-demo.db pnpm db:push
 ```
 
 ### 3. 启动
