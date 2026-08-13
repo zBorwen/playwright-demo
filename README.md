@@ -1,6 +1,9 @@
-# Playwright 可视化操作平台
+<!-- ⚠️ 本文件由 ontology/project-ontology.json 自动生成，禁止手工编辑。修改请编辑本体后运行 pnpm docs:gen（目标：README.md） -->
 
-基于 Playwright 的浏览器自动化可视化系统。通过 Web 界面录制用户操作，回放时支持 Mock 模式，替代脆弱的 Selenium/Puppeteer 脚本。
+
+# playwright-demo — 基于 Playwright 的浏览器自动化可视化系统 / E2E 测试平台
+
+通过 Web 界面录制用户操作，回放时支持 Mock 模式，替代脆弱的 Selenium/Puppeteer 脚本。已实现录制、回放、Mock、代码生成、批量回放等核心功能。
 
 ## 架构
 
@@ -16,39 +19,26 @@
                                     └─────────────┘
 ```
 
-- **Server** (`packages/server`) — Hono + PostgreSQL，提供 REST API 和 WebSocket 网关
-- **Agent** (`packages/agent`) — 本地运行，通过 playwright-core 控制浏览器执行录制/回放
-- **Frontend** (`packages/frontend`) — React + Tailwind 暗色主题的管理界面
-- **Shared** (`packages/shared`) — Zod schema 和类型定义
+- 可视化录制 — 输入目标 URL → 点击录制 → 本地控制浏览器操作自动捕获
+- 语义化存储 — 操作序列存为 JSON + HAR 网络数据 + 元素指纹
+- Mock 回放 — 支持真实 API / HAR Mock 两种回放模式
+- 元素指纹 — 采集 data-testid、role、accessibleName 等用于 AI 自愈合
+- 实时 WebSocket — 录制/回放过程实时推送到前端
 
 ## 快速开始
 
 ```bash
-# 安装依赖
-pnpm install
-
-# 启动 Server（需要 PostgreSQL）
-cd packages/server && pnpm dev
-
-# 启动 Frontend
-cd packages/frontend && pnpm dev
-
-# 启动 Agent（连接本地 Server）
-cd packages/agent && SERVER_URL=ws://localhost:3000/ws pnpm start
+# pnpm install
+# cd packages/server && pnpm db:push   # 初始化数据库
+# cd packages/server && pnpm dev       # http://localhost:3000
+# cd packages/frontend && pnpm dev     # http://localhost:5173
+# cd packages/agent && SERVER_URL=ws://localhost:3000/ws pnpm start
 ```
-
-## 功能
-
-- **可视化录制** — 输入目标 URL → 点击录制 → 本地控制浏览器操作自动捕获
-- **语义化存储** — 操作序列存为 JSON + HAR 网络数据 + 元素指纹
-- **Mock 回放** — 支持真实 API / HAR Mock 两种回放模式
-- **元素指纹** — 采集 data-testid、role、accessibleName 等用于 AI 自愈合
-- **实时 WebSocket** — 录制/回放过程实时推送到前端
 
 ## 技术栈
 
 | 层 | 技术 |
-|---|---|
+|---|------|
 | Monorepo | pnpm workspace |
 | Server | Hono + PostgreSQL + Drizzle ORM + ws |
 | Agent | playwright-core + ws |
@@ -58,7 +48,22 @@ cd packages/agent && SERVER_URL=ws://localhost:3000/ws pnpm start
 ## 测试
 
 ```bash
-pnpm -r test
+pnpm -r test    # 全部测试
+cd packages/shared && pnpm test
+cd packages/agent && pnpm test
+cd packages/server && pnpm test
+cd packages/frontend && pnpm test
 ```
 
-当前覆盖：63 个测试（14 shared + 18 agent + 12 server + 19 frontend），共 16 个测试文件。
+测试策略与覆盖率目标详见 [TESTING.md](TESTING.md)。
+
+## 本体驱动文档
+
+本仓库的文档体系以 **ontology/project-ontology.json** 为唯一事实源。
+
+- 本体：`ontology/project-ontology.json`
+- 生成：`pnpm docs:gen`
+- 校验：`pnpm ontology:check`
+
+生成文档清单：`README.md`、`CLAUDE.md`、`GEMINI.md`、`AGENTS.md`、`TESTING.md`、`DEPLOYMENT.md`。
+

@@ -6,7 +6,10 @@
     "dev": "bash -c 'trap \"kill 0\" EXIT; pnpm --filter server dev & sleep 2; pnpm --filter frontend dev & pnpm --filter agent start & wait'",
     "dev:server": "pnpm --filter server dev",
     "dev:frontend": "pnpm --filter frontend dev",
-    "dev:agent": "pnpm --filter agent start"
+    "dev:agent": "pnpm --filter agent start",
+    "docs:gen": "node scripts/ontology-generate.mjs",
+    "docs:check": "node scripts/ontology-generate.mjs --check",
+    "ontology:check": "node scripts/ontology-check.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1"
