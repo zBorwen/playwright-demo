@@ -16,4 +16,16 @@ export default defineConfig({
       '/trace-viewer': 'http://localhost:3000',
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          charts: ['recharts'],
+          state: ['zustand', 'immer'],
+          icons: ['lucide-react'],
+        },
+      },
+    },
+  },
 });
