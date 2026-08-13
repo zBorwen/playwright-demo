@@ -3,6 +3,22 @@ import { ReplayEngine } from '../engine.js';
 import { chromium } from 'playwright-core';
 import type { RecordingAction } from '@playwright-demo/shared';
 
+/** 用默认值补全 RecordingAction 的必填扩展字段（signals/elementInfo/timestamp） */
+function mkAction<T extends Record<string, unknown>>(action: T): RecordingAction {
+  const base: Record<string, unknown> = {
+    signals: [],
+    elementInfo: {
+      dataTestId: null, dataTest: null, role: null, accessibleName: null,
+      textContent: null, placeholder: null, id: null, tagName: 'DIV',
+      labelText: null, name: null, inputType: null, classes: [],
+      parentPath: [], nearbyText: [], boundingBox: null, isVisible: true,
+    },
+    pageContext: { url: '', title: '' },
+    timestamp: Date.now(),
+  };
+  return { ...base, ...action } as unknown as RecordingAction;
+}
+
 // Mock node:fs to avoid actual directory creation
 vi.mock('node:fs', () => ({
   mkdirSync: vi.fn(),
@@ -106,9 +122,9 @@ describe('ReplayEngine', () => {
 
   it('runs replay with basic actions successfully', async () => {
     const actions: RecordingAction[] = [
-      { name: 'navigate', url: 'https://example.com', pageContext: { url: '', title: '' } },
-      { name: 'click', selector: 'button.submit', button: 'left', pageContext: { url: '', title: '' } },
-      { name: 'fill', selector: 'input.username', value: 'admin', pageContext: { url: '', title: '' } },
+      mkAction({ name: 'navigate', url: 'https://example.com' }),
+      mkAction({ name: 'click', selector: 'button.submit', button: 'left' }),
+      mkAction({ name: 'fill', selector: 'input.username', value: 'admin' }),
     ];
 
     const result = await engine.replay(actions, {
@@ -128,8 +144,8 @@ describe('ReplayEngine', () => {
 
   it('filters redundant Enter press followed by click (deduplication)', async () => {
     const actions: RecordingAction[] = [
-      { name: 'press', selector: 'input', key: 'Enter', timestamp: 1000, pageContext: { url: '', title: '' } },
-      { name: 'click', selector: 'button', button: 'left', timestamp: 1020, pageContext: { url: '', title: '' } },
+      mkAction({ name: 'press', selector: 'input', key: 'Enter', timestamp: 1000 }),
+      mkAction({ name: 'click', selector: 'button', button: 'left', timestamp: 1020 }),
     ];
 
     const result = await engine.replay(actions, { stepDelay: 0 });
@@ -142,10 +158,10 @@ describe('ReplayEngine', () => {
 
   it('runs assert actions correctly', async () => {
     const actions: RecordingAction[] = [
-      { name: 'assertVisible', selector: '.popup', pageContext: { url: '', title: '' } },
-      { name: 'assertText', selector: '.title', text: 'Welcome', substring: true, pageContext: { url: '', title: '' } },
-      { name: 'assertChecked', selector: '.agree', checked: true, pageContext: { url: '', title: '' } },
-      { name: 'assertValue', selector: '.input', value: 'hello', pageContext: { url: '', title: '' } },
+      mkAction({ name: 'assertVisible', selector: '.popup' }),
+      mkAction({ name: 'assertText', selector: '.title', text: 'Welcome', substring: true }),
+      mkAction({ name: 'assertChecked', selector: '.agree', checked: true }),
+      mkAction({ name: 'assertValue', selector: '.input', value: 'hello' }),
     ];
 
     mockLocator.textContent.mockResolvedValue('Welcome Admin');
@@ -163,7 +179,7 @@ describe('ReplayEngine', () => {
 
   it('fails assertText if text content mismatch', async () => {
     const actions: RecordingAction[] = [
-      { name: 'assertText', selector: '.title', text: 'Welcome', substring: false, pageContext: { url: '', title: '' } },
+      mkAction({ name: 'assertText', selector: '.title', text: 'Welcome', substring: false }),
     ];
     mockLocator.textContent.mockResolvedValue('mismatch');
 
@@ -174,7 +190,7 @@ describe('ReplayEngine', () => {
 
   it('handles setInputFiles action', async () => {
     const actions: RecordingAction[] = [
-      { name: 'setInputFiles', selector: 'input[type=file]', files: ['file1.txt'], pageContext: { url: '', title: '' } },
+      mkAction({ name: 'setInputFiles', selector: 'input[type=file]', files: ['file1.txt'] }),
     ];
 
     const result = await engine.replay(actions, { stepDelay: 0 });
@@ -184,11 +200,10 @@ describe('ReplayEngine', () => {
 
   it('attempts selector healing when regular click fails', async () => {
     const actions: RecordingAction[] = [
-      {
+      mkAction({
         name: 'click',
         selector: '.fragile-css',
         button: 'left',
-        pageContext: { url: '', title: '' },
         elementInfo: {
           role: 'button',
           accessibleName: 'Submit Form',
@@ -207,7 +222,7 @@ describe('ReplayEngine', () => {
           isVisible: true,
           textContent: 'Submit',
         },
-      },
+      }),
     ];
 
     // Regular selector fails
@@ -226,7 +241,7 @@ describe('ReplayEngine', () => {
 
   it('falls back to strict mode .first() on strict mode violation', async () => {
     const actions: RecordingAction[] = [
-      { name: 'click', selector: '.duplicate-class', button: 'left', pageContext: { url: '', title: '' } },
+      mkAction({ name: 'click', selector: '.duplicate-class', button: 'left' }),
     ];
 
     mockLocator.click
@@ -241,7 +256,7 @@ describe('ReplayEngine', () => {
 
   it('fails replay if action fails and no healing is possible', async () => {
     const actions: RecordingAction[] = [
-      { name: 'click', selector: '.non-existent', button: 'left', pageContext: { url: '', title: '' } },
+      mkAction({ name: 'click', selector: '.non-existent', button: 'left' }),
     ];
     mockLocator.click.mockRejectedValue(new Error('locator failed'));
 

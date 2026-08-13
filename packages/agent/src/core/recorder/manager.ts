@@ -204,7 +204,7 @@ export class RecorderManager {
   }
 
   async stopRecording(): Promise<{
-    actions: Recording['actions'];
+    actions: RecordingAction[];
     harPath: string;
     codegen: string;
   }> {
