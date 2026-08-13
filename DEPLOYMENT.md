@@ -1,4 +1,4 @@
-<!-- ⚠️ 本文件由 ontology/project-ontology.json 自动生成，禁止手工编辑。修改请编辑本体后运行 pnpm docs:gen（目标：DEPLOYMENT.md） -->
+<!-- ⚠️ 本文件由 ontology/project-ontology.yaml 自动生成，禁止手工编辑。修改请编辑本体后运行 pnpm docs:gen（目标：DEPLOYMENT.md） -->
 
 
 # 部署指南
@@ -14,9 +14,9 @@
 ```bash
 pnpm install
 cd packages/server && pnpm db:push
-cd packages/server && pnpm dev   # http://localhost:3000
-cd packages/frontend && pnpm dev # http://localhost:5173
-cd packages/agent && pnpm start  # WebSocket → localhost:3000
+cd packages/server && pnpm dev
+cd packages/frontend && pnpm dev
+cd packages/agent && pnpm start
 ```
 
 ## 环境变量

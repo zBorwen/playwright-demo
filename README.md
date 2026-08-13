@@ -1,9 +1,9 @@
-<!-- ⚠️ 本文件由 ontology/project-ontology.json 自动生成，禁止手工编辑。修改请编辑本体后运行 pnpm docs:gen（目标：README.md） -->
+<!-- ⚠️ 本文件由 ontology/project-ontology.yaml 自动生成，禁止手工编辑。修改请编辑本体后运行 pnpm docs:gen（目标：README.md） -->
 
 
 # playwright-demo — 基于 Playwright 的浏览器自动化可视化系统 / E2E 测试平台
 
-通过 Web 界面录制用户操作，回放时支持 Mock 模式，替代脆弱的 Selenium/Puppeteer 脚本。已实现录制、回放、Mock、代码生成、批量回放等核心功能。
+通过 Web 界面录制用户操作，回放时支持 Mock 模式，替代脆弱的 Selenium/Puppeteer 脚本。 已实现录制、回放、Mock、代码生成、批量回放等核心功能。
 
 ## 架构
 
@@ -29,9 +29,9 @@
 
 ```bash
 # pnpm install
-# cd packages/server && pnpm db:push   # 初始化数据库
-# cd packages/server && pnpm dev       # http://localhost:3000
-# cd packages/frontend && pnpm dev     # http://localhost:5173
+# cd packages/server && pnpm db:push
+# cd packages/server && pnpm dev
+# cd packages/frontend && pnpm dev
 # cd packages/agent && SERVER_URL=ws://localhost:3000/ws pnpm start
 ```
 
@@ -48,7 +48,7 @@
 ## 测试
 
 ```bash
-pnpm -r test    # 全部测试
+pnpm -r test
 cd packages/shared && pnpm test
 cd packages/agent && pnpm test
 cd packages/server && pnpm test
@@ -59,9 +59,9 @@ cd packages/frontend && pnpm test
 
 ## 本体驱动文档
 
-本仓库的文档体系以 **ontology/project-ontology.json** 为唯一事实源。
+本仓库的文档体系以 **ontology/project-ontology.yaml** 为唯一事实源。
 
-- 本体：`ontology/project-ontology.json`
+- 本体：`ontology/project-ontology.yaml`
 - 生成：`pnpm docs:gen`
 - 校验：`pnpm ontology:check`
 

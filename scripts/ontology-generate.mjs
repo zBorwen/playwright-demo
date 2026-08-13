@@ -1,25 +1,24 @@
 #!/usr/bin/env node
 /**
  * ontology-generate.mjs
- * 从 ontology/project-ontology.json 生成全部项目文档。
+ * 从 ontology/project-ontology.yaml 生成全部项目文档。
  * 运行：pnpm docs:gen
  * 原则：本体是唯一事实源，生成的文档禁止手工编辑。
  */
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import YAML from 'yaml'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const ONTOLOGY_PATH = resolve(ROOT, 'ontology/project-ontology.json')
-const ONTOLOGY = JSON.parse(readFileSync(ONTOLOGY_PATH, 'utf8'))
+const ONTOLOGY_PATH = resolve(ROOT, 'ontology/project-ontology.yaml')
+const ONTOLOGY = YAML.parse(readFileSync(ONTOLOGY_PATH, 'utf8'))
 
 // ---------- 工具 ----------
 
 const banner = (file) =>
-  `<!-- ⚠️ 本文件由 ontology/project-ontology.json 自动生成，禁止手工编辑。修改请编辑本体后运行 pnpm docs:gen（目标：${file}） -->\n\n`
-
-const lines = (arr) => (Array.isArray(arr) ? arr.join('\n') : String(arr))
+  `<!-- ⚠️ 本文件由 ontology/project-ontology.yaml 自动生成，禁止手工编辑。修改请编辑本体后运行 pnpm docs:gen（目标：${file}） -->\n\n`
 
 const bullet = (arr) =>
   (Array.isArray(arr) ? arr : [arr]).map((x) => `- ${x}`).join('\n')
@@ -66,9 +65,9 @@ function renderReadme(o) {
     '',
     header(2, '本体驱动文档'),
     '',
-    `本仓库的文档体系以 **ontology/project-ontology.json** 为唯一事实源。`,
+    `本仓库的文档体系以 **ontology/project-ontology.yaml** 为唯一事实源。`,
     '',
-    `- 本体：\`ontology/project-ontology.json\``,
+    `- 本体：\`ontology/project-ontology.yaml\``,
     `- 生成：\`pnpm docs:gen\``,
     `- 校验：\`pnpm ontology:check\``,
     '',
@@ -93,7 +92,7 @@ function renderConstraints(o, agent) {
     '',
     header(2, '本体声明'),
     '',
-    `本文件是 \`ontology/project-ontology.json\` 的生成视图。所有约束的唯一事实源是本体文件，修改约束请编辑本体后运行 \`pnpm docs:gen\`。`,
+    '本文件是 `ontology/project-ontology.yaml` 的生成视图。所有约束的唯一事实源是本体文件，修改约束请编辑本体后运行 `pnpm docs:gen`。',
     '',
     header(2, '语言规范'),
     '',

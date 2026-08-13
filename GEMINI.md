@@ -1,15 +1,15 @@
-<!-- ⚠️ 本文件由 ontology/project-ontology.json 自动生成，禁止手工编辑。修改请编辑本体后运行 pnpm docs:gen（目标：GEMINI.md） -->
+<!-- ⚠️ 本文件由 ontology/project-ontology.yaml 自动生成，禁止手工编辑。修改请编辑本体后运行 pnpm docs:gen（目标：GEMINI.md） -->
 
 
 # playwright-demo
 
 Gemini CLI 项目约束（由本体自动生成，与 CLAUDE.md 同源）
 
-通过 Web 界面录制用户操作，回放时支持 Mock 模式，替代脆弱的 Selenium/Puppeteer 脚本。已实现录制、回放、Mock、代码生成、批量回放等核心功能。
+通过 Web 界面录制用户操作，回放时支持 Mock 模式，替代脆弱的 Selenium/Puppeteer 脚本。 已实现录制、回放、Mock、代码生成、批量回放等核心功能。
 
 ## 本体声明
 
-本文件是 `ontology/project-ontology.json` 的生成视图。所有约束的唯一事实源是本体文件，修改约束请编辑本体后运行 `pnpm docs:gen`。
+本文件是 `ontology/project-ontology.yaml` 的生成视图。所有约束的唯一事实源是本体文件，修改约束请编辑本体后运行 `pnpm docs:gen`。
 
 ## 语言规范
 
@@ -52,7 +52,7 @@ Gemini CLI 项目约束（由本体自动生成，与 CLAUDE.md 同源）
 
 ## 本体维护流程
 
-1. 修改约束 → 编辑 ontology/project-ontology.json
+1. 修改约束 → 编辑 ontology/project-ontology.yaml
 2. 重新生成文档 → pnpm docs:gen
 3. 校验代码 → pnpm ontology:check
 4. 提交

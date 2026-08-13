@@ -1,4 +1,4 @@
-<!-- ⚠️ 本文件由 ontology/project-ontology.json 自动生成，禁止手工编辑。修改请编辑本体后运行 pnpm docs:gen（目标：TESTING.md） -->
+<!-- ⚠️ 本文件由 ontology/project-ontology.yaml 自动生成，禁止手工编辑。修改请编辑本体后运行 pnpm docs:gen（目标：TESTING.md） -->
 
 
 # 测试指南
@@ -6,7 +6,7 @@
 ## 运行测试
 
 ```bash
-pnpm -r test    # 全部测试
+pnpm -r test
 cd packages/shared && pnpm test
 cd packages/agent && pnpm test
 cd packages/server && pnpm test

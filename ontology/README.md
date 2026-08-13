@@ -1,6 +1,6 @@
 # playwright-demo 本体论架构
 
-本仓库的文档体系与代码约束以 **本体（Ontology）** 为核心构建：`ontology/project-ontology.json` 是**唯一事实源（Single Source of Truth）**，其余一切——项目文档、代码校验规则——都是它的派生视图。
+本仓库的文档体系与代码约束以 **本体（Ontology）** 为核心构建：`ontology/project-ontology.yaml` 是**唯一事实源（Single Source of Truth）**，其余一切——项目文档、代码校验规则——都是它的派生视图。
 
 ## 为什么用本体
 
@@ -20,11 +20,20 @@
 - **知识（knowledge）** — 项目描述、技术栈、测试策略、部署信息
 - **文档（documents）** — 每个文档的用途与生成模板
 
+## 为什么用 YAML
+
+本体文件使用 **YAML** 作为序列化格式（解析依赖 `yaml` 包）：
+
+- **支持注释** — 每条规则、每个例外都可以记录"为什么"，这是本体维护最重要的能力
+- **可读性好** — 缩进结构比 JSON 的引号/逗号友好，适合作为人工维护的事实源
+- **生态惯例** — 配置与本体类文件在工程生态中普遍使用 YAML
+
 ## 架构总览
 
 ```text
 ontology/
-  project-ontology.json   ← 唯一事实源（改约束就改这里）
+  project-ontology.yaml   ← 唯一事实源（改约束就改这里）
+  README.md               ← 本说明（手写，不属于生成物）
 scripts/
   ontology-generate.mjs   ← 本体 → 生成 6 份文档（README/CLAUDE/GEMINI/AGENTS/TESTING/DEPLOYMENT）
   ontology-check.mjs      ← 本体 → 校验代码（any/命名/行数/提交格式/依赖边界）
@@ -44,14 +53,12 @@ pnpm ontology:check no-any   # 只跑指定规则
 
 本体中的每条规则都可以声明 `exemptions`（豁免路径），且豁免**必须记录理由**：
 
-```json
-{
-  "id": "code.ts-complete-types",
-  "description": "TypeScript 类型写完整，禁止 any",
-  "enforceable": true,
-  "checker": "no-any",
-  "exemptions": ["**/__tests__/**"]
-}
+```yaml
+- id: code.ts-complete-types
+  description: TypeScript 类型写完整，禁止 any
+  enforceable: true
+  checker: no-any
+  exemptions: ["**/__tests__/**"]   # 测试 mock 与断言需要宽松类型
 ```
 
 当前豁免（全部记录在 `properties.naming.exceptions`）：
@@ -66,7 +73,7 @@ pnpm ontology:check no-any   # 只跑指定规则
 | Node 内建 / `_` 哨兵 | `__dirname`、`_exhaustive` |
 | 历史提交 | 已发生的提交不合规只记为债务（warning），新提交必须合规 |
 
-**修改约束的正确姿势**：编辑 `ontology/project-ontology.json` → `pnpm docs:gen` → `pnpm ontology:check` → 提交。不要直接编辑任何 `.md`。
+**修改约束的正确姿势**：编辑 `ontology/project-ontology.yaml` → `pnpm docs:gen` → `pnpm ontology:check` → 提交。不要直接编辑任何 `.md`。
 
 ## 校验器支持的规则
 
@@ -83,3 +90,5 @@ pnpm ontology:check no-any   # 只跑指定规则
 **Q: 生成的文档要提交到 git 吗？** 要。AI 工具（Claude Code、Gemini CLI）直接读取仓库根目录的 `CLAUDE.md` / `AGENTS.md`，它们需要存在且与本体一致（CI 用 `pnpm docs:check` 强制）。
 
 **Q: 想让某条规则不再生效？** 删除本体中对应 rule 条目（或设 `enforceable: false`），重新生成即可——所有文档里的对应段落也会随之消失，不会留下"失效规则"的文本残留。
+
+**Q: YAML 里含 `<` 或 `:` 的字符串需要加引号吗？** 需要。以特殊字符开头的值（如 `<类型>`）必须用引号包裹，否则 YAML 会把它当作嵌套结构解析（参见 rules 中 `git.commit-format` 的写法）。

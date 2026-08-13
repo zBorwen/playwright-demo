@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * ontology-check.mjs
- * 根据 ontology/project-ontology.json 中的可执行规则校验代码库。
+ * 根据 ontology/project-ontology.yaml 中的可执行规则校验代码库。
  * 运行：pnpm ontology:check
  * 支持规则（rules[].checker）：
  *   - no-any            : 禁止 any 类型（本体 exemptions 可豁免，如 __tests__）
@@ -15,11 +15,12 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import YAML from 'yaml'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
-const ONTOLOGY = JSON.parse(
-  readFileSync(resolve(ROOT, 'ontology/project-ontology.json'), 'utf8'),
+const ONTOLOGY = YAML.parse(
+  readFileSync(resolve(ROOT, 'ontology/project-ontology.yaml'), 'utf8'),
 )
 
 const EXCLUDE_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'storage', '.playwright-mcp', '.claude', '.agents', 'test-results', 'coverage'])

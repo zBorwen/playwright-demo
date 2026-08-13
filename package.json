@@ -12,6 +12,7 @@
     "ontology:check": "node scripts/ontology-check.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.59.1"
+    "@playwright/test": "^1.59.1",
+    "yaml": "^2.9.0"
   }
 }

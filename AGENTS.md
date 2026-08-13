@@ -1,4 +1,4 @@
-<!-- ⚠️ 本文件由 ontology/project-ontology.json 自动生成，禁止手工编辑。修改请编辑本体后运行 pnpm docs:gen（目标：AGENTS.md） -->
+<!-- ⚠️ 本文件由 ontology/project-ontology.yaml 自动生成，禁止手工编辑。修改请编辑本体后运行 pnpm docs:gen（目标：AGENTS.md） -->
 
 
 # Cognitive Agent Operating Model
