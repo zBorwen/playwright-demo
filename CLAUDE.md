@@ -27,22 +27,24 @@
 |------|------|
 | `README.md` | 项目描述和使用指南 |
 | `TESTING.md` | 测试指南（运行方式、覆盖率要求） |
-| `DEPLOYMENT.md` | 部署指南 |
-| `DEV_NOTE.md` | 长期关注事项：框架新知识、环境配置等 |
-| `BUG_LOG.md` | 历史 Bug 修复原因与方案记录（现象、根因、修复、教训） |
 | `QUALITY_REPORT.md` | 项目质量与安全性审查评估报告 |
-| `WIP.md` | 中短期开发计划、任务分解、待办事项 |
-| `TODO.md` | 长期开发计划 |
-| `docs/recorder-architecture.md` | 录制器集成 playwright-core 内部 API 架构设计 |
-| `docs/replay-state-management.md` | 回放及状态管理重构设计文档 |
+| `docs/README.md` | AI Coding 生命周期文档入口（Ontology 视图） |
+| `docs/INDEX.md` | 生命周期记录索引 |
+| `docs/CONTEXT.md` | 项目上下文（分支、环境、边界） |
+| `docs/MAPPING.md` | 遗留文档映射状态 |
+| `docs/designs/` | 技术方案设计（DESIGN-001 前端状态管理、DESIGN-002 Recorder 架构、DESIGN-003 回放状态管理、DESIGN-004 录制修复总结） |
+| `docs/plans/` | 开发计划（PLAN-001 长期 TODO、PLAN-002 中短期 WIP） |
+| `docs/bugs/` | Bug 与 BugLog 记录（BUGLOG-001 历史 Bug 汇总） |
+| `docs/devnotes/` | 开发笔记（NOTE-001 环境与集成约定） |
+| `docs/deploys/` | 部署记录（DEPLOY-001 部署指南） |
 
 ## 开发流程
 
-1. 拿到任务 → 做计划、分解 todo → 写入 `WIP.md`
+1. 拿到任务 → 做计划、分解 todo → 按 Ontology 生命周期拆分为 `Plan` → `Task`（写入 `docs/plans/`、`docs/tasks/`）
 2. 针对目标编写测试用例
-3. 逐项完成 todo，确保测试通过
-4. 需要时记录文档
-5. 验收完成后清理文档，重要事项并入常规文档
+3. 逐项完成 todo，确保测试通过，并记录 `CodeChange` → `TestRun` → `TestEvidence`
+4. 需要时记录文档（`Spec` → `Design` → `Acceptance` 链条可追溯）
+5. 验收完成后清理文档，重要事项并入 `docs/devnotes/`，稳定经验晋升为规则（`docs/rules/`）
 
 ## 代码规范
 
@@ -92,11 +94,3 @@
 - `AGENTS.md` — 代理推理风格：分析问题的方法、输出格式、系统思维框架
 - 两者互补，不重复
 
-## 启用的插件
-
-- **playwright** — 浏览器自动化 / E2E 测试
-- **typescript-lsp** — TypeScript 语言支持
-- **context7** — 库文档查询
-- **superpowers** — 开发工作流技能
-- **frontend-design** — 前端 UI 生成
-- **github** — GitHub 集成
