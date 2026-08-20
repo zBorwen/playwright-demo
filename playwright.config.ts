@@ -1,7 +1,14 @@
+import os from 'node:os';
+import path from 'node:path';
 import { defineConfig } from '@playwright/test';
+
+const runId = `${process.pid}`;
+const issueDbPath = path.join(os.tmpdir(), `playwright-demo-issues-e2e-${runId}.sqlite`);
+const outputDir = path.join(os.tmpdir(), `playwright-demo-results-${runId}`);
 
 export default defineConfig({
   testDir: './tests',
+  outputDir,
   timeout: 30_000,
   use: {
     baseURL: 'http://127.0.0.1:5173',
@@ -10,7 +17,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'ISSUES_DB_PATH=./data/issues-e2e.sqlite pnpm --filter server start',
+      command: `ISSUES_DB_PATH="${issueDbPath}" pnpm --filter server start`,
       port: 3000,
       reuseExistingServer: true,
       timeout: 30_000,
