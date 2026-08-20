@@ -20,9 +20,15 @@ jobs:
           pnpm --version
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Typecheck
-        run: pnpm typecheck
-      - name: Unit tests
-        run: pnpm test
+      - name: Typecheck scoped modules
+        run: |
+          pnpm --filter @playwright-demo/shared exec tsc --noEmit
+          pnpm --filter @playwright-demo/server exec tsc --noEmit
+          pnpm --filter @playwright-demo/frontend exec tsc --noEmit
+      - name: Unit tests scoped modules
+        run: |
+          pnpm --filter @playwright-demo/shared test
+          pnpm --filter @playwright-demo/server test
+          pnpm --filter @playwright-demo/frontend test
       - name: Browser verification
         run: pnpm test:browser
