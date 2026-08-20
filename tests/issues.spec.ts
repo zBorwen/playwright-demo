@@ -12,14 +12,15 @@ test('issue workspace keeps long text contained and clears stale detail after fi
   await page.goto('/issues');
   await page.getByRole('button', { name: 'New issue' }).click();
 
-  await page.getByLabel('Title', { exact: true }).fill('Browser regression issue');
+  const createForm = page.locator('form');
+  await createForm.getByLabel(/^Title/).fill('Browser regression issue');
   const longDescription = 'x'.repeat(350);
-  await page.getByLabel(/^Description/).fill(longDescription);
-  await expect(page.getByLabel(/^Description/)).toHaveValue('x'.repeat(300));
-  await page.getByLabel('Priority', { exact: true }).selectOption('urgent');
-  await page.getByLabel('Assignee', { exact: true }).fill('alice');
-  await page.getByLabel('Labels (comma separated)', { exact: true }).fill('ui, regression');
-  await page.getByRole('button', { name: 'Create issue' }).click();
+  await createForm.getByLabel(/^Description/).fill(longDescription);
+  await expect(createForm.getByLabel(/^Description/)).toHaveValue('x'.repeat(300));
+  await createForm.getByLabel(/^Priority/).selectOption('urgent');
+  await createForm.getByLabel(/^Assignee/).fill('alice');
+  await createForm.getByLabel(/^Labels/).fill('ui, regression');
+  await createForm.getByRole('button', { name: 'Create issue' }).click();
 
   const issueRow = page.getByRole('button', { name: /Browser regression issue/ });
   await expect(issueRow).toBeVisible();
