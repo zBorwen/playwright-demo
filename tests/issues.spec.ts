@@ -12,13 +12,13 @@ test('issue workspace keeps long text contained and clears stale detail after fi
   await page.goto('/issues');
   await page.getByRole('button', { name: 'New issue' }).click();
 
-  await page.getByLabel('Title').fill('Browser regression issue');
+  await page.getByLabel('Title', { exact: true }).fill('Browser regression issue');
   const longDescription = 'x'.repeat(350);
-  await page.getByLabel('Description').fill(longDescription);
-  await expect(page.getByLabel('Description')).toHaveValue('x'.repeat(300));
-  await page.getByLabel('Priority').selectOption('urgent');
-  await page.getByLabel('Assignee').fill('alice');
-  await page.getByLabel('Labels (comma separated)').fill('ui, regression');
+  await page.getByLabel('Description', { exact: true }).fill(longDescription);
+  await expect(page.getByLabel('Description', { exact: true })).toHaveValue('x'.repeat(300));
+  await page.getByLabel('Priority', { exact: true }).selectOption('urgent');
+  await page.getByLabel('Assignee', { exact: true }).fill('alice');
+  await page.getByLabel('Labels (comma separated)', { exact: true }).fill('ui, regression');
   await page.getByRole('button', { name: 'Create issue' }).click();
 
   const issueRow = page.getByRole('button', { name: /Browser regression issue/ });
