@@ -6,6 +6,7 @@ import { projectsRouter } from './routes/projects';
 import { recordingsRouter } from './routes/recordings';
 import { executionsRouter } from './routes/executions';
 import { networkRouter } from './routes/network';
+import { issuesRouter } from './routes/issues';
 import { errorHandler } from './middleware/error-handler';
 import { successResponse } from './middleware/response';
 import type { Env } from './types/env';
@@ -55,5 +56,6 @@ app.route('/api/projects', projectsRouter);
 app.route('/api/recordings', recordingsRouter);
 app.route('/api/recordings/:id/network', networkRouter);
 app.route('/api/executions', executionsRouter);
+app.route('/api/issues', issuesRouter);
 
 export { app };

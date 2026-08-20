@@ -8,6 +8,7 @@ import { RecordingsList } from '@/pages/recordings-list';
 import { RecordingDetail } from '@/pages/recording-detail';
 import { ExecutionDetail } from '@/pages/execution-detail';
 import { Dashboard } from '@/pages/dashboard';
+import { IssuesPage } from '@/pages/issues';
 import { AppLayout } from '@/components/layout/app-layout';
 import { connect, subscribeToMessages } from '@/hooks/use-websocket';
 import { useRecordingReplayStore } from '@/store/recording-replay-store';
@@ -57,6 +58,7 @@ export function App() {
         <Route path="/recordings" element={<GlobalRecordingsPage />} />
         <Route path="/recordings/:id" element={<RecordingDetailWithKey />} />
         <Route path="/executions/:id" element={<ExecutionDetail />} />
+        <Route path="/issues" element={<IssuesPage />} />
       </Routes>
     </AppLayout>
   );

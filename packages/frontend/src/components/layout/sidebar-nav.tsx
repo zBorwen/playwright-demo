@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronRight,
   PlayCircle,
+  ClipboardList,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { fetchProjects, type Project } from '@/lib/api';
@@ -22,6 +23,7 @@ const MAIN_NAV: NavItem[] = [
   { icon: LayoutDashboard, label: '仪表盘', href: '/' },
   { icon: FolderOpen, label: '项目', href: '/projects' },
   { icon: Video, label: '录制', href: '/recordings' },
+  { icon: ClipboardList, label: 'Issues', href: '/issues' },
 ];
 
 export function SidebarNav() {

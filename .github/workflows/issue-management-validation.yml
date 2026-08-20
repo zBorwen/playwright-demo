@@ -1,0 +1,34 @@
+name: Issue Management Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10 --activate
+          pnpm --version
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck scoped modules
+        run: |
+          pnpm --filter @playwright-demo/shared exec tsc --noEmit
+          pnpm --filter @playwright-demo/server exec tsc --noEmit
+          pnpm --filter @playwright-demo/frontend exec tsc --noEmit
+      - name: Unit tests scoped modules
+        run: |
+          pnpm --filter @playwright-demo/shared test
+          pnpm --filter @playwright-demo/server test
+          pnpm --filter @playwright-demo/frontend test
+      - name: Browser verification
+        run: pnpm test:browser
