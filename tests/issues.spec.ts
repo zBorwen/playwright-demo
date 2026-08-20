@@ -14,8 +14,8 @@ test('issue workspace keeps long text contained and clears stale detail after fi
 
   await page.getByLabel('Title', { exact: true }).fill('Browser regression issue');
   const longDescription = 'x'.repeat(350);
-  await page.getByLabel('Description', { exact: true }).fill(longDescription);
-  await expect(page.getByLabel('Description', { exact: true })).toHaveValue('x'.repeat(300));
+  await page.getByLabel(/^Description/).fill(longDescription);
+  await expect(page.getByLabel(/^Description/)).toHaveValue('x'.repeat(300));
   await page.getByLabel('Priority', { exact: true }).selectOption('urgent');
   await page.getByLabel('Assignee', { exact: true }).fill('alice');
   await page.getByLabel('Labels (comma separated)', { exact: true }).fill('ui, regression');
