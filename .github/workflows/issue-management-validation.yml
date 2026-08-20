@@ -14,7 +14,10 @@ jobs:
         with:
           node-version: 22
       - name: Enable pnpm
-        run: corepack enable
+        run: |
+          corepack enable
+          corepack prepare pnpm@10 --activate
+          pnpm --version
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Typecheck
