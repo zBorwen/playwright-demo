@@ -14,17 +14,19 @@ Spec 的要求来自用户目标与实际必要约束，不穷举未来场景。
 ## 任务状态
 
 较大任务使用 `workflow/tasks/<id>.yaml`。问答、调查与简单小改不强制创建。
-字段示例见当前任务；phase 为 scoped / implementing / verifying / reviewing / done / paused，表示里程碑而非固定流水线。允许回退。
+字段示例见 workflow/tasks/workflow-followup.yaml；phase 为 scoped / implementing / verifying / reviewing / done / paused，表示里程碑而非固定流水线。允许回退。
 kind 为 small / bug / feature / refactor，risk 为 low / normal / high。高风险覆盖类型判断。
+base_commit 保存任务开始时的完整提交 SHA，必须为当前 HEAD 的祖先；校验覆盖该基准至当前工作区（已提交、暂存、未暂存、未跟踪），任务中途提交不会缩短范围。基准不存在或不合法时失败，不回退到 HEAD。
 scope 列出任务负责的全部文件（包括新文件与删除路径）；context 列相关资料及使用理由；unknown_paths 对路由未覆盖的任务文件说明调查结果。无关改动列入 excluded_changes 并解释，不覆盖它们。
 checks 包含 design、verification、review：status 为 pending / passed / failed / na / waived，配 reason；passed 配 evidence 文件路径和 fingerprint 摘要。
 - 实施前：refactor/high 的 design 必须 passed，或有用户明确豁免的引用证据。
+- 任何检查实际为 failed 时，都不能标记 done；不要求执行不等于可以忽略已经发现的问题。
 - 完成前：verification 必须 passed；普通任务及 refactor/high 的 review 必须 passed；small/low、bug/low 可 na，但要解释。
 - 用户明确接管/免除 review：用 waived + 用户决定证据文件，不能写 passed。不会自动豁免验证。
 - 验收独立为 acceptance: pending / accepted / na。done 表示工程完成，不自动代表用户接受；accepted 必须有用户反馈证据。
 
 `python3 scripts/workflow.py check workflow/tasks/<id>.yaml` 检查记录与当前工作区；未知枚举、缺少资料、未覆盖改动、完成证据缺失或摘要过期均失败。
-`python3 scripts/workflow.py fingerprint workflow/tasks/<id>.yaml design|implementation` 产生摘要。design 绑定规格；implementation 绑定 scope 全部内容和路径，包含未跟踪文件与删除状态。状态和 evidence 不得纳入 scope，防止摘要自引用。证据文件本身不作为实现摘要的一部分。
+`python3 scripts/workflow.py fingerprint workflow/tasks/<id>.yaml design|implementation` 产生摘要。design 绑定规格；implementation 绑定 scope 中实现/规格文件的内容和路径，包含未跟踪文件与删除状态。状态和 evidence 不得纳入 scope，防止摘要自引用。证据文件本身不作为实现摘要的一部分。唯一额外排除是根目录 HANDOFF.md 的接续信息：它仍在 scope 中用于范围核对，但不参与 implementation 摘要；不提供任意文件排除开关，Spec 和代码仍严格绑定。HANDOFF 不承载需求或长期规则。
 完成后实现变更会使证据失效；回到相应阶段补验/补审。范围或预期变化时也要判断设计结论是否失效，不仅依赖摘要。
 
 ## 独立审查
@@ -35,7 +37,7 @@ reviewer 与实现者分离，默认只读。报告注明 reviewer、范围、�
 
 ## 知识和交接
 
-HANDOFF 顶部链接当前任务 YAML 和 Spec，仅补充已确认决定、阻塞与下一步；状态以 YAML 为准。旧 WIP/TODO 原文迁入历史区，保留未排期待办，但不默认授权执行。
+HANDOFF 顶部链接当前任务 YAML 和 Spec，仅补充已确认决定、阻塞与下一步；状态以 YAML 为准。旧 WIP/TODO 原文保存在 docs/archive/legacy-planning.md；HANDOFF 只保留链接，按需查历史，不默认授权执行。
 后续明确的新待办放 HANDOFF 的待办池；完成事项不再重复维护在多个文件。历史快照不批量“修正”为当下事实。
 DEV_NOTE 记录已确认技术约束，BUG_LOG 记录有复用价值的根因与防复发经验；使用/测试/部署变了更新对应指南和必要索引。无需每次修改都写一条日志。
 恢复时核对 Git 分支/HEAD/未提交变更及任务证据，不能盲信交接。禁止记录密钥。
@@ -45,3 +47,5 @@ DEV_NOTE 记录已确认技术约束，BUG_LOG 记录有复用价值的根因与
 Python 3 + PyYAML：依赖见 `scripts/requirements-workflow.txt`。使用 safe_load；不执行 YAML 内容。
 `python3 -m unittest discover -s scripts -p 'test_workflow.py'` 运行针对性测试。
 校验只检查当前记录和证据条件，不记录不可篡改的状态转换历史；它不阻止直接调用编辑工具，也不替代 CI/宿主权限门禁。本次不接管提交/合并，不声称有已部署的硬拦截。
+
+历史任务 YAML 与报告保留当时证据，不为后续变更改写 passed 或重新计算旧摘要。新任务使用新的记录和开始基准；旧记录缺少新增字段时不能作为当前校验输入，查验历史版本使用对应 Git 提交。

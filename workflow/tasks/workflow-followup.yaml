@@ -1,0 +1,34 @@
+version: 1
+id: workflow-followup
+goal: 修复范围漏检和失败检查门槛，精简交接与进度摘要
+base_commit: 708234ffb87ccab99e6c5f003e1ae3078c196d22
+kind: bug
+risk: normal
+phase: done
+spec: docs/specs/agent-workflow.md
+scope:
+- HANDOFF.md
+- TESTING.md
+- docs/archive/legacy-planning.md
+- docs/specs/agent-workflow.md
+- docs/workflow/change.md
+- scripts/test_workflow.py
+- scripts/workflow.py
+context:
+  docs/workflow/change.md: 本次工具修复与流程约定相关，已读取
+unknown_paths: {}
+excluded_changes: {}
+checks:
+  design:
+    status: na
+    reason: 局部已明确 Bug 修复与资料归档，不改变架构
+  verification:
+    status: passed
+    evidence: workflow/evidence/workflow-followup-verification.md
+    fingerprint: 3cbd0c3f7e72b73bf4662b4edf6eab6fc5b5515044bfc29d652d343b4933b011
+  review:
+    status: passed
+    evidence: workflow/evidence/workflow-followup-review.md
+    fingerprint: 3cbd0c3f7e72b73bf4662b4edf6eab6fc5b5515044bfc29d652d343b4933b011
+acceptance:
+  status: pending

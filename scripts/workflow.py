@@ -1,6 +1,7 @@
 """检查按需 SDD 的记录与证据；不执行任务，也不充当宿主权限门禁。"""
 import argparse
 import hashlib
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -54,6 +55,8 @@ def fingerprint(root, task, stage):
             raise ValueError('scope 不得包含状态或证据，避免自引用')
         if path.is_dir():
             raise ValueError(f'scope 必须列具体文件: {name}')
+        if stage == 'implementation' and name == 'HANDOFF.md':
+            continue
         content = b'file\0' + path.read_bytes() if path.exists() else b'deleted'
         for part in (name.encode(), content):
             digest.update(len(part).to_bytes(8, 'big'))
@@ -61,9 +64,13 @@ def fingerprint(root, task, stage):
     return digest.hexdigest()
 
 
-def changed_files(root):
+def changed_files(root, base_commit):
+    if not isinstance(base_commit, str) or not re.fullmatch(r'[0-9a-f]{40}', base_commit):
+        raise ValueError('base_commit 必须是任务开始时的完整提交 SHA')
+    subprocess.check_call(['git', 'merge-base', '--is-ancestor', base_commit, 'HEAD'], cwd=root)
     result = set()
-    for args in (['diff', '--name-only', '--no-renames', '-z', 'HEAD'],
+    for args in (['diff', '--name-only', '--no-renames', '-z', base_commit],
+                 ['diff', '--cached', '--name-only', '--no-renames', '-z', base_commit],
                  ['ls-files', '--others', '--exclude-standard', '-z']):
         output = subprocess.check_output(['git', *args], cwd=root)
         result.update(p for p in output.decode().split('\0') if p)
@@ -84,6 +91,7 @@ def validate(root, task, changed):
     try:
         kind, risk, phase = task['kind'], task['risk'], task['phase']
         require(task.get('version') == 1, 'version 必须为 1')
+        require(isinstance(task.get('base_commit'), str) and bool(re.fullmatch(r'[0-9a-f]{40}', task['base_commit'])), '缺少有效 base_commit')
         require(bool(task.get('id')) and bool(task.get('goal')), '缺少 id/goal')
         require(kind in {'small', 'bug', 'feature', 'refactor'}, '未知 kind')
         require(risk in {'low', 'normal', 'high'}, '未知 risk')
@@ -129,6 +137,7 @@ def validate(root, task, changed):
             if status == 'passed':
                 require(evidence(check.get('evidence')), f'{name} 缺少证据文件')
                 require(check.get('fingerprint') == expected, f'{name} 证据已过期')
+            require(not (phase == 'done' and status == 'failed'), f'{name} 已失败，不能完成任务')
             gate = phase == 'done' or (name == 'design' and phase in {'implementing', 'verifying', 'reviewing'})
             if gate and required:
                 require(status in {'passed', 'waived'}, f'{name} 尚未满足阶段条件')
@@ -159,7 +168,7 @@ def main():
                 raise ValueError('fingerprint 需要任务文件和 design|implementation')
             print(fingerprint(ROOT, task, args.paths[1]))
             return 0
-        errors = validate(ROOT, task, changed_files(ROOT))
+        errors = validate(ROOT, task, changed_files(ROOT, task['base_commit']))
         print('\n'.join(errors) if errors else 'PASS: 状态、路由与证据条件通过（不代表用户验收或模型理解证明）')
         return 1 if errors else 0
     except (ValueError, OSError, yaml.YAMLError, subprocess.CalledProcessError, KeyError, TypeError) as exc:

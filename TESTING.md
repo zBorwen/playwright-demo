@@ -42,7 +42,7 @@ cd packages/server && pnpm test
 ```bash
 python3 -m pip install -r scripts/requirements-workflow.txt
 python3 -m unittest discover -s scripts -p 'test_workflow.py'
-python3 scripts/workflow.py check workflow/tasks/agent-workflow.yaml
+python3 scripts/workflow.py check workflow/tasks/workflow-followup.yaml
 ```
 
 校验不证明模型已理解文档，也不是编辑/合并的强制拦截器。详见 `docs/workflow/change.md`。

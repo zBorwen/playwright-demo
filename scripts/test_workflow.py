@@ -1,6 +1,7 @@
 """验证状态门槛、证据失效和路由遗漏，不依赖应用服务。"""
 from pathlib import Path
 import tempfile
+import subprocess
 import unittest
 
 import workflow
@@ -15,7 +16,7 @@ class WorkflowTests(unittest.TestCase):
         (self.root / 'workflow/routes.yaml').write_text('routes:\n- prefixes: [app.py]\n  docs: [guide.md]\n- prefixes: [spec.md]\n  docs: []\n')
         for name in ['spec.md', 'app.py', 'guide.md', 'proof.md']:
             (self.root / name).write_text(name)
-        self.task = dict(version=1, id='demo', goal='demo', kind='feature', risk='normal',
+        self.task = dict(version=1, base_commit='a' * 40, id='demo', goal='demo', kind='feature', risk='normal',
                          phase='done', spec='spec.md', scope=['spec.md', 'app.py'],
                          context={'guide.md': '模块约定'}, acceptance={'status': 'pending'},
                          checks={'design': {'status': 'na', 'reason': '非重构/高风险'}})
@@ -104,6 +105,57 @@ class WorkflowTests(unittest.TestCase):
         (self.root / 'alias').symlink_to(self.root / '.env')
         with self.assertRaises(ValueError):
             workflow.local_path(self.root, 'alias')
+
+    def test_optional_failed_check_blocks_done(self):
+        self.task.update(kind='small', risk='low')
+        for name in ['design', 'review']:
+            with self.subTest(name=name):
+                original = self.task['checks'][name]
+                self.task['checks'][name] = {'status': 'failed', 'reason': '实际发现问题'}
+                self.assertTrue(any('已失败' in e for e in self.errors()))
+                self.task['checks'][name] = original
+
+    def test_handoff_does_not_invalidate_implementation(self):
+        (self.root / 'HANDOFF.md').write_text('next step')
+        before = workflow.fingerprint(self.root, self.task, 'implementation')
+        self.task['scope'].append('HANDOFF.md')
+        self.assertEqual(before, workflow.fingerprint(self.root, self.task, 'implementation'))
+        (self.root / 'HANDOFF.md').write_text('updated progress')
+        self.assertEqual(before, workflow.fingerprint(self.root, self.task, 'implementation'))
+        (self.root / 'app.py').write_text('implementation changed')
+        self.assertNotEqual(before, workflow.fingerprint(self.root, self.task, 'implementation'))
+
+    def test_missing_base_is_rejected(self):
+        del self.task['base_commit']
+        self.assertTrue(self.errors())
+
+    def test_git_scope_includes_committed_staged_unstaged_and_new(self):
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(self.root), *args], stderr=subprocess.DEVNULL).decode().strip()
+        git('init')
+        git('add', '.')
+        git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-m', 'base')
+        base = git('rev-parse', 'HEAD')
+        self.task['base_commit'] = base
+        (self.root / 'missed.py').write_text('committed outside scope')
+        git('add', 'missed.py')
+        git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-m', 'task work')
+        changed = workflow.changed_files(self.root, base)
+        self.assertEqual(changed, {'missed.py'})
+        self.assertTrue(any('未覆盖实际改动' in e for e in workflow.validate(self.root, self.task, changed)))
+        (self.root / 'staged.py').write_text('staged')
+        git('add', 'staged.py')
+        (self.root / 'app.py').write_text('unstaged')
+        (self.root / 'new.py').write_text('untracked')
+        (self.root / 'guide.md').unlink()
+        self.assertEqual(workflow.changed_files(self.root, base), {'missed.py', 'staged.py', 'app.py', 'new.py', 'guide.md'})
+        (self.root / 'proof.md').write_text('staged proof change')
+        git('add', 'proof.md')
+        (self.root / 'proof.md').write_text('proof.md')
+        self.assertIn('proof.md', workflow.changed_files(self.root, base))
+        for invalid in ['HEAD', '', 'f' * 40]:
+            with self.subTest(base=invalid), self.assertRaises((ValueError, subprocess.CalledProcessError)):
+                workflow.changed_files(self.root, invalid)
 
     def test_pause_and_acceptance(self):
         self.task['phase'] = 'paused'
