@@ -1,0 +1,23 @@
+version: 1
+project:
+  status: uninitialized
+  analyzed_commit: null
+routes:
+  - prefixes:
+      - AGENTS.md
+      - HANDOFF.md
+      - docs/workflow/
+      - workflow/
+      - scripts/workflow.py
+      - scripts/test_workflow.py
+      - scripts/requirements-workflow.txt
+    docs:
+      - docs/workflow/change.md
+  - prefixes:
+      - docs/specs/
+    docs: []
+# 按目标项目实际模块补充 prefixes/docs，不用空字符串兜底所有路径。
+# intent_docs 供 Agent 按意图查阅；当前 CLI route 按文件路径工作。
+intent_docs:
+  resume:
+    - HANDOFF.md

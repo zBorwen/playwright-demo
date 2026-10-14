@@ -41,8 +41,10 @@ cd packages/server && pnpm test
 
 ```bash
 python3 -m pip install -r scripts/requirements-workflow.txt
-python3 -m unittest discover -s scripts -p 'test_workflow.py'
-python3 scripts/workflow.py check workflow/tasks/workflow-records.yaml
+python3 -m unittest discover -s scripts -p 'test_workflow*.py'
+python3 scripts/workflow.py check workflow/tasks/your-task.yaml
 ```
+
+`your-task` 替换为 HANDOFF 指向的当前任务 ID。测试包含核心规则、项目路由及跨项目导出；导出包只携带核心测试。
 
 校验不证明模型已理解文档，也不是编辑/合并的强制拦截器。详见 `docs/workflow/change.md`。

@@ -89,6 +89,10 @@ def validate(root, task, changed):
         return path.is_file() and bool(path.read_text().strip())
 
     try:
+        project = read_yaml(root / 'workflow/routes.yaml').get('project', {})
+        require(project.get('status') == 'ready', '项目尚未初始化：先分析目标项目并填写约定与路由')
+        analyzed = project.get('analyzed_commit')
+        require(isinstance(analyzed, str) and bool(re.fullmatch(r'[0-9a-f]{40}', analyzed)), '缺少项目分析基准 analyzed_commit')
         kind, risk, phase = task['kind'], task['risk'], task['phase']
         require(task.get('version') == 1, 'version 必须为 1')
         require(isinstance(task.get('base_commit'), str) and bool(re.fullmatch(r'[0-9a-f]{40}', task['base_commit'])), '缺少有效 base_commit')

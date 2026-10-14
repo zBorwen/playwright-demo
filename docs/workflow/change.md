@@ -1,5 +1,7 @@
 # 按需 SDD 与执行证据
 
+准备开发时先确认项目 routes 的初始化标记；未初始化按 portable.md 分析一次并填写约定和路由，已有 ready 配置不重复扫描。校验拒绝未初始化的任务记录。
+
 ## 规格与自主路径
 
 小修改在对话内写清预期、范围和验收即可。功能/行为变更/重构维护 `docs/specs/<domain>.md`，包含目标、非目标、REQ 与验收、必要设计；沿用既有相关规格，不为每步建文件。
@@ -14,7 +16,7 @@ Spec 的要求来自用户目标与实际必要约束，不穷举未来场景。
 ## 任务状态
 
 较大任务使用 `workflow/tasks/<id>.yaml`。问答、调查与简单小改不强制创建。
-字段示例见 workflow/tasks/workflow-records.yaml；phase 为 scoped / implementing / verifying / reviewing / done / paused，表示里程碑而非固定流水线。允许回退。
+新任务从 workflow/templates/task.yaml 复制并填入真实数据，Spec 可参考 workflow/templates/spec.md；phase 为 scoped / implementing / verifying / reviewing / done / paused，表示里程碑而非固定流水线。允许回退。
 kind 为 small / bug / feature / refactor，risk 为 low / normal / high。高风险覆盖类型判断。
 base_commit 保存任务开始时的完整提交 SHA，必须为当前 HEAD 的祖先；校验覆盖该基准至当前工作区（已提交、暂存、未暂存、未跟踪），任务中途提交不会缩短范围。基准不存在或不合法时失败，不回退到 HEAD。
 scope 列出任务负责的全部文件（包括新文件与删除路径）；context 列相关资料及使用理由；unknown_paths 对路由未覆盖的任务文件说明调查结果。无关改动列入 excluded_changes 并解释，不覆盖它们。
@@ -38,15 +40,15 @@ reviewer 与实现者分离，默认只读。reviewer 返回范围、基准、�
 
 ## 知识和交接
 
-HANDOFF 恰好一个“## 当前任务”段落，只链接一份当前任务 YAML，并引用 Spec、补充决定/阻塞/下一步。新任务替换当前段落，旧任务移到“历史任务”下仅保留链接；不能堆叠多个“当前任务”。校验会检查唯一性和任务对应。并行子任务记录在主任务 YAML 中，子 Agent 不分别追加当前任务；由主 Agent 整合。状态以 YAML 为准。旧 WIP/TODO 原文保存在 docs/archive/legacy-planning.md；HANDOFF 只保留链接，按需查历史，不默认授权执行。
+HANDOFF 恰好一个“## 当前任务”段落，只链接一份当前任务 YAML，并引用 Spec、补充决定/阻塞/下一步。新任务替换当前段落，旧任务移到“历史任务”下仅保留链接；不能堆叠多个“当前任务”。校验会检查唯一性和任务对应。并行子任务记录在主任务 YAML 中，子 Agent 不分别追加当前任务；由主 Agent 整合。状态以 YAML 为准。迁移前的旧计划保留到项目历史归档；HANDOFF 只保留历史入口，按需读取，不默认授权执行。
 后续明确的新待办放 HANDOFF 的待办池；完成事项不再重复维护在多个文件。历史快照不批量“修正”为当下事实。
-DEV_NOTE 记录已确认技术约束，BUG_LOG 记录有复用价值的根因与防复发经验；使用/测试/部署变了更新对应指南和必要索引。无需每次修改都写一条日志。增加测试文件不自动扩写 TESTING，普通功能的命令和结果只记录于任务 YAML；仅稳定执行方式或可复用知识发生变化时更新指南。
+项目开发笔记记录已确认技术约束，Bug 记录保留有复用价值的根因；使用/测试/部署变了才更新路由索引对应的指南。无需每次修改都写日志。新增测试不自动扩写测试指南，普通功能命令与结果只记录于任务 YAML。
 恢复时核对 Git 分支/HEAD/未提交变更及任务证据，不能盲信交接。禁止记录密钥。
 
 ## 校验能力与环境
 
 Python 3 + PyYAML：依赖见 `scripts/requirements-workflow.txt`。使用 safe_load；不执行 YAML 内容。
-`python3 -m unittest discover -s scripts -p 'test_workflow.py'` 运行针对性测试。
+`python3 -m unittest discover -s scripts -p 'test_workflow*.py'` 运行针对性测试。
 校验只检查当前记录和证据条件，不记录不可篡改的状态转换历史；它不阻止直接调用编辑工具，也不替代 CI/宿主权限门禁。本次不接管提交/合并，不声称有已部署的硬拦截。
 
 历史任务 YAML 与报告保留当时证据，不为后续变更改写 passed 或重新计算旧摘要。新任务使用新的记录和开始基准；旧记录缺少新增字段时不能作为当前校验输入，查验历史版本使用对应 Git 提交。

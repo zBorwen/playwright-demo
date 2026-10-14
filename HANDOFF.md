@@ -1,13 +1,14 @@
 # 工作交接与待办
 
-## 当前任务：记录减负与 HANDOFF 优化
+## 当前任务：通用 workflow 导出
 
-- 任务：`workflow/tasks/workflow-records.yaml`；规格：`docs/specs/agent-workflow.md`。
-- 范围：内联简短证据、唯一当前任务检查；随后五项隔离试验，含多 Agent 复杂任务。
-- 下一步：用户检查本轮 workflow 改动；工具验证、独立审查和五项隔离试验已记录于任务 YAML。业务试验不合入主项目；尚未提交或推送。
+- 任务：`workflow/tasks/workflow-portable.yaml`；规格：`docs/specs/agent-workflow.md`。
+- 范围：通用规则与项目配置分离、一次性项目分析初始化、白名单导出及跨项目校验。
+- 下一步：可移植包已完成验证和独立审查；用户指定目标项目后再实际接入。提交和推送状态以 Git 为准。
 
 ## 历史任务
 
+- 记录减负：`workflow/tasks/workflow-records.yaml`。
 - 上次校验修复：`workflow/tasks/workflow-followup.yaml`。
 - 首次迁移：`workflow/tasks/agent-workflow.yaml`。
 

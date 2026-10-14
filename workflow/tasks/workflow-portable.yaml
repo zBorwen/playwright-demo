@@ -1,0 +1,51 @@
+version: 1
+id: workflow-portable
+goal: 可移植workflow模板及由Agent执行的一次性项目初始化
+base_commit: e14a7a3543329246d60d999df85d5acdf76a2a48
+kind: feature
+risk: normal
+phase: done
+spec: docs/specs/agent-workflow.md
+scope:
+- AGENTS.md
+- HANDOFF.md
+- README.md
+- TESTING.md
+- docs/specs/agent-workflow.md
+- docs/workflow/change.md
+- docs/workflow/conventions.md
+- docs/workflow/portable.md
+- scripts/export_workflow.py
+- scripts/test_workflow.py
+- scripts/test_workflow_export.py
+- scripts/test_workflow_routes.py
+- scripts/workflow.py
+- workflow/routes.yaml
+- workflow/sdd-workflow-kit.zip
+- workflow/templates/HANDOFF.md
+- workflow/templates/conventions.md
+- workflow/templates/routes.yaml
+- workflow/templates/spec.md
+- workflow/templates/task.yaml
+context:
+  docs/workflow/change.md: 移植初始化、通用导出及项目约定，本轮已读取核对
+  docs/workflow/portable.md: 移植初始化、通用导出及项目约定，本轮已读取核对
+unknown_paths: {}
+excluded_changes: {}
+checks:
+  design:
+    status: na
+    reason: 在现有核心外增加白名单导出与模板，保持任务校验接口
+  verification:
+    status: passed
+    report: 30项测试通过，含导出包独立26项核心测试、两种Git目录布局、白名单/拒绝覆盖、证据失效及未初始化门槛。已核对本项目manifest/README/知识目录并填入工程约定与初始化基准；命令仅核实定义，未启动应用服务或迁移。任务check、route与diff通过。
+      追加提交的ZIP已逐文件与导出白名单源内容字节比对一致，ZIP完整性通过。
+    fingerprint: 74dd3661730cdf65882216f381101e9f98b753300af0211520bd16b288e765d9
+  review:
+    status: passed
+    reviewer: portable_review（GPT-6.1 Sol/high，独立只读补审）
+    report: 核对初始化步骤、模板、校验分支、调用方、项目依据与全部相关改动；独立复跑30项测试/check/route/diff通过，无阻塞。未把ready标记作为理解证明；未验证其他OS/宿主或实际外部工程。
+      包补审：排除ZIP后源码摘要与前次相同；ZIP内12文件精确匹配白名单、逐文件字节一致、无重复/路径逃逸/损坏。无新逻辑，未重跑全量测试。
+    fingerprint: 74dd3661730cdf65882216f381101e9f98b753300af0211520bd16b288e765d9
+acceptance:
+  status: pending

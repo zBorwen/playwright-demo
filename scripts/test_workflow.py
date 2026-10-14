@@ -13,7 +13,7 @@ class WorkflowTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         (self.root / 'workflow').mkdir()
-        (self.root / 'workflow/routes.yaml').write_text('routes:\n- prefixes: [app.py]\n  docs: [guide.md]\n- prefixes: [spec.md]\n  docs: []\n')
+        (self.root / 'workflow/routes.yaml').write_text('project:\n  status: ready\n  analyzed_commit: '+ 'a' * 40 + '\nroutes:\n- prefixes: [app.py]\n  docs: [guide.md]\n- prefixes: [spec.md]\n  docs: []\n')
         for name in ['spec.md', 'app.py', 'guide.md', 'proof.md']:
             (self.root / name).write_text(name)
         self.task = dict(version=1, base_commit='a' * 40, id='demo', goal='demo', kind='feature', risk='normal',
@@ -28,12 +28,13 @@ class WorkflowTests(unittest.TestCase):
     def errors(self):
         return workflow.validate(self.root, self.task, {'app.py'})
 
-    def test_project_css_and_state_routes(self):
-        docs, unknown = workflow.route(workflow.ROOT, ['packages/frontend/src/index.css'])
-        self.assertEqual((docs, unknown), ([], []))
-        docs, unknown = workflow.route(workflow.ROOT, ['packages/frontend/src/store/app-store.ts'])
-        self.assertIn('docs/frontend-state-management.md', docs)
-        self.assertEqual(unknown, [])
+    def test_uninitialized_project_blocks_task_check(self):
+        config = self.root / 'workflow/routes.yaml'
+        original = config.read_text()
+        config.write_text(original.replace('status: ready', 'status: uninitialized'))
+        self.assertTrue(any('尚未初始化' in e for e in self.errors()))
+        config.write_text(original.replace('a' * 40, 'null'))
+        self.assertTrue(any('分析基准' in e for e in self.errors()))
 
     def test_complete(self):
         self.assertEqual(self.errors(), [])

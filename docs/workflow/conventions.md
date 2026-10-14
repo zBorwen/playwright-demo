@@ -47,3 +47,8 @@
 - 不访问项目内的 `.env` 文件
 - 如需涉及 `.env` 的操作，编写脚本交由用户手动执行
 
+
+## 项目分析依据（2026-10-15）
+
+已核对根及四个 packages 的 package.json、pnpm-workspace.yaml、README 架构与知识文档目录。Server 提供 Hono/数据库/WS，Agent 负责 Playwright 录制回放，Frontend 为 React/Vite，Shared 保存 Zod/类型。已有文档路径由 workflow/routes.yaml 索引，不复制历史内容。
+启动命令定义来自根 package.json：pnpm dev、pnpm dev:server、pnpm dev:frontend、pnpm dev:agent；测试定义为各包 vitest，根 README 提供 pnpm -r test；前端构建定义为包内 pnpm build。这些定义本轮已核实，未实际启动服务、执行数据库操作或重跑应用全套测试。README 中历史测试数量不作为当前事实。

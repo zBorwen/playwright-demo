@@ -57,6 +57,12 @@ routes:
   - QUALITY_REPORT.md
   - docs/
   docs: []
+- prefixes:
+  - scripts/export_workflow.py
+  - scripts/test_workflow_export.py
+  - scripts/test_workflow_routes.py
+  docs:
+  - docs/workflow/portable.md
 intent_docs:
   startup:
   - README.md
@@ -71,3 +77,6 @@ intent_docs:
   - QUALITY_REPORT.md
   resume:
   - HANDOFF.md
+project:
+  status: ready
+  analyzed_commit: e14a7a3543329246d60d999df85d5acdf76a2a48

@@ -1,0 +1,25 @@
+version: 1
+id: replace-me
+goal: 待填写真实目标
+base_commit: REPLACE_WITH_GIT_REV_PARSE_HEAD
+kind: feature
+risk: normal
+phase: scoped
+spec: docs/specs/replace-me.md
+scope:
+  - docs/specs/replace-me.md
+  - HANDOFF.md
+context:
+  docs/workflow/change.md: 创建任务时核对记录与审查要求
+unknown_paths: {}
+excluded_changes: {}
+checks:
+  design:
+    status: na
+    reason: 仅普通功能不强制设计审查；重构或高风险需改为pending并实际审查
+  verification:
+    status: pending
+  review:
+    status: pending
+acceptance:
+  status: pending
