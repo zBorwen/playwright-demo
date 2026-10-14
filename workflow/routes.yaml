@@ -1,0 +1,73 @@
+version: 1
+routes:
+- prefixes:
+  - packages/agent/src/core/recorder/
+  docs:
+  - docs/recorder-architecture.md
+- prefixes:
+  - packages/agent/src/core/replay/
+  docs:
+  - docs/replay-state-management.md
+- prefixes:
+  - packages/frontend/src/store/
+  - packages/frontend/src/hooks/use-recording-websocket.ts
+  - packages/frontend/src/hooks/use-websocket.ts
+  - packages/frontend/src/lib/recording-replay-storage.ts
+  docs:
+  - docs/frontend-state-management.md
+  - docs/replay-state-management.md
+- prefixes:
+  - packages/frontend/
+  docs: []
+- prefixes:
+  - packages/server/
+  - packages/shared/
+  - packages/agent/
+  docs:
+  - DEV_NOTE.md
+  - TESTING.md
+- prefixes:
+  - docs/workflow/
+  - docs/specs/agent-workflow.md
+  - workflow/
+  - scripts/workflow.py
+  - scripts/test_workflow.py
+  - scripts/requirements-workflow.txt
+  - AGENTS.md
+  - HANDOFF.md
+  - CLAUDE.md
+  - GEMINI.md
+  - WIP.md
+  - TODO.md
+  docs:
+  - docs/workflow/change.md
+- prefixes:
+  - package.json
+  - pnpm-lock.yaml
+  - pnpm-workspace.yaml
+  - .gitignore
+  docs:
+  - docs/workflow/conventions.md
+- prefixes:
+  - README.md
+  - TESTING.md
+  - DEPLOYMENT.md
+  - DEV_NOTE.md
+  - BUG_LOG.md
+  - QUALITY_REPORT.md
+  - docs/
+  docs: []
+intent_docs:
+  startup:
+  - README.md
+  testing:
+  - TESTING.md
+  deployment:
+  - DEPLOYMENT.md
+  history:
+  - BUG_LOG.md
+  - DEV_NOTE.md
+  quality_audit:
+  - QUALITY_REPORT.md
+  resume:
+  - HANDOFF.md

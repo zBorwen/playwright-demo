@@ -1,3 +1,19 @@
+# 工作交接与待办
+
+## 当前任务：按需 SDD workflow
+
+任务状态和证据：`workflow/tasks/agent-workflow.yaml`。规格：`docs/specs/agent-workflow.md`。
+基准 HEAD：3570734，初始为 detached HEAD；接手先核对 Git 状态。本次不修改应用功能。
+已确认：模型自选路径；最小必要澄清；完整 grilling 仅显式使用；主 Agent 自主决定并行；风险覆盖任务标签；实际知识按需更新。
+下一步：以任务 YAML 的阶段和证据为准，完成测试与独立审查后交用户体验。校验不等于证明模型理解或宿主强制拦截。
+
+## 待办池
+
+本轮新流程后续体验：新会话分别验证问答、小 CSS、普通功能、重构和恢复任务的真实路由行为。尚未验证，不自动启动这些开发任务。
+既有长期待办完整保留在下方历史 TODO 快照；采用前核实当前代码和授权。历史时间、完成标记、统计不代表现在。
+
+## 迁移历史：原 WIP.md（原文保留）
+
 # WIP — 中短期开发计划
 
 > 最后更新：2026-06-12（基于项目风险全面复查）
@@ -83,3 +99,42 @@
 - `a9c1cc1` fix: 路由参数UUID校验与WebSocket录制广播数据隔离
 - `697decf` feat: 实现回放自愈功能与WebSocket连接安全加固
 - `87094a6` refactor: 项目质量修复 — 消除 any 类型、安全加固、架构优化、文档同步
+
+
+## 迁移历史：原 TODO.md（原文保留）
+
+# TODO — 长期开发计划
+
+## 近期
+
+- [x] 录制器集成 playwright-core 内部 API
+- [x] 补全 HSTS + CSP 安全头
+- [ ] WS 强制认证（移除「未设 AGENT_TOKEN 则跳过」的绕过条件）
+- [ ] ServerMessage schema 补全（batch-replay:start、batch-replay:result、error）
+- [ ] 录制漏记遮罩层点击修复（Playwright api 模式对纯 div 不敏感）
+- [ ] 回放步骤实时截图推送到前端
+- [ ] Server routes 测试覆盖率 80%+
+- [ ] Docker Compose 一键启动
+
+## 中期
+
+- [ ] 录制动作编辑（插入、删除、拖拽步骤）
+- [ ] 多 Agent 管理（在线状态、版本、连接时间）
+- [ ] 批量回放（按 schedule 触发）
+- [x] 回放失败时的自动修复尝试（基于元素指纹匹配）— Phase A 完成
+- [ ] 前端 WS 全局广播过滤（按 recordingId/executionId）
+- [ ] context.ts 模块级单例重构（消除 `let wsHandlers`）
+
+## 远期
+
+- [ ] AI 辅助元素定位（自然语言描述 → selector）
+- [x] 录制动作导出（导出为 Playwright test 代码）
+- [ ] 多浏览器支持（WebKit, Firefox）
+- [ ] CI/CD 集成（GitHub Actions webhook）
+
+## 架构演进 (针对大规模并发/多租户场景)
+
+- [ ] **分布式任务队列**：引入 Redis + BullMQ，将 Server 与 Agent 由直接 WebSocket 通信重构为生产者/消费者模式，支持多 Agent 集群横向扩展。
+- [ ] **容器化隔离 (Ephemeral Containers)**：实现按需拉起 Docker/K8s Job 执行录制或回放，任务结束后自动销毁，彻底解决资源竞争与环境污染。
+- [ ] **远程浏览器集群集成**：支持通过 `connectOverCDP` 连接外部高性能浏览器云（如 Browserless），实现 Agent 轻量化。
+- [ ] **多租户配额管理**：建立用户级的并发 Worker 限制与公平调度算法，防止单用户霸占全局资源。

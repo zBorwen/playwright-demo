@@ -34,3 +34,15 @@ cd packages/server && pnpm test
 - Schema 验证：100%（已达成）
 - 路由逻辑：80%+（待提升）
 - Replay engine：集成测试（需要浏览器，CI 中用 Playwright 的 docker 镜像）
+
+## Workflow 校验工具
+
+此工具独立于应用测试，使用 Python 3 和 `scripts/requirements-workflow.txt` 的依赖。
+
+```bash
+python3 -m pip install -r scripts/requirements-workflow.txt
+python3 -m unittest discover -s scripts -p 'test_workflow.py'
+python3 scripts/workflow.py check workflow/tasks/agent-workflow.yaml
+```
+
+校验不证明模型已理解文档，也不是编辑/合并的强制拦截器。详见 `docs/workflow/change.md`。

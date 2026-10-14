@@ -1,0 +1,44 @@
+version: 1
+id: agent-workflow
+goal: 按已确认设计重建按需 SDD workflow
+kind: refactor
+risk: normal
+phase: done
+spec: docs/specs/agent-workflow.md
+scope:
+- .gitignore
+- AGENTS.md
+- CLAUDE.md
+- GEMINI.md
+- HANDOFF.md
+- README.md
+- TESTING.md
+- TODO.md
+- WIP.md
+- docs/specs/agent-workflow.md
+- docs/workflow/change.md
+- docs/workflow/conventions.md
+- scripts/requirements-workflow.txt
+- scripts/test_workflow.py
+- scripts/workflow.py
+- workflow/routes.yaml
+context:
+  docs/workflow/change.md: 当前变更对应的路由资料，已按需核对
+  docs/workflow/conventions.md: 当前变更对应的路由资料，已按需核对
+unknown_paths: {}
+excluded_changes: {}
+checks:
+  design:
+    status: passed
+    evidence: workflow/evidence/agent-workflow-design.md
+    fingerprint: 42af5cd958e9c2222bc262ef532644074cc2513d8bb9caa514496618a25ad5f7
+  verification:
+    status: passed
+    evidence: workflow/evidence/agent-workflow-verification.md
+    fingerprint: 7da80b83ac227f6c67f59795f913aff9e9469619f6fd9eaf3ce759f8b4a6fc65
+  review:
+    status: passed
+    evidence: workflow/evidence/agent-workflow-review.md
+    fingerprint: 7da80b83ac227f6c67f59795f913aff9e9469619f6fd9eaf3ce759f8b4a6fc65
+acceptance:
+  status: pending

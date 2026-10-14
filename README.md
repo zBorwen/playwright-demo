@@ -62,3 +62,7 @@ pnpm -r test
 ```
 
 当前覆盖：63 个测试（14 shared + 18 agent + 12 server + 19 frontend），共 16 个测试文件。
+
+## 项目协作
+
+Agent 从 `AGENTS.md` 按需路由；流程说明在 `docs/workflow/change.md`，结构化索引在 `workflow/routes.yaml`。任务状态在 `workflow/tasks/`，接续工作与待办在 `HANDOFF.md`。测试、部署、开发笔记和 Bug 历史仍按任务范围查阅，不默认通读。

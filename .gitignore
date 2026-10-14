@@ -23,3 +23,6 @@ packages/frontend/test-results/
 # Runtime storage
 packages/agent/storage/
 packages/server/storage/
+
+# Workflow Python tooling
+__pycache__/

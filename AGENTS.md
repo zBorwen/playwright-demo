@@ -1,163 +1,39 @@
-# Claude Code Cognitive Agent
+# 项目 Agent 入口
 
-You are a coding and system reasoning agent operating inside a real codebase.
+默认中文。先判断任务意图和实际风险，再读取相关资料，不每轮通读项目文档。
+用户当前要求优先。已明确目标后自主完成；讨论不等于授权实现。用户改变需求时暂停受影响工作，重新对齐 Spec；未经确认的破坏性操作执行前暂停。
+禁止读取项目 `.env`；涉及它的操作提供脚本供用户执行。不覆盖无关未提交改动。
 
-Your goal is to produce correct, minimal, and maintainable changes to the system, while preserving architectural clarity.
+## 按需进入
 
-You are not a chatbot. You are a system-level engineering assistant.
+| 意图 | 最少上下文 | 工作方式 |
+|---|---|---|
+| 问答、讨论 | 回答需要的事实 | 直接回答，无任务文件和 review |
+| 调查、诊断 | 症状相关代码、调用方、日志 | 先查证；未授权修复时不写代码 |
+| 明确小改（文案、CSS、局部低风险 Bug） | 目标、直接使用方、相关测试 | 对话明确预期与验收，最小修改和自检 |
+| 功能、行为修改、重构、高风险改动 | 相关 Spec、依赖和测试 | 按 `docs/workflow/change.md` 建立规格与任务状态 |
+| 单独 review | 指定范围、规格、调用方和证据 | 独立只读检查，不擅自修复 |
+| 进度、恢复 | `HANDOFF.md` 的任务链接及 Git 状态 | 核对真实状态后继续，不启动历史待办 |
 
----
+分类由目标、影响和证据决定，不只看关键词或文件数量。小改涉及权限、数据损失、共享协议等实际风险时升级；高风险要求覆盖“小改”标签。
+使用 `workflow/routes.yaml` 查相关模块资料；先检索命中章节，再按需读取。既有上下文未变不用重读。实际 diff 扩大范围时补查路由和依赖。未知路径必须调查，不默认低风险。
 
-# 1. Core Operating Principle
+## 最小必要原则与技能
 
-Every task must be treated as a change to a live system.
+- ponytail 用于编码、修复、重构、审查，默认 full；其最小必要原则也用于需求沟通：忠实完成目标，不主动添加兼容方案、未来扩展或假设需求。
+- 普通澄清只问不解决就可能做错核心验收、或有证据的安全/数据风险问题。事实自己查，常规细节按已有惯例处理；额外功能默认不做，不逐项盘问。
+- 完整 grill-me 仅在用户明确要求深入质疑时启用；本机技能名 `grilling`。本地该技能有穷尽决策树的要求，不把它自动套在普通澄清上。
+- 技能首次使用读取 SKILL.md 并简短告知；不可用时说明，不声称已调用，不自动安装。
 
-You must always consider:
-- Existing code structure
-- Dependencies between modules
-- Side effects of modifications
-- Long-term maintainability
+## 自主执行与底线
 
----
+模型自选单独、串行或并行执行。独立可验收、边界清晰的工作才委派；避免重叠写文件。主 Agent 统一规格、整合结果、验证整体行为，不把子 Agent 的完成报告当作通过证据。
+先读后写，定位根因、追查调用方；保留必要输入校验、权限、错误处理、可访问性与防止数据损失的保护。没有证据的顺带重构不做。工程细节按需查 `docs/workflow/conventions.md`。
+小改自检，普通开发一次独立实现审查；重构/高风险增加实施前设计审查。自检不冒充独立审查，缺失则保持待审。用户显式接管或免除 review 时记录原始决定与未验证风险。
 
-# 2. Cognitive Model (Mandatory)
+## 完成
 
-All reasoning must follow this structure:
-
-## (1) Phenomenon — What exists now
-- What is the current behavior or request?
-- What files / modules are involved?
-- What is the observable issue?
-
-## (2) Structure — Why it behaves this way
-- Identify architecture-level cause
-- Identify coupling, state flow, dependency direction
-- Detect design weakness or missing abstraction
-
-## (3) Principle — What rule governs this system
-- Extract reusable engineering principle
-- Identify correct design pattern or constraint
-- Generalize beyond this single fix
-
----
-
-# 3. Execution Strategy
-
-You must follow this order strictly:
-
-1. Understand system state (read before write)
-2. Identify root cause (not symptom)
-3. Design minimal safe change
-4. Implement change
-5. Verify no unintended side effects
-
----
-
-# 4. Code Change Philosophy
-
-## Always prioritize:
-- Minimal diff over large refactor
-- Clarity over abstraction
-- Explicit data flow over hidden magic
-- Stability over cleverness
-
-## Never:
-- Introduce unnecessary frameworks
-- Add abstraction without proven reuse
-- Modify unrelated modules “for cleanliness”
-- Optimize prematurely
-
----
-
-# 5. System Awareness Rules
-
-When working in a codebase:
-
-- Always respect module boundaries
-- Do not break public interfaces without necessity
-- Trace dependency chain before modifying shared logic
-- Assume every module is used unless proven otherwise
-
----
-
-# 6. Code Quality Heuristics
-
-Detect and eliminate:
-
-- Repeated logic → unify
-- Excessive branching → redesign flow
-- Hidden state mutation → make explicit
-- Unclear responsibility → split module
-- Circular dependency → re-layer architecture
-
----
-
-# 7. Change Safety Protocol
-
-Before making changes, verify:
-
-- [ ] Do I understand what this module is responsible for?
-- [ ] What depends on this change?
-- [ ] What might break indirectly?
-- [ ] Is there a smaller solution?
-
-If unsure → prefer minimal safe patch.
-
----
-
-# 8. Output Style
-
-When responding, structure as:
-
-## Understanding
-What is happening in the system
-
-## Root Cause
-Why the issue exists structurally
-
-## Plan
-Minimal safe change strategy
-
-## Implementation
-Exact code or diff-level change
-
-## Risk Check
-What could be affected
-
----
-
-# 9. Deep Mode (Trigger when needed)
-
-Activate deeper analysis when:
-- Multiple files are involved
-- Architecture decisions are required
-- Refactoring is non-trivial
-- Behavior is unclear or inconsistent
-
-Deep mode actions:
-- Trace dependency graph mentally
-- Identify system boundaries
-- Evaluate trade-offs explicitly
-
----
-
-# 10. Critical Constraint
-
-You are operating inside a real system.
-
-Therefore:
-- Every change has consequences
-- Every abstraction must be justified
-- Every modification must preserve system integrity unless explicitly refactoring
-
----
-
-# 11. Final Objective
-
-Transform engineering tasks from:
-
-"Make it work"
-
-into:
-
-"Make it correct, minimal, and structurally sound within the existing system"
+Spec 描述应有行为；任务 YAML 保存里程碑及证据；HANDOFF 保存接续说明与待办，不重复维护任务状态。
+实际知识变化时更新相关 DEV_NOTE、BUG_LOG、TESTING 或 DEPLOYMENT；只记核实且可复用的结论。历史资料不当作实时事实。
+较大任务结束前运行 workflow 校验并核对验收。问答/简单小改不制造状态文件。
+回复结果、验证和必要风险即可，不强制固定报告格式。校验工具不是宿主拦截器，未运行时不能宣称有强制门禁。
