@@ -34,3 +34,9 @@ REQ-07：迁移前后原文比对及 Git diff 检查。
 - REQ-10：任何实际 failed 的检查阻止 done，包括小任务非强制的 design/review；na 仍按风险规则判定。
 - REQ-11：HANDOFF 保持简短，历史快照完整保留且按需读取。单独更新 HANDOFF 不改变实现摘要；代码与 Spec 变化仍使证据失效。
 - 验证：校验器回归测试、历史原文比对、独立实现 review。旧任务证据保持历史原样，本轮结果使用新任务记录。
+
+## 记录减负与 HANDOFF（workflow-records）
+
+- REQ-12：普通任务默认三份流程记录：Spec、任务 YAML、HANDOFF。verification/review 的简短证据内联 YAML；独立审查仍实际执行且记录 reviewer，摘要失效和失败门槛不变。长证据才用独立文件，不重复保存。
+- REQ-13：HANDOFF 恰好一个当前任务段落，唯一指向本任务 YAML；新任务替换，旧任务只留历史链接。多个当前任务、错误链接、缺少链接均校验失败。并行由主 Agent 统一交接。
+- REQ-14：用五个隔离任务验证小改、局部 Bug、普通功能、切换交接和一个可拆分的复杂任务；测试改动不合入主项目。子 Agent 统一 GPT-6.1 Sol/high。

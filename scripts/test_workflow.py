@@ -20,6 +20,7 @@ class WorkflowTests(unittest.TestCase):
                          phase='done', spec='spec.md', scope=['spec.md', 'app.py'],
                          context={'guide.md': '模块约定'}, acceptance={'status': 'pending'},
                          checks={'design': {'status': 'na', 'reason': '非重构/高风险'}})
+        (self.root / 'HANDOFF.md').write_text('## 当前任务：demo\n- `workflow/tasks/demo.yaml`\n')
         digest = workflow.fingerprint(self.root, self.task, 'implementation')
         for name in ['verification', 'review']:
             self.task['checks'][name] = dict(status='passed', evidence='proof.md', fingerprint=digest)
@@ -124,6 +125,43 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(before, workflow.fingerprint(self.root, self.task, 'implementation'))
         (self.root / 'app.py').write_text('implementation changed')
         self.assertNotEqual(before, workflow.fingerprint(self.root, self.task, 'implementation'))
+
+    def test_inline_reports_keep_fingerprint_gate(self):
+        for name in ['verification', 'review']:
+            self.task['checks'][name].pop('evidence')
+            self.task['checks'][name]['report'] = '实际执行检查：通过；范围 app.py'
+        self.task['checks']['review']['reviewer'] = 'independent-reviewer'
+        self.assertEqual(self.errors(), [])
+        self.task['checks']['review']['report'] = ' '
+        self.assertTrue(self.errors())
+        self.task['checks']['review']['report'] = 'PASS'
+        del self.task['checks']['review']['reviewer']
+        self.assertTrue(self.errors())
+        self.task['checks']['review']['reviewer'] = 'independent-reviewer'
+        (self.root / 'app.py').write_text('new implementation')
+        self.assertTrue(any('过期' in e for e in self.errors()))
+
+    def test_duplicate_report_is_rejected(self):
+        self.task['checks']['verification']['report'] = 'passed'
+        self.assertTrue(self.errors())
+
+    def test_handoff_current_is_unique_and_matches(self):
+        for text in [
+            '## 当前任务：demo\nworkflow/tasks/demo.yaml\n## 当前任务：old\nworkflow/tasks/old.yaml',
+            '## 当前任务：demo\nworkflow/tasks/demo.yaml\n## 当前任务：old',
+            '## 当前任务：demo\nworkflow/tasks/demo.yaml.bak',
+            '## 当前任务：demo\nwrong/workflow/tasks/demo.yaml',
+            '## 当前任务：old\nworkflow/tasks/old.yaml',
+            '## 当前任务：demo\nworkflow/tasks/demo.yaml workflow/tasks/other.yaml',
+            '## 历史任务\nworkflow/tasks/demo.yaml',
+        ]:
+            with self.subTest(text=text):
+                (self.root / 'HANDOFF.md').write_text(text)
+                self.assertTrue(self.errors())
+        (self.root / 'HANDOFF.md').write_text('## 当前任务：demo\nworkflow/tasks/demo.yaml\n## 历史任务\nworkflow/tasks/old.yaml')
+        self.assertEqual(self.errors(), [])
+        (self.root / 'HANDOFF.md').unlink()
+        self.assertTrue(self.errors())
 
     def test_missing_base_is_rejected(self):
         del self.task['base_commit']

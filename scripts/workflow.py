@@ -93,6 +93,13 @@ def validate(root, task, changed):
         require(task.get('version') == 1, 'version 必须为 1')
         require(isinstance(task.get('base_commit'), str) and bool(re.fullmatch(r'[0-9a-f]{40}', task['base_commit'])), '缺少有效 base_commit')
         require(bool(task.get('id')) and bool(task.get('goal')), '缺少 id/goal')
+        handoff = local_path(root, 'HANDOFF.md').read_text()
+        sections = re.findall(r'^##[ \t]+当前任务[^\n]*\n(.*?)(?=^##[ \t]|\Z)', handoff, re.M | re.S)
+        headings = re.findall(r'^##[ \t]+当前任务[^\n]*$', handoff, re.M)
+        require(len(headings) == len(sections) == 1, 'HANDOFF 必须恰好有一个当前任务段落')
+        if len(sections) == 1:
+            links = re.findall(r'(?<![A-Za-z0-9_./-])workflow/tasks/[A-Za-z0-9_.-]+\.yaml(?![A-Za-z0-9_./-])', sections[0])
+            require(links == [f"workflow/tasks/{task['id']}.yaml"], 'HANDOFF 当前任务须唯一指向本任务 YAML')
         require(kind in {'small', 'bug', 'feature', 'refactor'}, '未知 kind')
         require(risk in {'low', 'normal', 'high'}, '未知 risk')
         require(phase in {'scoped', 'implementing', 'verifying', 'reviewing', 'done', 'paused'}, '未知 phase')
@@ -135,7 +142,15 @@ def validate(root, task, changed):
                 require(name != 'verification', '验证不能豁免')
                 require(evidence(check.get('evidence')), f'{name} 缺少用户豁免证据')
             if status == 'passed':
-                require(evidence(check.get('evidence')), f'{name} 缺少证据文件')
+                report = check.get('report')
+                if report is not None:
+                    require(isinstance(report, str) and bool(report.strip()), f'{name} 缺少内联证据')
+                    require(not check.get('evidence'), f'{name} 不重复保存内联和文件证据')
+                    if name in {'design', 'review'}:
+                        reviewer = check.get('reviewer')
+                        require(isinstance(reviewer, str) and bool(reviewer.strip()), f'{name} 缺少独立 reviewer 标识')
+                else:
+                    require(evidence(check.get('evidence')), f'{name} 缺少证据文件')
                 require(check.get('fingerprint') == expected, f'{name} 证据已过期')
             require(not (phase == 'done' and status == 'failed'), f'{name} 已失败，不能完成任务')
             gate = phase == 'done' or (name == 'design' and phase in {'implementing', 'verifying', 'reviewing'})

@@ -1,0 +1,43 @@
+version: 1
+id: workflow-records
+goal: 普通任务记录减负、唯一当前交接及五项隔离验证
+base_commit: e7cead14a89de53b30d12dbdf17b7eb43550bc5a
+kind: feature
+risk: normal
+phase: done
+spec: docs/specs/agent-workflow.md
+scope:
+- AGENTS.md
+- HANDOFF.md
+- TESTING.md
+- docs/specs/agent-workflow.md
+- docs/workflow/change.md
+- scripts/test_workflow.py
+- scripts/workflow.py
+context:
+  docs/workflow/change.md: 流程工具与约定，本轮已核对
+unknown_paths: {}
+excluded_changes: {}
+checks:
+  design:
+    status: na
+    reason: 局部记录格式与交接校验扩展，不改变系统架构
+  verification:
+    status: passed
+    report: 'python3 -m unittest discover -s scripts -p test_workflow.py：26项通过；git
+      diff --check及主任务校验通过。
+
+      五项独立副本试验，所有子Agent为GPT-6.1 Sol/high：CSS仅一行改动、零流程记录；日期Bug 15测试通过、零流程记录；搜索功能25测试及独立review通过、3份记录；任务接替32测试及独立review通过、唯一当前任务且旧任务未改；复杂双模块2开发Agent实际并行，整合和独立review各34测试通过，4代码/测试文件+3记录。
+
+      主Agent独立复核三个持久任务done、review/verification passed及唯一HANDOFF，并运行各任务check通过。并行快照和详细清单保存在隔离实验目录
+      sdd-eval-v2-vxnshq4z。
+
+      未运行浏览器视觉或真实后端验收；并行测试为互不重叠模块，不证明冲突写入场景可靠。测试业务改动未合入主项目。'
+    fingerprint: 4253784f148c4951ed9bcbbf46e5cfe6035735c5519e4435e245b1481dee9862
+  review:
+    status: passed
+    reviewer: records_review（GPT-6.1 Sol/high，独立只读）
+    report: 核对脚本、调用方、规则及任务记录；26项测试/check/diff通过。修复并复核错误路径匹配及EOF重复当前标题。实现无剩余阻断；五项隔离试验另行验证。
+    fingerprint: 4253784f148c4951ed9bcbbf46e5cfe6035735c5519e4435e245b1481dee9862
+acceptance:
+  status: pending
