@@ -1,0 +1,20 @@
+version: 1
+project:
+  status: uninitialized
+  analyzed_commit: null
+routes:
+- prefixes:
+  - AGENTS.md
+  - HANDOFF.md
+  - docs/workflow/
+  - workflow/
+  - scripts/workflow.py
+  - scripts/test_workflow.py
+  - scripts/requirements-workflow.txt
+  docs:
+  - docs/workflow/change.md
+- prefixes:
+  - docs/specs/
+  docs: []
+intent_docs:
+  resume: []
