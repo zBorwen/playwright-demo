@@ -30,6 +30,8 @@ class ExportTests(unittest.TestCase):
             self.assertEqual(names, expected)
             self.assertEqual(list((target / 'workflow/tasks').iterdir()), [])
             self.assertFalse((target / 'workflow/evidence').exists())
+            self.assertFalse((target / 'HANDOFF.md').exists())
+            self.assertTrue((target / 'workflow/templates/HANDOFF.md').is_file())
             self.assertEqual(yaml.safe_load((target / 'workflow/routes.yaml').read_text())['project'], {'status': 'uninitialized', 'analyzed_commit': None})
             for name in names:
                 text = (target / name).read_text()
@@ -68,10 +70,16 @@ class ExportTests(unittest.TestCase):
                 routes['project'] = {'status': 'ready', 'analyzed_commit': base}
                 routes_path.write_text(yaml.safe_dump(routes, allow_unicode=True))
                 task = yaml.safe_load((root / 'workflow/templates/task.yaml').read_text())
-                task.update(id='sample', goal='fixture task', base_commit=base, phase='done', spec='docs/specs/sample.md', scope=[app, 'docs/specs/sample.md', 'HANDOFF.md', 'workflow/routes.yaml'])
+                task.update(id='sample', goal='fixture task', base_commit=base, phase='done', scope=[app, 'workflow/routes.yaml'])
+                if app.endswith('.py'):
+                    task['spec'] = 'docs/specs/sample.md'
+                    task['scope'].append(task['spec'])
+                    task.pop('criteria', None)
+                    (root / task['spec']).write_text('REQ-1 fixture behavior')
+                else:
+                    task['criteria'] = ['fixture behavior']
+                task['context']['docs/workflow/change.md'] = '任务记录约定'
                 task['context']['docs/workflow/conventions.md'] = 'fixture module rule'
-                (root / 'docs/specs/sample.md').write_text('REQ-1 fixture behavior')
-                (root / 'HANDOFF.md').write_text('## 当前任务：sample\n`workflow/tasks/sample.yaml`\n')
                 path.write_text('changed fixture\n')
                 record = root / 'workflow/tasks/sample.yaml'
                 record.write_text(yaml.safe_dump(task, allow_unicode=True))
@@ -81,6 +89,7 @@ class ExportTests(unittest.TestCase):
                 task['checks']['review']['reviewer'] = 'fixture-reviewer'
                 record.write_text(yaml.safe_dump(task, allow_unicode=True))
                 tool('check', 'workflow/tasks/sample.yaml')
+                self.assertNotEqual(tool('check-handoff', 'workflow/tasks/sample.yaml', ok=False).returncode, 0)
                 path.write_text('later change\n')
                 self.assertNotEqual(tool('check', 'workflow/tasks/sample.yaml', ok=False).returncode, 0)
 

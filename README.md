@@ -65,6 +65,6 @@ pnpm -r test
 
 ## 项目协作
 
-Agent 从 `AGENTS.md` 按需路由；流程说明在 `docs/workflow/change.md`，结构化索引在 `workflow/routes.yaml`。任务状态在 `workflow/tasks/`，接续工作与待办在 `HANDOFF.md`。测试、部署、开发笔记和 Bug 历史仍按任务范围查阅，不默认通读。
+Agent 从 `AGENTS.md` 按需路由；流程说明在 `docs/workflow/change.md`，结构化索引在 `workflow/routes.yaml`。任务状态在 `workflow/tasks/`，实际交接时使用 `HANDOFF.md` 快照，普通任务不强制创建。测试、部署、开发笔记和 Bug 历史仍按任务范围查阅，不默认通读。
 
 移植到其他项目：按 [通用 workflow 移植说明](docs/workflow/portable.md) 导出白名单模板，配置目标项目的工程约定与路由。不会携带当前项目任务或历史记录。

@@ -17,7 +17,7 @@ class WorkflowTests(unittest.TestCase):
         for name in ['spec.md', 'app.py', 'guide.md', 'proof.md']:
             (self.root / name).write_text(name)
         self.task = dict(version=1, base_commit='a' * 40, id='demo', goal='demo', kind='feature', risk='normal',
-                         phase='done', spec='spec.md', scope=['spec.md', 'app.py'],
+                         phase='done', requirements_revision=1, spec='spec.md', scope=['spec.md', 'app.py'],
                          context={'guide.md': '模块约定'}, acceptance={'status': 'pending'},
                          checks={'design': {'status': 'na', 'reason': '非重构/高风险'}})
         (self.root / 'HANDOFF.md').write_text('## 当前任务：demo\n- `workflow/tasks/demo.yaml`\n')
@@ -36,6 +36,40 @@ class WorkflowTests(unittest.TestCase):
         config.write_text(original.replace('a' * 40, 'null'))
         self.assertTrue(any('分析基准' in e for e in self.errors()))
 
+    def test_record_without_labels_or_spec_can_finish(self):
+        for key in ['kind', 'risk', 'spec']:
+            self.task.pop(key)
+        self.task['scope'] = ['app.py']
+        self.task['criteria'] = ['返回既定结果']
+        self.task['checks'].pop('design')
+        self.task['checks'].pop('review')
+        self.task['checks']['verification']['fingerprint'] = workflow.fingerprint(self.root, self.task, 'implementation')
+        self.assertEqual(self.errors(), [])
+        self.task['criteria'] = ['返回新的结果']
+        self.assertTrue(any('过期' in e for e in self.errors()))
+
+    def test_labels_do_not_select_reviews(self):
+        self.task.update(kind='refactor', risk='high')
+        self.task['checks'].pop('review')
+        self.assertEqual(self.errors(), [])
+        self.task['checks']['review'] = {'status': 'pending'}
+        self.assertTrue(any('review 尚未满足' in e for e in self.errors()))
+
+    def test_selected_design_must_not_be_claimed_complete(self):
+        self.task['checks']['design'] = {'status': 'pending'}
+        self.assertTrue(any('design 尚未满足' in e for e in self.errors()))
+        self.task['phase'] = 'implementing'
+        self.assertEqual(self.errors(), [])
+
+    def test_missing_or_duplicate_acceptance_basis(self):
+        self.task.pop('spec')
+        self.assertTrue(self.errors())
+        self.task['criteria'] = ['']
+        self.assertTrue(self.errors())
+        self.task['spec'] = 'spec.md'
+        self.task['criteria'] = ['重复来源']
+        self.assertTrue(self.errors())
+
     def test_complete(self):
         self.assertEqual(self.errors(), [])
 
@@ -51,24 +85,47 @@ class WorkflowTests(unittest.TestCase):
         (self.root / 'app.py').unlink()
         self.assertTrue(any('过期' in e for e in self.errors()))
 
-    def test_spec_invalidates(self):
-        (self.root / 'spec.md').write_text('changed requirement')
+    def test_spec_editorial_change_does_not_invalidate(self):
+        (self.root / 'spec.md').write_text('clarified wording, same behavior')
+        self.assertEqual(self.errors(), [])
+
+    def test_requirements_revision_invalidates(self):
+        self.task['requirements_revision'] += 1
         self.assertTrue(any('过期' in e for e in self.errors()))
 
-    def test_high_risk_overrides_small(self):
+    def test_invalid_revision_rejected(self):
+        for value in [0, -1, True, '1']:
+            self.task['requirements_revision'] = value
+            self.assertTrue(self.errors())
+
+    def test_high_risk_does_not_block_implementation(self):
         self.task.update(kind='small', risk='high', phase='implementing')
-        self.assertTrue(any('design' in e for e in self.errors()))
+        self.task['checks']['design'] = {'status': 'pending'}
+        self.task['checks']['review'] = {'status': 'pending'}
+        self.assertEqual(self.errors(), [])
+        self.task['phase'] = 'done'
+        self.assertTrue(any('review 尚未满足' in e for e in self.errors()))
 
     def test_small_low_na(self):
         self.task.update(kind='small', risk='low')
         self.task['checks']['review'] = {'status': 'na', 'reason': '局部小改自检'}
         self.assertEqual(self.errors(), [])
 
-    def test_refactor_design_gate(self):
+    def test_refactor_no_automatic_design_gate(self):
         self.task.update(kind='refactor', phase='implementing')
+        self.task['checks']['design'] = {'status': 'pending'}
+        self.assertEqual(self.errors(), [])
+
+    def test_high_risk_user_waiver_can_finish(self):
+        self.task.update(kind='refactor', risk='high')
+        self.task['checks']['review'] = {'status': 'waived', 'reason': '用户接管审查', 'report': '用户本轮明确要求跳过独立审查并自行验收；仍未独立审查。'}
+        self.assertEqual(self.errors(), [])
+        del self.task['checks']['review']['report']
         self.assertTrue(self.errors())
-        self.task['checks']['design'] = dict(status='passed', evidence='proof.md',
-            fingerprint=workflow.fingerprint(self.root, self.task, 'design'))
+
+    def test_nonblocking_review_suggestions_can_finish(self):
+        self.task['checks']['review'].pop('evidence')
+        self.task['checks']['review'].update(report='范围内无阻塞；重命名建议不属本次验收，保留建议不扩需求。', reviewer='independent-reviewer')
         self.assertEqual(self.errors(), [])
 
     def test_routing_omission(self):
@@ -158,11 +215,17 @@ class WorkflowTests(unittest.TestCase):
         ]:
             with self.subTest(text=text):
                 (self.root / 'HANDOFF.md').write_text(text)
-                self.assertTrue(self.errors())
+                self.assertTrue(workflow.validate_handoff(self.root, self.task))
         (self.root / 'HANDOFF.md').write_text('## 当前任务：demo\nworkflow/tasks/demo.yaml\n## 历史任务\nworkflow/tasks/old.yaml')
-        self.assertEqual(self.errors(), [])
+        self.assertEqual(workflow.validate_handoff(self.root, self.task), [])
         (self.root / 'HANDOFF.md').unlink()
-        self.assertTrue(self.errors())
+        self.assertTrue(workflow.validate_handoff(self.root, self.task))
+
+    def test_normal_check_does_not_require_handoff(self):
+        (self.root / 'HANDOFF.md').unlink()
+        self.assertEqual(self.errors(), [])
+        (self.root / 'HANDOFF.md').write_text('old snapshot for another task')
+        self.assertEqual(workflow.validate(self.root, self.task, {'app.py', 'HANDOFF.md'}), [])
 
     def test_missing_base_is_rejected(self):
         del self.task['base_commit']

@@ -13,11 +13,11 @@ CORE_FILES = (
     'scripts/requirements-workflow.txt',
     'workflow/templates/task.yaml',
     'workflow/templates/spec.md',
+    'workflow/templates/HANDOFF.md',
 )
 PROJECT_TEMPLATES = {
     'workflow/templates/conventions.md': 'docs/workflow/conventions.md',
     'workflow/templates/routes.yaml': 'workflow/routes.yaml',
-    'workflow/templates/HANDOFF.md': 'HANDOFF.md',
 }
 
 

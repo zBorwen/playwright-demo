@@ -1,25 +1,22 @@
+# 仅在确需保存进度/证据时使用。普通明确任务不要求创建本文件。
 version: 1
 id: replace-me
-goal: 待填写真实目标
+goal: 待填写实际目标
 base_commit: REPLACE_WITH_GIT_REV_PARSE_HEAD
-kind: feature
-risk: normal
-phase: scoped
-spec: docs/specs/replace-me.md
+requirements_revision: 1
+phase: implementing
+# 简短任务直接写验收依据；若已有 Spec，删除 criteria 并改用 spec 链接。
+criteria:
+  - 待填写实际验收依据
 scope:
-  - docs/specs/replace-me.md
-  - HANDOFF.md
-context:
-  docs/workflow/change.md: 创建任务时核对记录与审查要求
+  - path/to/changed-file
+context: {}
 unknown_paths: {}
 excluded_changes: {}
 checks:
-  design:
-    status: na
-    reason: 仅普通功能不强制设计审查；重构或高风险需改为pending并实际审查
   verification:
     status: pending
-  review:
-    status: pending
+# 确需或用户要求独立 review 时，才增加 checks.review: {status: pending}。
+# 已选检查应完成，或明确记录变更/用户豁免，不能静默当作通过。
 acceptance:
   status: pending

@@ -1,0 +1,44 @@
+version: 1
+id: workflow-convergence
+goal: 按实际缺口选择动作，消除分类驱动的强制Spec与审查流程
+base_commit: 217aafcedf1269735056a5b08a6c9c13e134e2e5
+requirements_revision: 2
+phase: done
+spec: docs/specs/agent-workflow.md
+scope:
+- AGENTS.md
+- HANDOFF.md
+- README.md
+- docs/specs/agent-workflow.md
+- docs/workflow/change.md
+- docs/workflow/portable.md
+- scripts/export_workflow.py
+- scripts/test_workflow.py
+- scripts/test_workflow_export.py
+- scripts/workflow.py
+- workflow/routes.yaml
+- workflow/sdd-workflow-kit.zip
+- workflow/templates/HANDOFF.md
+- workflow/templates/routes.yaml
+- workflow/templates/task.yaml
+context:
+  docs/workflow/change.md: 按需执行及校验器同步，已核对
+  docs/workflow/portable.md: 按需执行及校验器同步，已核对
+unknown_paths: {}
+excluded_changes: {}
+checks:
+  design:
+    status: na
+    reason: 需求已明确，无需前置审批
+  verification:
+    status: passed
+    report: 39项测试通过：无分类/等级/Spec也可使用内联criteria记录并完成；代码、内联验收和需求版本变更使证据失效；已选pending/failed检查不能冒充done，验证不可省。两种导出项目分别覆盖Spec与无Spec
+      CLI路径。隔离Agent实际新增可选uppercase参数，仅改app.py/test_app.py，3tests通过，无提问、Spec/YAML/HANDOFF或独立review；主Agent独立复跑3tests及diff通过。Agent仍多读一份流程说明，不声称阅读量最少。未实测公司项目。
+    fingerprint: 178b698f432df65128fc2f8dec84105a93d16a44902b0950d704411924edcf99
+  review:
+    status: passed
+    reviewer: adaptive_review（GPT-6.1 Sol/high，独立只读）
+    report: 独立审查代码/规则/模板/ZIP。发现并定向修复移植说明和REQ-10残留的分类/默认审查措辞；增量复核后PASS，无有效阻塞。39tests与diff通过，ZIP白名单/源文件字节一致。隔离行为试跑由主Agent复核，不冒充reviewer独立运行。
+    fingerprint: 178b698f432df65128fc2f8dec84105a93d16a44902b0950d704411924edcf99
+acceptance:
+  status: pending

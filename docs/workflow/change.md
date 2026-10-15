@@ -1,54 +1,66 @@
 # 按需 SDD 与执行证据
 
-准备开发时先确认项目 routes 的初始化标记；未初始化按 portable.md 分析一次并填写约定和路由，已有 ready 配置不重复扫描。校验拒绝未初始化的任务记录。
+开发前确认项目已初始化；未初始化按 portable.md 分析一次，ready 后仅局部更新。普通问答不启动初始化/开发流程。
 
-## 规格与自主路径
+## 从需求到实现
 
-小修改在对话内写清预期、范围和验收即可。功能/行为变更/重构维护 `docs/specs/<domain>.md`，包含目标、非目标、REQ 与验收、必要设计；沿用既有相关规格，不为每步建文件。
-Spec 的要求来自用户目标与实际必要约束，不穷举未来场景。Bug 以恢复预期行为为目标，重构明确行为不变量。范围确认后连续推进，不重复要求确认普通细节。
-用户变更要求时暂停受影响工作，同步规格和证据；发现未经确认的破坏性操作先停，不因“已在执行”直接继续。模型可以反复调查、实现、测试，不要求固定线性顺序。
+需求明确时直接实现和验证，不要求创建文件。SDD 用于需要前期对齐的重要取舍：先查事实，再对齐会改变结果的决定；有长期复用价值才写 `docs/specs/<domain>.md`。已有清楚规格直接复用，不因任务叫“功能/重构”重新对齐。
+预期行为、范围和验收足以实施时立即开工，不追求穷尽边界。已明确需求不重复确认。Spec 只记录用户目标和实际必要约束，reviewer 不新增需求。
+风险等级是模型判断，用来选择验证重点，不自动产生前置审批。重构不自动要求设计 review。只有存在影响核心结果的未决决定且无法自行查证时，才询问用户；未经授权的破坏性操作在执行前暂停对应部分。用户明确要求先审后做时遵从，但不把此要求扩展到其他任务。
 
-## 路由与技能
+## 审查的职责和收敛
 
-`workflow/routes.yaml` 是模块/意图到资料的唯一索引。`python3 scripts/workflow.py route <文件...>` 给出按路径的最低资料集合；语义调用方由模型补充。未知路径显式输出。
-普通需求只做必要澄清；完整 grilling 仅用户要求深入质疑时使用。ponytail 贯穿最小范围的沟通、实现和审查；不能削减实际安全边界。
+有明确的独立检查目的或用户要求时才安排 review，例如接口一致性、真实权限/数据边界或较大行为变化；局部明确修改通常自检即可。不要用分类标签自动决定是否审查。具体未决设计问题可先讨论可行性/接口/实际风险，不要求尚不存在的实现与测试证据。
+委派时说明本次验收、审查阶段及改动范围，并让 reviewer 使用本节规则；不得沿用另一份要求“设计阶段提供完成证据”的指令。
 
-## 任务状态
+- **阻塞问题**：必须指出违反的明确要求或有证据的安全/数据风险、具体位置/复现依据、影响和最小修复。测试失败、真实逻辑错误不能因希望尽快结束而忽略。
+- **建议**：命名、文案、偏好的架构、未来扩展、缺乏证据的假设，不成为本次新增验收条件；记录或忽略即可，不要求补 Spec 后重审。
+- 主 Agent 判断反馈是否成立，并记录采纳、修复或不采纳依据。保留 reviewer 原始结论，不能把不同意意见写成 reviewer 已认可。涉及产品取舍时只向用户提出具体决定，不在多个 Agent 之间无限转交。
+- 无有效阻塞就进入实现或交付。修复后只复核原问题与受影响路径，不重开完整 Spec；无新证据不重复提出已解决问题。
+- 同一问题若复核后仍争议，主 Agent给出一次有证据的裁定；仍必须由用户决定时说明两种具体选择并暂停相关部分，不能继续相互重审。
 
-较大任务使用 `workflow/tasks/<id>.yaml`。问答、调查与简单小改不强制创建。
-新任务从 workflow/templates/task.yaml 复制并填入真实数据，Spec 可参考 workflow/templates/spec.md；phase 为 scoped / implementing / verifying / reviewing / done / paused，表示里程碑而非固定流水线。允许回退。
-kind 为 small / bug / feature / refactor，risk 为 low / normal / high。高风险覆盖类型判断。
-base_commit 保存任务开始时的完整提交 SHA，必须为当前 HEAD 的祖先；校验覆盖该基准至当前工作区（已提交、暂存、未暂存、未跟踪），任务中途提交不会缩短范围。基准不存在或不合法时失败，不回退到 HEAD。
-scope 列出任务负责的全部文件（包括新文件与删除路径）；context 列相关资料及使用理由；unknown_paths 对路由未覆盖的任务文件说明调查结果。无关改动列入 excluded_changes 并解释，不覆盖它们。
-普通任务默认新增/更新 Spec、任务 YAML、HANDOFF；不为每步创建单独报告或开发笔记。
-checks 包含 design、verification、review：status 为 pending / passed / failed / na / waived，配 reason；passed 默认配 report 简短实际证据和 fingerprint 摘要；design/review 另有 reviewer 标识。report 包含范围、执行的命令/检查、实际结果和必要限制。仅长日志/大型审查才改用 evidence 文件路径，不同时重复维护两种记录。既有历史文件证据仍可读取。
-- 实施前：refactor/high 的 design 必须 passed，或有用户明确豁免的引用证据。
-- 任何检查实际为 failed 时，都不能标记 done；不要求执行不等于可以忽略已经发现的问题。
-- 完成前：verification 必须 passed；普通任务及 refactor/high 的 review 必须 passed；small/low、bug/low 可 na，但要解释。
-- 用户明确接管/免除 review：用 waived + 用户决定证据文件，不能写 passed。不会自动豁免验证。
-- 验收独立为 acceptance: pending / accepted / na。done 表示工程完成，不自动代表用户接受；accepted 必须有用户反馈证据。
+reviewer 不能由该部分实现者冒充。结果内联 YAML，包含范围、命令/检查、实际结果、原始意见与处理依据、reviewer 标识。passed 表示已完成本次检查且没有未解决的有效阻塞；不同意见的裁定必须保留，不伪造审查者认同。
+用户明确接管/免除 review 时可用 waived + reason + report 记录用户指令及未审范围（或引用 evidence 文件），任何风险等级均可采用；仍需必要验证，并保留破坏性操作授权要求。
 
-`python3 scripts/workflow.py check workflow/tasks/<id>.yaml` 检查记录与当前工作区；未知枚举、缺少资料、未覆盖改动、完成证据缺失或摘要过期均失败。
-`python3 scripts/workflow.py fingerprint workflow/tasks/<id>.yaml design|implementation` 产生摘要。design 绑定规格；implementation 绑定 scope 中实现/规格文件的内容和路径，包含未跟踪文件与删除状态。状态和 evidence 不得纳入 scope，防止摘要自引用。证据文件本身不作为实现摘要的一部分。唯一额外排除是根目录 HANDOFF.md 的接续信息：它仍在 scope 中用于范围核对，但不参与 implementation 摘要；不提供任意文件排除开关，Spec 和代码仍严格绑定。HANDOFF 不承载需求或长期规则。
-完成后实现变更会使证据失效；回到相应阶段补验/补审。范围或预期变化时也要判断设计结论是否失效，不仅依赖摘要。
+## 任务状态与证据
 
-## 独立审查
+任务 YAML 仅用于确需保存进度/证据或协调工作的任务，不由任务名称、规模标签或 Spec 是否存在自动触发。模板：`workflow/templates/task.yaml`。不需要记录时不调用 check。phase 为 scoped / implementing / verifying / reviewing / done / paused，是里程碑而非固定流水线；允许回退。模板不要求 kind/risk；旧记录中的这些字段只是描述，校验器不据此选择任何检查。
+base_commit 为任务开始时完整 Git SHA，必须为 HEAD 祖先；检查覆盖已提交、暂存、未暂存、未跟踪变化。scope 列任务文件，context 记录必要资料及理由，unknown_paths 记录未映射路径的调查结果；excluded_changes 只解释不属于任务的已有改动。
 
-普通开发一次最终 review；重构/high 在实施前审设计，实施后审实际变更与受影响调用方。小改自检不强制额外代理。
-reviewer 与实现者分离，默认只读。reviewer 返回范围、基准、证据、问题和结论，主 Agent 原样摘要到任务 checks.review.report 并记录 reviewer；不默认再创建报告文件。独立审查必须实际发生，字段本身不能证明独立性。子 Agent 可以并行调查/开发，但主 Agent 负责整合和验证，不能伪造独立通过。
-检查器能检查报告存在、非空及版本关联，不能证明 reviewer 身份、内容真实性或理解程度。这些需实际工具记录与人工核查。
+记录有两种验收依据：简短依据内联到 criteria（非空字符串列表），或引用已有 spec（Markdown 路径，加入 scope）。二选一，不为使用 YAML 而额外生成 Spec，也不重复维护同一验收。
 
-## 知识和交接
+`requirements_revision` 是有记录任务的正整数需求版本，新任务为 1：
 
-HANDOFF 恰好一个“## 当前任务”段落，只链接一份当前任务 YAML，并引用 Spec、补充决定/阻塞/下一步。新任务替换当前段落，旧任务移到“历史任务”下仅保留链接；不能堆叠多个“当前任务”。校验会检查唯一性和任务对应。并行子任务记录在主任务 YAML 中，子 Agent 不分别追加当前任务；由主 Agent 整合。状态以 YAML 为准。迁移前的旧计划保留到项目历史归档；HANDOFF 只保留历史入口，按需读取，不默认授权执行。
-后续明确的新待办放 HANDOFF 的待办池；完成事项不再重复维护在多个文件。历史快照不批量“修正”为当下事实。
-项目开发笔记记录已确认技术约束，Bug 记录保留有复用价值的根因；使用/测试/部署变了才更新路由索引对应的指南。无需每次修改都写日志。新增测试不自动扩写测试指南，普通功能命令与结果只记录于任务 YAML。
-恢复时核对 Git 分支/HEAD/未提交变更及任务证据，不能盲信交接。禁止记录密钥。
+- 预期行为、范围、接口语义或验收条件变化时递增，同步 Spec 和受影响验证。
+- 纠错字、补解释或格式化不递增，不重新讨论已明确要求。
+- 使用 Spec 时，摘要绑定其路径和需求版本，不哈希 Spec 正文；使用内联依据时，摘要直接绑定 goal、criteria 和需求版本。implementation 还绑定 scope 实现文件；不含 HANDOFF/状态/证据自身。代码、内联验收或需求版本变化使对应证据失效。
+- 程序不能判断语义变化，不能证明版本更新正确。严禁把实质需求变化当改字以逃避验证；主 Agent/reviewer 根据真实用户请求核对。不要声称机械摘要能检测所有规格漂移。
 
-## 校验能力与环境
+有任务记录时，checks.verification 必须实际通过才能 done。checks.design/review 仅在确实选择检查时添加 pending；缺省表示未选择，不冒充通过。不需要检查时可省略，或用 na + reason 说明。任何已选择的 pending/failed 检查都不能直接标 done：完成实际检查，或明确记录变更依据；用户要求的检查只可由用户变更/豁免，自主选择的检查不再必要时应记录撤销理由。不能因其原本可选而静默遗漏。任何有效失败都须处理，建议留在 report 中，不记为 failed。检查并不构成统一的开工流水线。
+passed 配简短 report 和 fingerprint，设计/实现独立审查另记 reviewer；长证据才用 evidence 文件，二者不重复。acceptance: pending/accepted/na 独立记录，done 不等于用户已验收。
 
-Python 3 + PyYAML：依赖见 `scripts/requirements-workflow.txt`。使用 safe_load；不执行 YAML 内容。
-`python3 -m unittest discover -s scripts -p 'test_workflow*.py'` 运行针对性测试。
-校验只检查当前记录和证据条件，不记录不可篡改的状态转换历史；它不阻止直接调用编辑工具，也不替代 CI/宿主权限门禁。本次不接管提交/合并，不声称有已部署的硬拦截。
+```bash
+python3 scripts/workflow.py route 实际文件路径
+python3 scripts/workflow.py fingerprint workflow/tasks/example.yaml implementation
+python3 scripts/workflow.py check workflow/tasks/example.yaml
+```
 
-历史任务 YAML 与报告保留当时证据，不为后续变更改写 passed 或重新计算旧摘要。新任务使用新的记录和开始基准；旧记录缺少新增字段时不能作为当前校验输入，查验历史版本使用对应 Git 提交。
+新增测试不自动扩写测试指南；只有稳定命令或可复用项目知识发生变化，才更新索引对应文档。
+
+## HANDOFF 只服务交接
+
+不要求每个任务创建、刷新或通过 HANDOFF。只有实际暂停/转交/会话接续需要时，从 `workflow/templates/HANDOFF.md` 生成根目录快照，记录任务/Spec 链接、Git 状态、已完成、未完成、决定/阻塞和下一步，不复制完整报告或长期待办。
+快照内只交接一个明确任务；并行子任务由主 Agent 合并到同一接续说明。它不是整个仓库“当前任务”注册表，可能属于先前会话。用户指定任务优先，接手先核对真实代码与目标，不能因为旧快照存在就切换到旧任务。
+
+实际交接时可单独运行：
+
+```bash
+python3 scripts/workflow.py check-handoff workflow/tasks/example.yaml
+```
+
+普通 check 完全不依赖 HANDOFF 是否存在或指向谁；check-handoff 才检查快照段落与目标链接。完成当前任务时不强制制造新快照。
+
+## 边界与升级
+
+工具需要 Git、Python、PyYAML；它检查记录，不拦截宿主工具，也不证明 reviewer 身份、用户授权或模型理解。
+旧记录保留历史原样。新版摘要规则变更后不能机械刷新旧 fingerprint 冒充验证；接续旧任务时核对原验收、实际代码和旧证据，仅对必要影响补验并说明依据，不重开完整 Spec 审批。公司项目若另有 reviewer agent 指令，必须同步本节的阶段/阻塞标准，否则旧指令仍可能制造循环。

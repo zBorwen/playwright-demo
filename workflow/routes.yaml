@@ -75,8 +75,7 @@ intent_docs:
   - DEV_NOTE.md
   quality_audit:
   - QUALITY_REPORT.md
-  resume:
-  - HANDOFF.md
+  resume: []
 project:
   status: ready
   analyzed_commit: e14a7a3543329246d60d999df85d5acdf76a2a48
